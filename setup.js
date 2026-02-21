@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.0.3
+ * Sarah MUSIC 旗舰全功能重构版 9.0.4
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.0.3 (D1 无损重构，封面 URL 化存储解决 SQLITE_TOOBIG)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.0.4 (D1 无损重构，修复歌手名显示异常)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -175,7 +175,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v903';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v904';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -434,7 +434,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.0.3</p>
+            <p class="brand-sub">Premium Music Hub | v9.0.4</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -529,7 +529,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.0.3</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.0.4</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -737,7 +737,7 @@ files['index.html'] = `<!DOCTYPE html>
 
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null;
             const currentId = currentAudio ? new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id') : null;
-            const html = listData.map(s => \`<div data-id="\${s.file_id}" onclick="handleTrackSwitch(\${dbIndexMap.get(s.file_id)}, '\${s.file_id}')" class="song-item group \${s.file_id === currentId ? 'active' : ''}"><img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\text{s.artist}</div></div></div>\`).join('') || '<div class="py-20 text-center opacity-20 font-black text-white/40">列表暂无旋律</div>';
+            const html = listData.map(s => \`<div data-id="\${s.file_id}" onclick="handleTrackSwitch(\${dbIndexMap.get(s.file_id)}, '\${s.file_id}')" class="song-item group \${s.file_id === currentId ? 'active' : ''}"><img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div></div>\`).join('') || '<div class="py-20 text-center opacity-20 font-black text-white/40">列表暂无旋律</div>';
             document.getElementById('list-view').innerHTML = html;
             document.getElementById('m-list-view').innerHTML = html;
         }
@@ -902,7 +902,7 @@ files['index.html'] = `<!DOCTYPE html>
         function openPlaylistSelector(fid) {
             document.getElementById('playlist-selector-list').innerHTML = libState.playlists.map(pl => {
                 const ex = pl.ids.includes(fid);
-                return \`<div onclick="addToPlaylist('\${pl.id}', '\${fid}')" class="p-4 bg-white/5 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/10 \${ex?'opacity-30':''}"><span>\${pl.name}</span>\${ex?'<span class="text-[10px]">已在</span>':'+'}</div>\`;
+                return \`<div onclick="addToPlaylist('\${pl.id}', '\${fid}')" class="p-4 bg-white/5 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/10 \text{ex?'opacity-30':''}"><span>\${pl.name}</span>\${ex?'<span class="text-[10px]">已在</span>':'+'}</div>\`;
             }).join('');
             document.getElementById('playlist-selector-modal').classList.remove('hidden'); document.getElementById('playlist-selector-modal').classList.add('flex');
         }
@@ -922,7 +922,7 @@ files['index.html'] = `<!DOCTYPE html>
                 jsmediatags.read(f, { onSuccess: (t) => {
                     const { title, artist, picture, lyrics } = t.tags; let blob = null;
                     if (picture) { const { data, format } = picture; blob = new Blob([new Uint8Array(data)], { type: format }); }
-                    tempMetaMap.set(f.name, { title: title || f.name.replace(/\\.[^/.]+$/, ""), artist: artist || "未知", coverBlob: blob, lrc: lyrics?.lyrics || "" });
+                    tempMetaMap.set(f.name, { title: title || f.name.replace(/\.[^/.]+$/, ""), artist: artist || "未知", coverBlob: blob, lrc: lyrics?.lyrics || "" });
                 }});
             });
         }
@@ -983,7 +983,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (9.0.3 D1 无损旗舰版)---');
+    console.log('\n---正在同步至 GitHub (9.0.4 D1 无损旗舰版)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -991,6 +991,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.0.3 构建成功。封面已改为由 Telegram 托管并以 URL 形式存储，彻底根治 SQLITE_TOOBIG。');
+        console.log('\n✅ Sarah MUSIC 9.0.4 构建成功。封面已改为由 Telegram 托管并以 URL 形式存储，彻底根治 SQLITE_TOOBIG。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
