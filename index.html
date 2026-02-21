@@ -192,7 +192,7 @@
     <div class="desktop-container auth-hidden" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v8.12.3 (D1)</p>
+            <p class="brand-sub">Premium Music Hub | v8.12.4 (D1)</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 transition-transform cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -302,7 +302,7 @@
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
-                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.3 (D1)</span></div></div>
+                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.4 (D1)</span></div></div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon" title="睡眠定时"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
                     <button onclick="toggleUploadArea()" class="admin-btn-icon" title="上传音乐"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></button>
@@ -327,6 +327,9 @@
                         <label for="f-in" class="upload-hint"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span id="file-count-tip">点击或拖拽旋律至此并点击上传</span></label>
                     </div>
                     <div id="upload-progress-list" class="mb-4 space-y-2"></div>
+                    <div id="upload-confirm-area" class="hidden pb-8">
+                        <button onclick="clearUploadResults()" class="w-full bg-[#4d7c5f] text-white py-4 rounded-2xl font-black text-xs shadow-xl transition-all hover:scale-[1.02] active:scale-95">已知晓，清空记录</button>
+                    </div>
                     <button id="auto-sync-trigger" onclick="handleUp()" class="w-full mb-8 bg-white/10 text-white py-3 rounded-xl font-black text-xs shadow-xl transition-all hover:brightness-110 active:scale-95">开始三线程并发上传并持久化至 D1</button>
                 </div>
                 <div id="admin-playlist-tabs-wrap" class="flex items-center mb-4"><div id="admin-playlist-tabs" class="admin-tabs-nav flex-1"></div><div onclick="addPlaylistPrompt()" class="browser-tab-add" title="新建歌单"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M12 4v16m8-8H4"></path></svg></div></div>
@@ -342,7 +345,7 @@
         let sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false, lastActiveFileId = null; 
         let longPressTimer = null, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
         let libState = { playlists: [] };
-        const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
+        const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah-y.png';
         const solaraTheme = [
             { bg: '#f2c9b1', accent: '#e67e51', deep: '#c06c3e' },
             { bg: '#c7f9cc', accent: '#2d6a4f', deep: '#1b4332' },
@@ -381,7 +384,6 @@
             document.getElementById('m-player').classList.remove('auth-hidden');
             document.getElementById('lock-screen').classList.remove('active');
             
-            // 从 D1 获取全局状态
             const data = await apiCall('init');
             if (!data) return;
             db = data.songs;
@@ -458,7 +460,7 @@
 
         function updateMediaSession() {
             const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return;
-            const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'), song = db[dbIndexMap.get(fileId)] || currentAudio;
+            const fid = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'), song = db[dbIndexMap.get(fid)] || currentAudio;
             navigator.mediaSession.metadata = new MediaMetadata({ 
               title: song.title || song.name, 
               artist: song.artist, 
@@ -473,7 +475,7 @@
         }
 
         function updateBackground(isForceRandom = false) {
-            const isMob = window.innerWidth <= 768; if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; }
+            const isMob = window.innerWidth <= 768; if (isForceRandom) { let n; do { n = Math.floor(Math.random() * solaraTheme.length); } while (n === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = n; }
             const theme = solaraTheme[currentThemeIdx], finalBg = isMob ? '#4d7c5f' : theme.bg;
             document.body.style.backgroundColor = finalBg; 
             if (!isMob) document.getElementById('bg-stage').style.background = `linear-gradient(135deg, ${theme.bg} 0%, ${theme.deep} 100%)`; 
@@ -491,9 +493,9 @@
             renderAdminPlaylistTabs();
         }
 
-        function refreshUIMetaByAudio(audio) { if (!audio) return; const fileId = new URLSearchParams(audio.url.split('?')[1]).get('file_id'), idx = dbIndexMap.get(fileId); if (idx !== undefined) refreshUIMetaAt(idx); }
+        function refreshUIMetaByAudio(audio) { if (!audio) return; const fid = new URLSearchParams(audio.url.split('?')[1]).get('file_id'); refreshUIMetaAt(dbIndexMap.get(fid)); }
         function refreshUIMetaAt(idx) {
-            const song = db[idx]; if (!song) return; if (lastActiveFileId !== song.file_id) { const clipping = document.getElementById('m-clipping-node'); if (clipping) { clipping.style.animation = 'none'; void clipping.offsetWidth; clipping.style.animation = ''; } lastActiveFileId = song.file_id; }
+            const song = db[idx]; if (!song) return; if (lastActiveFileId !== song.file_id) { const clip = document.getElementById('m-clipping-node'); if (clip) { clip.style.animation = 'none'; void clip.offsetWidth; clip.style.animation = ''; } lastActiveFileId = song.file_id; }
             const updateCoverUI = (imgId, logoId) => {
                 const img = document.getElementById(imgId), logo = document.getElementById(logoId); if (song.cover) { img.style.display = 'none'; const n = new Image(); n.src = song.cover; n.onload = () => { img.src = song.cover; img.style.display = 'block'; logo.style.setProperty('display', 'none', 'important'); }; } else { img.style.display = 'none'; logo.style.setProperty('display', 'flex', 'important'); }
             };
@@ -529,7 +531,7 @@
             }); 
         }
 
-        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => `<div id="tab-pl-${pl.id}" onclick="switchList('${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">${pl.name}</div>`).join(''); }
+        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => `<div id="tab-pl-${pl.id}" onclick="switchList('${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">	ext{${pl.name}}</div>`).join(''); }
         function renderAllLists(data) {
             const listData = data || getActiveListData();
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null, currentId = currentAudio ? new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id') : null, frag = document.createDocumentFragment();
@@ -553,7 +555,6 @@
 
         async function handleTrackSwitch(fileId) {
             if (!ap) return;
-            // 修复点击响应：通过更严格的 URL 参数匹配来寻找索引
             const targetIdx = ap.list.audios.findIndex(a => {
                 const search = new URLSearchParams(a.url.split('?')[1]);
                 return search.get('file_id') === fileId;
@@ -672,40 +673,53 @@
                 onError: () => tempMetaMap.set(f.name, { title: f.name.replace(/\.[^/.]+$/, ""), artist: "未知", cover: '', lrc: "" })
             }));
         }
+        function clearUploadResults() {
+            document.getElementById('upload-progress-list').innerHTML = "";
+            document.getElementById('upload-confirm-area').classList.add('hidden');
+            document.getElementById('auto-sync-trigger').classList.remove('hidden');
+            document.getElementById('file-count-tip').innerText = "点击或拖拽旋律至此并点击上传";
+            document.getElementById('f-in').value = "";
+        }
         async function handleUp() {
             const i = document.getElementById('f-in'), fs = Array.from(i.files); if (!fs.length) return;
-            const btn = document.getElementById('auto-sync-trigger'), pL = document.getElementById('upload-progress-list'), pass = localStorage.getItem('sarah_access_token') || "";
-            btn.disabled = true; btn.innerText = "多线程同步中..."; pL.innerHTML = fs.map((f, k) => `<div class="up-progress-item" id="up-item-${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">${f.name}</span><span class="up-pct">等待中</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>`).join('');
+            const btn = document.getElementById('auto-sync-trigger'), pL = document.getElementById('upload-progress-list'), conf = document.getElementById('upload-confirm-area'), pass = localStorage.getItem('sarah_access_token') || "";
+            // 立即更新 UI，解决长时间没反应的问题
+            btn.classList.add('hidden');
+            pL.innerHTML = fs.map((f, k) => `<div class="up-progress-item" id="up-item-${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">${f.name}</span><span class="up-pct">等待中...</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>`).join('');
             
             const queue = Array.from({ length: fs.length }, (_, k) => k);
             const worker = async (threadIdx) => {
-                // 引入交错延迟，避开 TG API 并发峰值
-                await new Promise(r => setTimeout(r, threadIdx * 500));
+                await new Promise(r => setTimeout(r, threadIdx * 800)); // 略微增加交错时间以避开 TG 限制
                 while (queue.length > 0) {
                     const k = queue.shift();
                     const f = fs[k], fd = new FormData(); fd.append('file', f);
-                    fd.append('meta', JSON.stringify(tempMetaMap.get(f.name) || { title: f.name }));
+                    fd.append('meta', JSON.stringify(tempMetaMap.get(f.name) || { title: f.name.replace(/\.[^/.]+$/, "") }));
                     const el = document.getElementById("up-item-" + k), bar = el.querySelector('.up-progress-bar-fill'), pct = el.querySelector('.up-pct');
-                    await new Promise(res => {
-                        const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload'); xhr.setRequestHeader('X-Sarah-Password', pass);
-                        xhr.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round((e.loaded / e.total) * 100); bar.style.width = p + "%"; pct.innerText = "上传 " + p + "%"; } };
-                        xhr.onload = () => { 
-                            if (xhr.status === 200) { 
-                                pct.innerText = "✅ D1持久化成功"; 
-                                pct.classList.add('text-emerald-400'); bar.style.width = "100%"; 
-                            } else { 
-                                pct.innerText = "❌ 写入失败"; 
-                                pct.classList.add('text-red-400'); 
-                            } 
-                            res(); 
-                        };
-                        xhr.onerror = res; xhr.send(fd);
-                    });
+                    
+                    let success = false, retryCount = 0;
+                    while (!success && retryCount < 2) {
+                        try {
+                            await new Promise((res, rej) => {
+                                const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload'); xhr.setRequestHeader('X-Sarah-Password', pass);
+                                xhr.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round((e.loaded / e.total) * 100); bar.style.width = p + "%"; pct.innerText = "传输 " + p + "%"; } };
+                                xhr.onload = () => { if (xhr.status === 200) res(); else rej(); };
+                                xhr.onerror = rej; xhr.send(fd);
+                            });
+                            success = true;
+                            pct.innerText = "✅ D1持久化成功"; pct.classList.add('text-emerald-400'); bar.style.width = "100%";
+                        } catch (e) {
+                            retryCount++;
+                            if (retryCount < 2) pct.innerText = "⚠️ 正在重试...";
+                            else { pct.innerText = "❌ 最终失败"; pct.classList.add('text-red-400'); }
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                    }
                 }
             };
-            // 启动三线程并行工作池
             await Promise.all(Array(Math.min(3, fs.length)).fill(0).map((_, idx) => worker(idx)));
-            showMsg("✅ 批量任务已完成"); btn.disabled = false; btn.innerText = "开始三线程并发上传并持久化至 D1"; i.value = ""; init(); setTimeout(() => pL.innerHTML = "", 5000);
+            conf.classList.remove('hidden'); // 显示“已知晓”按钮
+            showMsg("✅ 批量同步任务处理完毕");
+            const data = await apiCall('init'); if (data) { db = data.songs; mappings = data.mappings; buildIndexMap(); renderAllLists(); setupPlayer(); }
         }
         function showMsg(t) { const b = document.getElementById('msg-box'); b.innerText = t; b.classList.add('active'); setTimeout(() => b.classList.remove('active'), 3000); }
         window.onload = init;

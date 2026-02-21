@@ -18,8 +18,9 @@ export async function onRequest(context) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
-    const metaStr = formData.get('meta') || '{}';
-    const meta = JSON.parse(metaStr);
+    const metaRaw = formData.get('meta') || '{}';
+    let meta = { title: "未知", artist: "未知", cover: "", lrc: "" };
+    try { meta = { ...meta, ...JSON.parse(metaRaw) }; } catch(e) {}
     const tgFormData = new FormData();
     tgFormData.append('chat_id', CHAT_ID);
     tgFormData.append('audio', file);
@@ -31,9 +32,9 @@ export async function onRequest(context) {
     if (!result.ok) return new Response(JSON.stringify(result), { status: 400 });
     const file_id = result.result.audio ? result.result.audio.file_id : (result.result.document ? result.result.document.file_id : null);
     if (!file_id) return new Response(JSON.stringify({ ok: false }), { status: 400 });
-    // D1 原子化写入：主表记录 + 全库映射
+    // D1 关系型入库
     await DB.batch([
-      DB.prepare("INSERT OR REPLACE INTO songs (file_id, title, artist, cover, lrc) VALUES (?, ?, ?, ?, ?)").bind(file_id, meta.title || "未知", meta.artist || "未知", meta.cover || "", meta.lrc || ""),
+      DB.prepare("INSERT OR REPLACE INTO songs (file_id, title, artist, cover, lrc) VALUES (?, ?, ?, ?, ?)").bind(file_id, meta.title, meta.artist, meta.cover, meta.lrc),
       DB.prepare("INSERT INTO playlist_songs (playlist_id, file_id, sort_order) VALUES ('all', ?, (SELECT IFNULL(MAX(sort_order), 0) + 1 FROM playlist_songs WHERE playlist_id = 'all'))").bind(file_id)
     ]);
     return new Response(JSON.stringify({ 

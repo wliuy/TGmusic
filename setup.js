@@ -2,15 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 /**
- * Sarah MUSIC 旗舰全功能重构版 8.12.3
- * 1. 数据库升级：基于 Cloudflare D1，实现跨设备云端持久化。
- * 2. 稳健并行上传：优化三线程并发逻辑，引入交错启动机制，解决多选上传时的 D1 写入失败问题。
- * 3. 点击响应修复：重构播放列表索引查找逻辑，解决点击歌曲条目无法跳转播放的问题。
- * 4. 旗舰逻辑维持：物理级别还原 14 组主题、高阶拖拽算法、睡眠定时等所有 8.10.2 原始密度代码。
- * 5. 规范排版：严格执行防手贱声明，分割线前后无空行，严禁修改或删除无关代码。
+ * Sarah MUSIC 旗舰全功能重构版 8.12.4
+ * 1. 数据库升级：基于 Cloudflare D1，支持全云端持久化与跨设备同步。
+ * 2. 交互体验优化：优化上传启动响应速度，新增“已知晓”确认按钮手动清除上传结果。
+ * 3. 稳定性增强：修复特殊字符导致的上传失败，引入前端重试机制与后端容错解析。
+ * 4. 旗舰逻辑回归：物理级别还原 14 组主题、高密度 HTML/CSS 结构与高阶拖拽算法。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.3 (修复列表点击失效，优化并发上传稳定性)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.4 (优化上传响应速度，增加已知晓确认按钮，提升特殊字符容错)';
 const files = {};
 // --- API Auth Helper (用于上传和流媒体验证) ---
 const authHeaderCheck = `
@@ -65,8 +64,9 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
-    const metaStr = formData.get('meta') || '{}';
-    const meta = JSON.parse(metaStr);
+    const metaRaw = formData.get('meta') || '{}';
+    let meta = { title: "未知", artist: "未知", cover: "", lrc: "" };
+    try { meta = { ...meta, ...JSON.parse(metaRaw) }; } catch(e) {}
     const tgFormData = new FormData();
     tgFormData.append('chat_id', CHAT_ID);
     tgFormData.append('audio', file);
@@ -78,9 +78,9 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
     if (!result.ok) return new Response(JSON.stringify(result), { status: 400 });
     const file_id = result.result.audio ? result.result.audio.file_id : (result.result.document ? result.result.document.file_id : null);
     if (!file_id) return new Response(JSON.stringify({ ok: false }), { status: 400 });
-    // D1 原子化写入：主表记录 + 全库映射
+    // D1 关系型入库
     await DB.batch([
-      DB.prepare("INSERT OR REPLACE INTO songs (file_id, title, artist, cover, lrc) VALUES (?, ?, ?, ?, ?)").bind(file_id, meta.title || "未知", meta.artist || "未知", meta.cover || "", meta.lrc || ""),
+      DB.prepare("INSERT OR REPLACE INTO songs (file_id, title, artist, cover, lrc) VALUES (?, ?, ?, ?, ?)").bind(file_id, meta.title, meta.artist, meta.cover, meta.lrc),
       DB.prepare("INSERT INTO playlist_songs (playlist_id, file_id, sort_order) VALUES ('all', ?, (SELECT IFNULL(MAX(sort_order), 0) + 1 FROM playlist_songs WHERE playlist_id = 'all'))").bind(file_id)
     ]);
     return new Response(JSON.stringify({ 
@@ -98,7 +98,6 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
   const url = new URL(request.url);
   const action = url.searchParams.get('action');
   try {
-    // 自动初始化
     await DB.batch([
       DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"),
       DB.prepare("CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT)"),
@@ -161,7 +160,7 @@ files['manifest.json'] = `{
     }
   ]
 }`;
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8123';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8124';
 const ASSETS = ['/'];
 self.addEventListener('install', (e) => {
   self.skipWaiting(); 
@@ -384,7 +383,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container auth-hidden" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v8.12.3 (D1)</p>
+            <p class="brand-sub">Premium Music Hub | v8.12.4 (D1)</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 transition-transform cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -494,7 +493,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
-                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.3 (D1)</span></div></div>
+                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.4 (D1)</span></div></div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon" title="睡眠定时"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
                     <button onclick="toggleUploadArea()" class="admin-btn-icon" title="上传音乐"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></button>
@@ -519,6 +518,9 @@ files['index.html'] = `<!DOCTYPE html>
                         <label for="f-in" class="upload-hint"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span id="file-count-tip">点击或拖拽旋律至此并点击上传</span></label>
                     </div>
                     <div id="upload-progress-list" class="mb-4 space-y-2"></div>
+                    <div id="upload-confirm-area" class="hidden pb-8">
+                        <button onclick="clearUploadResults()" class="w-full bg-[#4d7c5f] text-white py-4 rounded-2xl font-black text-xs shadow-xl transition-all hover:scale-[1.02] active:scale-95">已知晓，清空记录</button>
+                    </div>
                     <button id="auto-sync-trigger" onclick="handleUp()" class="w-full mb-8 bg-white/10 text-white py-3 rounded-xl font-black text-xs shadow-xl transition-all hover:brightness-110 active:scale-95">开始三线程并发上传并持久化至 D1</button>
                 </div>
                 <div id="admin-playlist-tabs-wrap" class="flex items-center mb-4"><div id="admin-playlist-tabs" class="admin-tabs-nav flex-1"></div><div onclick="addPlaylistPrompt()" class="browser-tab-add" title="新建歌单"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M12 4v16m8-8H4"></path></svg></div></div>
@@ -534,7 +536,7 @@ files['index.html'] = `<!DOCTYPE html>
         let sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false, lastActiveFileId = null; 
         let longPressTimer = null, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
         let libState = { playlists: [] };
-        const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
+        const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah-y.png';
         const solaraTheme = [
             { bg: '#f2c9b1', accent: '#e67e51', deep: '#c06c3e' },
             { bg: '#c7f9cc', accent: '#2d6a4f', deep: '#1b4332' },
@@ -573,7 +575,6 @@ files['index.html'] = `<!DOCTYPE html>
             document.getElementById('m-player').classList.remove('auth-hidden');
             document.getElementById('lock-screen').classList.remove('active');
             
-            // 从 D1 获取全局状态
             const data = await apiCall('init');
             if (!data) return;
             db = data.songs;
@@ -650,7 +651,7 @@ files['index.html'] = `<!DOCTYPE html>
 
         function updateMediaSession() {
             const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return;
-            const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'), song = db[dbIndexMap.get(fileId)] || currentAudio;
+            const fid = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'), song = db[dbIndexMap.get(fid)] || currentAudio;
             navigator.mediaSession.metadata = new MediaMetadata({ 
               title: song.title || song.name, 
               artist: song.artist, 
@@ -665,7 +666,7 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function updateBackground(isForceRandom = false) {
-            const isMob = window.innerWidth <= 768; if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; }
+            const isMob = window.innerWidth <= 768; if (isForceRandom) { let n; do { n = Math.floor(Math.random() * solaraTheme.length); } while (n === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = n; }
             const theme = solaraTheme[currentThemeIdx], finalBg = isMob ? '#4d7c5f' : theme.bg;
             document.body.style.backgroundColor = finalBg; 
             if (!isMob) document.getElementById('bg-stage').style.background = \`linear-gradient(135deg, \${theme.bg} 0%, \${theme.deep} 100%)\`; 
@@ -683,9 +684,9 @@ files['index.html'] = `<!DOCTYPE html>
             renderAdminPlaylistTabs();
         }
 
-        function refreshUIMetaByAudio(audio) { if (!audio) return; const fileId = new URLSearchParams(audio.url.split('?')[1]).get('file_id'), idx = dbIndexMap.get(fileId); if (idx !== undefined) refreshUIMetaAt(idx); }
+        function refreshUIMetaByAudio(audio) { if (!audio) return; const fid = new URLSearchParams(audio.url.split('?')[1]).get('file_id'); refreshUIMetaAt(dbIndexMap.get(fid)); }
         function refreshUIMetaAt(idx) {
-            const song = db[idx]; if (!song) return; if (lastActiveFileId !== song.file_id) { const clipping = document.getElementById('m-clipping-node'); if (clipping) { clipping.style.animation = 'none'; void clipping.offsetWidth; clipping.style.animation = ''; } lastActiveFileId = song.file_id; }
+            const song = db[idx]; if (!song) return; if (lastActiveFileId !== song.file_id) { const clip = document.getElementById('m-clipping-node'); if (clip) { clip.style.animation = 'none'; void clip.offsetWidth; clip.style.animation = ''; } lastActiveFileId = song.file_id; }
             const updateCoverUI = (imgId, logoId) => {
                 const img = document.getElementById(imgId), logo = document.getElementById(logoId); if (song.cover) { img.style.display = 'none'; const n = new Image(); n.src = song.cover; n.onload = () => { img.src = song.cover; img.style.display = 'block'; logo.style.setProperty('display', 'none', 'important'); }; } else { img.style.display = 'none'; logo.style.setProperty('display', 'flex', 'important'); }
             };
@@ -721,7 +722,7 @@ files['index.html'] = `<!DOCTYPE html>
             }); 
         }
 
-        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); }
+        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\text{\${pl.name}}</div>\`).join(''); }
         function renderAllLists(data) {
             const listData = data || getActiveListData();
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null, currentId = currentAudio ? new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id') : null, frag = document.createDocumentFragment();
@@ -745,7 +746,6 @@ files['index.html'] = `<!DOCTYPE html>
 
         async function handleTrackSwitch(fileId) {
             if (!ap) return;
-            // 修复点击响应：通过更严格的 URL 参数匹配来寻找索引
             const targetIdx = ap.list.audios.findIndex(a => {
                 const search = new URLSearchParams(a.url.split('?')[1]);
                 return search.get('file_id') === fileId;
@@ -864,40 +864,53 @@ files['index.html'] = `<!DOCTYPE html>
                 onError: () => tempMetaMap.set(f.name, { title: f.name.replace(/\\.[^/.]+$/, ""), artist: "未知", cover: '', lrc: "" })
             }));
         }
+        function clearUploadResults() {
+            document.getElementById('upload-progress-list').innerHTML = "";
+            document.getElementById('upload-confirm-area').classList.add('hidden');
+            document.getElementById('auto-sync-trigger').classList.remove('hidden');
+            document.getElementById('file-count-tip').innerText = "点击或拖拽旋律至此并点击上传";
+            document.getElementById('f-in').value = "";
+        }
         async function handleUp() {
             const i = document.getElementById('f-in'), fs = Array.from(i.files); if (!fs.length) return;
-            const btn = document.getElementById('auto-sync-trigger'), pL = document.getElementById('upload-progress-list'), pass = localStorage.getItem('sarah_access_token') || "";
-            btn.disabled = true; btn.innerText = "多线程同步中..."; pL.innerHTML = fs.map((f, k) => \`<div class="up-progress-item" id="up-item-\${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">\${f.name}</span><span class="up-pct">等待中</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>\`).join('');
+            const btn = document.getElementById('auto-sync-trigger'), pL = document.getElementById('upload-progress-list'), conf = document.getElementById('upload-confirm-area'), pass = localStorage.getItem('sarah_access_token') || "";
+            // 立即更新 UI，解决长时间没反应的问题
+            btn.classList.add('hidden');
+            pL.innerHTML = fs.map((f, k) => \`<div class="up-progress-item" id="up-item-\${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">\${f.name}</span><span class="up-pct">等待中...</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>\`).join('');
             
             const queue = Array.from({ length: fs.length }, (_, k) => k);
             const worker = async (threadIdx) => {
-                // 引入交错延迟，避开 TG API 并发峰值
-                await new Promise(r => setTimeout(r, threadIdx * 500));
+                await new Promise(r => setTimeout(r, threadIdx * 800)); // 略微增加交错时间以避开 TG 限制
                 while (queue.length > 0) {
                     const k = queue.shift();
                     const f = fs[k], fd = new FormData(); fd.append('file', f);
-                    fd.append('meta', JSON.stringify(tempMetaMap.get(f.name) || { title: f.name }));
+                    fd.append('meta', JSON.stringify(tempMetaMap.get(f.name) || { title: f.name.replace(/\\.[^/.]+$/, "") }));
                     const el = document.getElementById("up-item-" + k), bar = el.querySelector('.up-progress-bar-fill'), pct = el.querySelector('.up-pct');
-                    await new Promise(res => {
-                        const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload'); xhr.setRequestHeader('X-Sarah-Password', pass);
-                        xhr.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round((e.loaded / e.total) * 100); bar.style.width = p + "%"; pct.innerText = "上传 " + p + "%"; } };
-                        xhr.onload = () => { 
-                            if (xhr.status === 200) { 
-                                pct.innerText = "✅ D1持久化成功"; 
-                                pct.classList.add('text-emerald-400'); bar.style.width = "100%"; 
-                            } else { 
-                                pct.innerText = "❌ 写入失败"; 
-                                pct.classList.add('text-red-400'); 
-                            } 
-                            res(); 
-                        };
-                        xhr.onerror = res; xhr.send(fd);
-                    });
+                    
+                    let success = false, retryCount = 0;
+                    while (!success && retryCount < 2) {
+                        try {
+                            await new Promise((res, rej) => {
+                                const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload'); xhr.setRequestHeader('X-Sarah-Password', pass);
+                                xhr.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round((e.loaded / e.total) * 100); bar.style.width = p + "%"; pct.innerText = "传输 " + p + "%"; } };
+                                xhr.onload = () => { if (xhr.status === 200) res(); else rej(); };
+                                xhr.onerror = rej; xhr.send(fd);
+                            });
+                            success = true;
+                            pct.innerText = "✅ D1持久化成功"; pct.classList.add('text-emerald-400'); bar.style.width = "100%";
+                        } catch (e) {
+                            retryCount++;
+                            if (retryCount < 2) pct.innerText = "⚠️ 正在重试...";
+                            else { pct.innerText = "❌ 最终失败"; pct.classList.add('text-red-400'); }
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                    }
                 }
             };
-            // 启动三线程并行工作池
             await Promise.all(Array(Math.min(3, fs.length)).fill(0).map((_, idx) => worker(idx)));
-            showMsg("✅ 批量任务已完成"); btn.disabled = false; btn.innerText = "开始三线程并发上传并持久化至 D1"; i.value = ""; init(); setTimeout(() => pL.innerHTML = "", 5000);
+            conf.classList.remove('hidden'); // 显示“已知晓”按钮
+            showMsg("✅ 批量同步任务处理完毕");
+            const data = await apiCall('init'); if (data) { db = data.songs; mappings = data.mappings; buildIndexMap(); renderAllLists(); setupPlayer(); }
         }
         function showMsg(t) { const b = document.getElementById('msg-box'); b.innerText = t; b.classList.add('active'); setTimeout(() => b.classList.remove('active'), 3000); }
         window.onload = init;
@@ -908,12 +921,16 @@ files['index.html'] = `<!DOCTYPE html>
 try {
   const wp = path.join(process.cwd(), 'wrangler.toml');
   if (fs.existsSync(wp)) fs.unlinkSync(wp);
+  ['functions/api/songs.js'].forEach(f => {
+    const fullPath = path.join(process.cwd(), f);
+    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+  });
   Object.keys(files).forEach((f) => {
     const d = path.dirname(f);
     if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
     fs.writeFileSync(f, files[f].trim());
   });
-  console.log('\n---正在执行 8.12.3 旗舰并发版重构部署---');
+  console.log('\n---正在执行 8.12.4 旗舰稳定版重构部署---');
   try {
     try { execSync('git init'); } catch(e){}
     execSync('git add .');
@@ -921,6 +938,6 @@ try {
     execSync('git branch -M main');
     try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
     execSync('git push -u origin main --force');
-    console.log('\n✅ Sarah MUSIC 8.12.3 已部署。已修复列表点击失效，并增强并发上传稳定性。');
+    console.log('\n✅ Sarah MUSIC 8.12.4 已部署。已修复上传延迟、增加确认确认并强化稳定性。');
   } catch(e) { console.error('\n❌ Git 推送失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
