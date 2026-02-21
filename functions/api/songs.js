@@ -1,27 +1,10 @@
 export async function onRequest(context) {
-  const { request, env } = context;
-  
-  const PASS = env.PASSWORD;
-  if (PASS) {
-    const auth = request.headers.get('X-Sarah-Password');
-    if (auth !== PASS) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { 
-        status: 401, 
-        headers: { 'Content-Type': 'application/json' } 
-      });
-    }
-  }
-
+  const { env } = context;
   try {
-    const stored = env.MUSIC_KV ? await env.MUSIC_KV.get('song_list') : "[]";
-    return new Response(stored, { 
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'no-store, no-cache, must-revalidate'
-      } 
-    });
+    const result = await env.DB.prepare("SELECT value FROM storage WHERE key = 'song_list'").first();
+    const stored = result ? result.value : '{"songs":[], "favorites":[], "playlists":[]}';
+    return new Response(stored, { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
   } catch (err) { 
-    return new Response("[]", { status: 500 }); 
+    return new Response('{"songs":[], "favorites":[], "playlists":[]}', { status: 200, headers: { 'Content-Type': 'application/json' } }); 
   }
 }
