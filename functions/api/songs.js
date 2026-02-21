@@ -12,14 +12,16 @@ export async function onRequest(context) {
     }
   }
 
-  if (request.method !== 'POST') return new Response("Bad Method", { status: 405 });
   try {
-    const payload = await request.json();
-    await env.MUSIC_KV.put('song_list', JSON.stringify(payload.data || payload));
-    return new Response(JSON.stringify({ success: true }), { 
-      headers: { 'Content-Type': 'application/json' } 
+    const stored = env.MUSIC_KV ? await env.MUSIC_KV.get('song_list') : "[]";
+    return new Response(stored, { 
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store, no-cache, must-revalidate'
+      } 
     });
   } catch (err) { 
-    return new Response(err.message, { status: 500 }); 
+    return new Response("[]", { status: 500 }); 
   }
 }
