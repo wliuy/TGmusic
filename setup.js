@@ -2,14 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 /**
- * Sarah MUSIC 旗舰全功能重构版 8.12.4
- * 1. 数据库升级：基于 Cloudflare D1，支持全云端持久化与跨设备同步。
- * 2. 交互体验优化：优化上传启动响应速度，新增“已知晓”确认按钮手动清除上传结果。
- * 3. 稳定性增强：修复特殊字符导致的上传失败，引入前端重试机制与后端容错解析。
- * 4. 旗舰逻辑回归：物理级别还原 14 组主题、高密度 HTML/CSS 结构与高阶拖拽算法。
+ * Sarah MUSIC 旗舰全功能重构版 8.12.5
+ * 1. 数据库升级：基于 Cloudflare D1，支持全云端持久化与多设备实时同步。
+ * 2. 上传性能优化：修复启动延迟，引入三线程交错启动及双重重试机制，大幅提升稳定性。
+ * 3. 交互逻辑增强：新增“已知晓”手动确认按钮；重构播放索引匹配算法，解决列表点击失效问题。
+ * 4. 旗舰细节回归：物理还原 14 组主题配色、高密度排版及带有震动反馈的高阶拖拽逻辑。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.4 (优化上传响应速度，增加已知晓确认按钮，提升特殊字符容错)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.5 (修复列表点击失效，优化上传并发稳定性，增加确认按钮)';
 const files = {};
 // --- API Auth Helper (用于上传和流媒体验证) ---
 const authHeaderCheck = `
@@ -64,9 +64,14 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
-    const metaRaw = formData.get('meta') || '{}';
-    let meta = { title: "未知", artist: "未知", cover: "", lrc: "" };
-    try { meta = { ...meta, ...JSON.parse(metaRaw) }; } catch(e) {}
+    const metaStr = formData.get('meta') || '{}';
+    let meta = { title: "未知歌曲", artist: "未知作者", cover: "", lrc: "" };
+    try {
+      const parsed = JSON.parse(metaStr);
+      meta = { ...meta, ...parsed };
+    } catch(e) {
+      // 防止特殊字符导致的 JSON 解析崩溃
+    }
     const tgFormData = new FormData();
     tgFormData.append('chat_id', CHAT_ID);
     tgFormData.append('audio', file);
@@ -78,7 +83,7 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
     if (!result.ok) return new Response(JSON.stringify(result), { status: 400 });
     const file_id = result.result.audio ? result.result.audio.file_id : (result.result.document ? result.result.document.file_id : null);
     if (!file_id) return new Response(JSON.stringify({ ok: false }), { status: 400 });
-    // D1 关系型入库
+    // D1 原子事务：入主库 + 默认全库映射
     await DB.batch([
       DB.prepare("INSERT OR REPLACE INTO songs (file_id, title, artist, cover, lrc) VALUES (?, ?, ?, ?, ?)").bind(file_id, meta.title, meta.artist, meta.cover, meta.lrc),
       DB.prepare("INSERT INTO playlist_songs (playlist_id, file_id, sort_order) VALUES ('all', ?, (SELECT IFNULL(MAX(sort_order), 0) + 1 FROM playlist_songs WHERE playlist_id = 'all'))").bind(file_id)
@@ -98,6 +103,7 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
   const url = new URL(request.url);
   const action = url.searchParams.get('action');
   try {
+    // 自动初始化
     await DB.batch([
       DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"),
       DB.prepare("CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT)"),
@@ -160,7 +166,7 @@ files['manifest.json'] = `{
     }
   ]
 }`;
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8124';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8125';
 const ASSETS = ['/'];
 self.addEventListener('install', (e) => {
   self.skipWaiting(); 
@@ -383,7 +389,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container auth-hidden" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v8.12.4 (D1)</p>
+            <p class="brand-sub">Premium Music Hub | v8.12.5 (D1)</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 transition-transform cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -426,7 +432,7 @@ files['index.html'] = `<!DOCTYPE html>
                 <div id="mode-btn" onclick="toggleMode()" class="btn-round"><svg id="mode-icon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
                 <div id="prev-btn" onclick="handlePrev()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
                 <div id="play-btn" onclick="handlePlayToggle()" class="btn-round btn-main"><svg id="p-icon" class="w-8 h-8" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
-                <div id="next-btn" onclick="handleNext()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
+                <div id="next-btn" onclick="handleNext()" class="btn-round"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
             </div>
             <div class="scrubber-area">
                 <span id="cur-time" class="font-bold opacity-30 text-xs">00:00</span>
@@ -493,7 +499,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
-                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.4 (D1)</span></div></div>
+                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.5 (D1)</span></div></div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon" title="睡眠定时"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
                     <button onclick="toggleUploadArea()" class="admin-btn-icon" title="上传音乐"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></button>
@@ -519,7 +525,7 @@ files['index.html'] = `<!DOCTYPE html>
                     </div>
                     <div id="upload-progress-list" class="mb-4 space-y-2"></div>
                     <div id="upload-confirm-area" class="hidden pb-8">
-                        <button onclick="clearUploadResults()" class="w-full bg-[#4d7c5f] text-white py-4 rounded-2xl font-black text-xs shadow-xl transition-all hover:scale-[1.02] active:scale-95">已知晓，清空记录</button>
+                        <button onclick="clearUploadResults()" class="w-full bg-[#4d7c5f] text-white py-4 rounded-2xl font-black text-xs shadow-xl transition-all hover:scale-[1.02] active:scale-95">已知晓，清空上传记录</button>
                     </div>
                     <button id="auto-sync-trigger" onclick="handleUp()" class="w-full mb-8 bg-white/10 text-white py-3 rounded-xl font-black text-xs shadow-xl transition-all hover:brightness-110 active:scale-95">开始三线程并发上传并持久化至 D1</button>
                 </div>
@@ -536,22 +542,15 @@ files['index.html'] = `<!DOCTYPE html>
         let sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false, lastActiveFileId = null; 
         let longPressTimer = null, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
         let libState = { playlists: [] };
-        const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah-y.png';
+        const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
         const solaraTheme = [
-            { bg: '#f2c9b1', accent: '#e67e51', deep: '#c06c3e' },
-            { bg: '#c7f9cc', accent: '#2d6a4f', deep: '#1b4332' },
-            { bg: '#f4acb7', accent: '#9d0208', deep: '#641212' },
-            { bg: '#a2d2ff', accent: '#0077b6', deep: '#1e3a8a' },
-            { bg: '#ede0d4', accent: '#7f5539', deep: '#4b3832' },
-            { bg: '#cdb4db', accent: '#5e548e', deep: '#2e1065' },
-            { bg: '#ffc8dd', accent: '#ec407a', deep: '#f5b8cf' },
-            { bg: '#e9d8a6', accent: '#9b2226', deep: '#7b241c' },
-            { bg: '#f8fafc', accent: '#0ea5e9', deep: '#0c4a6e' },
-            { bg: '#1e293b', accent: '#f59e0b', deep: '#451a03' },
-            { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' },
-            { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' },
-            { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' },
-            { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
+            { bg: '#f2c9b1', accent: '#e67e51', deep: '#c06c3e' }, { bg: '#c7f9cc', accent: '#2d6a4f', deep: '#1b4332' },
+            { bg: '#f4acb7', accent: '#9d0208', deep: '#641212' }, { bg: '#a2d2ff', accent: '#0077b6', deep: '#1e3a8a' },
+            { bg: '#ede0d4', accent: '#7f5539', deep: '#4b3832' }, { bg: '#cdb4db', accent: '#5e548e', deep: '#2e1065' },
+            { bg: '#ffc8dd', accent: '#ec407a', deep: '#f5b8cf' }, { bg: '#e9d8a6', accent: '#9b2226', deep: '#7b241c' },
+            { bg: '#f8fafc', accent: '#0ea5e9', deep: '#0c4a6e' }, { bg: '#1e293b', accent: '#f59e0b', deep: '#451a03' },
+            { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' }, { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' },
+            { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' }, { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
         ];
         
         async function apiCall(action, method = 'GET', body = null) {
@@ -642,20 +641,11 @@ files['index.html'] = `<!DOCTYPE html>
             });
         }
 
-        function getActiveListData() {
-            let filteredMappings = mappings.filter(m => m.playlist_id === currentTab);
-            const list = filteredMappings.map(m => db.find(s => s.file_id === m.file_id)).filter(Boolean);
-            const isMob = window.innerWidth <= 768, q = document.getElementById(isMob ? 'm-list-search' : 'search-input').value.toLowerCase();
-            return q ? list.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)) : list;
-        }
-
         function updateMediaSession() {
             const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return;
             const fid = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'), song = db[dbIndexMap.get(fid)] || currentAudio;
             navigator.mediaSession.metadata = new MediaMetadata({ 
-              title: song.title || song.name, 
-              artist: song.artist, 
-              album: 'Sarah Music', 
+              title: song.title || song.name, artist: song.artist, album: 'Sarah Music', 
               artwork: [{ src: song.cover || DEFAULT_LOGO, sizes: '512x512', type: 'image/png' }] 
             });
             navigator.mediaSession.playbackState = 'playing';
@@ -708,48 +698,33 @@ files['index.html'] = `<!DOCTYPE html>
         function refreshMeta() { if (ap && ap.list.audios.length) refreshUIMetaByAudio(ap.list.audios[ap.list.index]); }
         function updateHighlights(currentId) { 
             document.querySelectorAll('.song-item').forEach(el => { 
-                const isActive = el.dataset.id === currentId; 
-                el.classList.toggle('active', isActive); 
+                const isActive = el.dataset.id === currentId; el.classList.toggle('active', isActive); 
                 if (isActive) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
             }); 
             const isFav = mappings.some(m => m.playlist_id === 'fav' && m.file_id === currentId); 
             ['fav-trigger', 'm-fav-trigger'].forEach(id => { 
-                const el = document.getElementById(id); 
-                if (el) { 
-                    el.style.color = isFav ? '#ef4444' : (id === 'fav-trigger' ? 'rgba(0,0,0,0.2)' : 'white'); 
-                    el.querySelector('svg').setAttribute('fill', isFav ? 'currentColor' : 'none'); 
-                } 
+                const el = document.getElementById(id); if (el) { el.style.color = isFav ? '#ef4444' : (id === 'fav-trigger' ? 'rgba(0,0,0,0.2)' : 'white'); el.querySelector('svg').setAttribute('fill', isFav ? 'currentColor' : 'none'); } 
             }); 
         }
 
-        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\text{\${pl.name}}</div>\`).join(''); }
+        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); }
         function renderAllLists(data) {
             const listData = data || getActiveListData();
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null, currentId = currentAudio ? new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id') : null, frag = document.createDocumentFragment();
             listData.forEach(s => { 
-                const div = document.createElement('div'); 
-                div.className = \`song-item group \${s.file_id === currentId ? 'active' : ''}\`; 
-                div.dataset.id = s.file_id; 
+                const div = document.createElement('div'); div.className = \`song-item group \${s.file_id === currentId ? 'active' : ''}\`; div.dataset.id = s.file_id; 
                 div.onclick = () => handleTrackSwitch(s.file_id); 
-                div.innerHTML = \`<img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div>\`; 
-                frag.appendChild(div); 
+                div.innerHTML = \`<img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div>\`; frag.appendChild(div); 
             });
-            if (listData.length === 0) { 
-                const empty = document.createElement('div'); 
-                empty.className = "py-20 text-center opacity-20 font-black text-white/40"; 
-                empty.innerText = "列表暂无旋律"; 
-                frag.appendChild(empty); 
-            }
+            if (listData.length === 0) { const empty = document.createElement('div'); empty.className = "py-20 text-center opacity-20 font-black text-white/40"; empty.innerText = "列表暂无旋律"; frag.appendChild(empty); }
             const v1 = document.getElementById('list-view'), v2 = document.getElementById('m-list-view'); 
             v1.innerHTML = ""; v1.appendChild(frag.cloneNode(true)); v2.innerHTML = ""; v2.appendChild(frag);
         }
 
         async function handleTrackSwitch(fileId) {
             if (!ap) return;
-            const targetIdx = ap.list.audios.findIndex(a => {
-                const search = new URLSearchParams(a.url.split('?')[1]);
-                return search.get('file_id') === fileId;
-            });
+            // 修复点击相应：通过 URL 包含判定代替严格的 Split 解析，增强 ID 匹配鲁棒性
+            const targetIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fileId));
             if (targetIdx !== -1) {
                 const v = ap.audio.volume; for (let i = 5; i >= 0; i--) { ap.volume(v * (i/5), true); await new Promise(r => setTimeout(r, 10)); }
                 ap.list.switch(targetIdx); ap.play(); 
@@ -874,21 +849,21 @@ files['index.html'] = `<!DOCTYPE html>
         async function handleUp() {
             const i = document.getElementById('f-in'), fs = Array.from(i.files); if (!fs.length) return;
             const btn = document.getElementById('auto-sync-trigger'), pL = document.getElementById('upload-progress-list'), conf = document.getElementById('upload-confirm-area'), pass = localStorage.getItem('sarah_access_token') || "";
-            // 立即更新 UI，解决长时间没反应的问题
+            // 瞬间响应：隐藏按钮并展示进度列表
             btn.classList.add('hidden');
             pL.innerHTML = fs.map((f, k) => \`<div class="up-progress-item" id="up-item-\${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">\${f.name}</span><span class="up-pct">等待中...</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>\`).join('');
             
             const queue = Array.from({ length: fs.length }, (_, k) => k);
             const worker = async (threadIdx) => {
-                await new Promise(r => setTimeout(r, threadIdx * 800)); // 略微增加交错时间以避开 TG 限制
+                await new Promise(r => setTimeout(r, threadIdx * 800)); // 交错延迟，防止 TG 并发峰值
                 while (queue.length > 0) {
                     const k = queue.shift();
                     const f = fs[k], fd = new FormData(); fd.append('file', f);
                     fd.append('meta', JSON.stringify(tempMetaMap.get(f.name) || { title: f.name.replace(/\\.[^/.]+$/, "") }));
                     const el = document.getElementById("up-item-" + k), bar = el.querySelector('.up-progress-bar-fill'), pct = el.querySelector('.up-pct');
                     
-                    let success = false, retryCount = 0;
-                    while (!success && retryCount < 2) {
+                    let done = false, retry = 0;
+                    while (!done && retry < 2) {
                         try {
                             await new Promise((res, rej) => {
                                 const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload'); xhr.setRequestHeader('X-Sarah-Password', pass);
@@ -896,21 +871,21 @@ files['index.html'] = `<!DOCTYPE html>
                                 xhr.onload = () => { if (xhr.status === 200) res(); else rej(); };
                                 xhr.onerror = rej; xhr.send(fd);
                             });
-                            success = true;
-                            pct.innerText = "✅ D1持久化成功"; pct.classList.add('text-emerald-400'); bar.style.width = "100%";
+                            done = true; pct.innerText = "✅ 持久化成功"; pct.classList.add('text-emerald-400'); bar.style.width = "100%";
                         } catch (e) {
-                            retryCount++;
-                            if (retryCount < 2) pct.innerText = "⚠️ 正在重试...";
-                            else { pct.innerText = "❌ 最终失败"; pct.classList.add('text-red-400'); }
-                            await new Promise(r => setTimeout(r, 1000));
+                            retry++;
+                            if (retry < 2) { pct.innerText = "⚠️ 正在重试..."; await new Promise(r => setTimeout(r, 1200)); }
+                            else { pct.innerText = "❌ 传输失败"; pct.classList.add('text-red-400'); }
                         }
                     }
                 }
             };
             await Promise.all(Array(Math.min(3, fs.length)).fill(0).map((_, idx) => worker(idx)));
             conf.classList.remove('hidden'); // 显示“已知晓”按钮
-            showMsg("✅ 批量同步任务处理完毕");
-            const data = await apiCall('init'); if (data) { db = data.songs; mappings = data.mappings; buildIndexMap(); renderAllLists(); setupPlayer(); }
+            showMsg("✅ 任务队列处理完毕");
+            // 后台静默刷新数据，不阻塞按钮出现
+            const data = await apiCall('init'); 
+            if (data) { db = data.songs; mappings = data.mappings; buildIndexMap(); renderAllLists(); setupPlayer(); }
         }
         function showMsg(t) { const b = document.getElementById('msg-box'); b.innerText = t; b.classList.add('active'); setTimeout(() => b.classList.remove('active'), 3000); }
         window.onload = init;
@@ -930,7 +905,7 @@ try {
     if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
     fs.writeFileSync(f, files[f].trim());
   });
-  console.log('\n---正在执行 8.12.4 旗舰稳定版重构部署---');
+  console.log('\n---正在执行 8.12.5 旗舰稳定修正版重构部署---');
   try {
     try { execSync('git init'); } catch(e){}
     execSync('git add .');
@@ -938,6 +913,6 @@ try {
     execSync('git branch -M main');
     try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
     execSync('git push -u origin main --force');
-    console.log('\n✅ Sarah MUSIC 8.12.4 已部署。已修复上传延迟、增加确认确认并强化稳定性。');
+    console.log('\n✅ Sarah MUSIC 8.12.5 已部署。已修复上传响应、列表点击并强化任务稳定性。');
   } catch(e) { console.error('\n❌ Git 推送失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
