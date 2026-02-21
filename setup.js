@@ -3,15 +3,15 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 8.10.1
- * 1. 渲染性能突破：针对 Base64 图片导致的大体积列表进行异步片段渲染，解决 25+ 歌曲切换与加载卡顿。
- * 2. 根治白屏问题：重构 Service Worker 接管逻辑，引入强制缓存清理与 API 穿透策略。
- * 3. 异步初始化：将 APlayer 设置与数据解析改为非阻塞模式，确保验证界面与主界面衔接瞬间完成。
- * 4. 增强上传队列：并发 3 线程上传增加错误重试监控，所有待上传歌曲状态百分百可见。
- * 5. 规范排版：严格执行防手贱声明，维持 8.9.1 原始逻辑密度，每一行缩进与换行均保持清晰。
+ * Sarah MUSIC 旗舰全功能重构版 8.12.0
+ * 1. 架构精简：完全剔除 KV 数据库依赖与上传逻辑，转为轻量级会话/静态模式。
+ * 2. 移除冗余：清理了后端管理与上传接口，优化了 Function 响应速度。
+ * 3. 逻辑解耦：移除了 saveSync 同步流，操作响应改为纯本地内存更新。
+ * 4. 保持纯正：严格维持 8.10.1 时代的 UI 审美与高性能渲染引擎。
+ * 5. 规范排版：严格执行防手贱声明，每一行缩进与换行均保持清晰。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 8.10.1 (解决大体积数据加载卡顿，优化刷新白屏与并发同步速度)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.0 (移除数据库与上传逻辑，转向会话模式)';
 const files = {};
 
 // --- API Auth Helper ---
@@ -66,12 +66,14 @@ files['functions/api/stream.js'] = `export async function onRequest(context) {
   }
 }`;
 
+// 8.12.0 移除 KV 逻辑，仅返回基础数据结构
 files['functions/api/songs.js'] = `export async function onRequest(context) {
   const { request, env } = context;
   ${authHeaderCheck}
   try {
-    const stored = env.MUSIC_KV ? await env.MUSIC_KV.get('song_list') : "[]";
-    return new Response(stored, { 
+    // 移除数据库读取，返回默认初始状态
+    const defaultData = { songs: [], favorites: [], playlists: [] };
+    return new Response(JSON.stringify(defaultData), { 
       headers: { 
         'Content-Type': 'application/json', 
         'Access-Control-Allow-Origin': '*',
@@ -80,54 +82,6 @@ files['functions/api/songs.js'] = `export async function onRequest(context) {
     });
   } catch (err) { 
     return new Response("[]", { status: 500 }); 
-  }
-}`;
-
-files['functions/api/manage.js'] = `export async function onRequest(context) {
-  const { request, env } = context;
-  ${authHeaderCheck}
-  if (request.method !== 'POST') return new Response("Bad Method", { status: 405 });
-  try {
-    const payload = await request.json();
-    await env.MUSIC_KV.put('song_list', JSON.stringify(payload.data || payload));
-    return new Response(JSON.stringify({ success: true }), { 
-      headers: { 'Content-Type': 'application/json' } 
-    });
-  } catch (err) { 
-    return new Response(err.message, { status: 500 }); 
-  }
-}`;
-
-files['functions/api/upload.js'] = `export async function onRequest(context) {
-  const { request, env } = context;
-  ${authHeaderCheck}
-  const BOT_TOKEN = env.TG_Bot_Token;
-  const CHAT_ID = env.TG_Chat_ID;
-  try {
-    const formData = await request.formData();
-    const file = formData.get('file');
-    const tgFormData = new FormData();
-    tgFormData.append('chat_id', CHAT_ID);
-    tgFormData.append('audio', file);
-    
-    const tgRes = await fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/sendAudio", { 
-      method: 'POST', 
-      body: tgFormData 
-    });
-    const result = await tgRes.json();
-    
-    if (!result.ok) return new Response(JSON.stringify(result), { status: 400 });
-
-    const file_id = result.result.audio ? result.result.audio.file_id : (result.result.document ? result.result.document.file_id : null);
-    
-    if (!file_id) return new Response(JSON.stringify({ ok: false }), { status: 400 });
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      file_id: file_id 
-    }), { headers: { 'Content-Type': 'application/json' } });
-  } catch (err) { 
-    return new Response(err.message, { status: 500 }); 
   }
 }`;
 
@@ -150,7 +104,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8101';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8120';
 const ASSETS = ['/'];
 
 self.addEventListener('install', (e) => {
@@ -175,7 +129,6 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // 核心修复：API 动态请求永远穿透缓存，解决白屏与数据滞后
   if (e.request.url.includes('/api/')) {
     return e.respondWith(fetch(e.request));
   }
@@ -226,17 +179,14 @@ files['index.html'] = `<!DOCTYPE html>
             will-change: background;
         }
 
-        /* 锁屏 UI */
         #lock-screen {
             position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center;
             background: rgba(0,0,0,0.1); backdrop-filter: blur(60px) brightness(0.9); -webkit-backdrop-filter: blur(60px) brightness(0.9);
         }
         #lock-screen.active { display: flex; }
 
-        /* 初始状态隐藏 */
         .auth-hidden { display: none !important; }
 
-        /* 8.10.1 列表切换动画加速 */
         .list-transition {
             opacity: 1;
             transform: translateY(0);
@@ -392,14 +342,6 @@ files['index.html'] = `<!DOCTYPE html>
 
         .admin-content { flex: 1; overflow-y: auto; padding: 30px; }
         
-        /* 进度条 UI */
-        .up-progress-item {
-            background: rgba(255, 255, 255, 0.05); border: 1.2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 14px; padding: 12px 18px; margin-bottom: 8px; backdrop-filter: blur(10px);
-        }
-        .up-progress-bar-bg { width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 10px; margin-top: 8px; overflow: hidden; }
-        .up-progress-bar-fill { height: 100%; background: var(--dynamic-accent); width: 0%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-
         .admin-tabs-nav { display: flex; align-items: flex-end; gap: 4px; overflow-x: auto; margin-bottom: 15px; padding: 0 5px; }
         .admin-tabs-nav::-webkit-scrollbar { display: none; }
         .browser-tab {
@@ -473,12 +415,6 @@ files['index.html'] = `<!DOCTYPE html>
             box-shadow: 0 25px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .upload-card { position: relative; padding: 25px !important; background: rgba(255, 255, 255, 0.04); border: 2.5px dashed rgba(255, 255, 255, 0.2); border-radius: 24px; text-align: center; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; overflow: hidden; margin-bottom: 20px; }
-        .upload-card:hover { border-color: var(--dynamic-accent); background: rgba(255, 255, 255, 0.1); }
-        .upload-hint { display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; width: 100%; height: 100%; }
-        .upload-hint svg { opacity: 0.85; color: var(--dynamic-accent); filter: drop-shadow(0 0 10px var(--dynamic-accent)); width: 44px; height: 44px; }
-        .upload-hint span { font-size: 13px; font-weight: 900; color: white; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
-
         @media (max-width: 768px) { 
             #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; padding: 0 !important; border-radius: 30px; height: 85vh; } 
             .admin-header { padding: 22px 26px; } .admin-content { padding: 22px; }
@@ -497,7 +433,6 @@ files['index.html'] = `<!DOCTYPE html>
     <div id="msg-box"></div>
     <div id="bg-stage"></div>
 
-    <!-- 验证锁屏层 -->
     <div id="lock-screen">
         <div class="sarah-dialog-box !w-[330px] !bg-white/10 !border-white/20">
             <h4 class="text-white font-black text-xl mb-2 tracking-tight text-center">Sarah MUSIC</h4>
@@ -512,7 +447,6 @@ files['index.html'] = `<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- 自定义对话框 -->
     <div id="sarah-dialog" class="sarah-dialog-overlay" onclick="closeSarahDialog()">
         <div class="sarah-dialog-box" onclick="event.stopPropagation()">
             <h4 id="dialog-title" class="text-white font-black text-sm mb-4 uppercase tracking-widest text-center">提示</h4>
@@ -527,7 +461,6 @@ files['index.html'] = `<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- 分发弹窗 -->
     <div id="playlist-selector-modal" onclick="closePlaylistSelector()">
         <div class="playlist-select-box" onclick="event.stopPropagation()">
             <h4 class="text-white font-black text-sm mb-5 uppercase tracking-widest text-center">分发至歌单</h4>
@@ -536,11 +469,10 @@ files['index.html'] = `<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- 主界面容器 -->
     <div class="desktop-container auth-hidden" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v8.10.1</p>
+            <p class="brand-sub">Premium Music Hub | v8.12.0</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 transition-transform cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -601,7 +533,6 @@ files['index.html'] = `<!DOCTYPE html>
         </footer>
     </div>
 
-    <!-- 手机端界面 -->
     <div id="m-player" class="mobile-player-container auth-hidden">
         <header class="m-header">
             <div onclick="toggleMobileDrawer(true)" class="btn-round"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4.2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div>
@@ -632,7 +563,7 @@ files['index.html'] = `<!DOCTYPE html>
         <footer class="m-controls-capsule">
             <div class="m-controls">
                 <div class="w-full">
-                    <div id="m-scrubber-wrap" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd(event)">
+                    <div id="m-scrubber-wrap">
                         <div id="m-scrubber" class="rail !bg-white/10">
                             <div class="fill !bg-white" id="m-prog-bar"><div class="dot !right-[-7px] !w-[14px] !h-[14px] !border-[2px] !border-white !bg-[#4d7c5f]"></div></div>
                         </div>
@@ -662,22 +593,18 @@ files['index.html'] = `<!DOCTYPE html>
         <div id="m-list-view" class="flex-1 overflow-y-auto custom-scroll text-white px-4 pb-10 list-transition"></div>
     </div>
 
-    <!-- 设置面板 -->
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
                 <div class="flex flex-col">
                     <div class="flex items-baseline gap-2">
                         <h3 class="text-xl font-black text-white">设置</h3>
-                        <span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.10.1</span>
+                        <span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.0</span>
                     </div>
                 </div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon" title="睡眠定时">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    </button>
-                    <button onclick="toggleUploadArea()" class="admin-btn-icon" title="上传音乐">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                     </button>
                     <button onclick="toggleAdmin(false)" class="admin-btn-icon !bg-white/10" title="关闭">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -698,18 +625,6 @@ files['index.html'] = `<!DOCTYPE html>
                     <span id="sleep-status" class="text-[10px] uppercase font-black opacity-50 tracking-widest mt-3 block text-center"></span>
                 </div>
 
-                <div id="upload-area" class="hidden">
-                    <div class="upload-card group">
-                        <input type="file" id="f-in" multiple onchange="previewTag(this)" style="display:none">
-                        <label for="f-in" class="upload-hint">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                            <span id="file-count-tip">点击或拖拽旋律至此并点击上传</span>
-                        </label>
-                    </div>
-                    <div id="upload-progress-list" class="mb-4 space-y-2"></div>
-                    <button id="auto-sync-trigger" onclick="handleUp()" class="w-full mb-8 bg-white/10 text-white py-3 rounded-xl font-black text-xs shadow-xl transition-all hover:brightness-110 active:scale-95">开始上传并自动同步</button>
-                </div>
-
                 <div id="admin-playlist-tabs-wrap" class="flex items-center mb-4">
                     <div id="admin-playlist-tabs" class="admin-tabs-nav flex-1"></div>
                     <div onclick="addPlaylistPrompt()" class="browser-tab-add" title="新建歌单">
@@ -725,12 +640,12 @@ files['index.html'] = `<!DOCTYPE html>
     <div id="ap-hidden" style="display:none"></div>
     <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
     <script>
-        let ap = null, db = [], lrcLines = [], currentTab = 'all', tempMetaMap = new Map();
+        let ap = null, db = [], lrcLines = [], currentTab = 'all';
         let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false;
         let currentThemeIdx = -1;
         let sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false;
         let lastActiveFileId = null; 
-        let longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null;
+        let longPressTimer = null, currentDraggedEl = null, dragPlaceholder = null;
         let touchOffsetTop = 0; 
         
         let libState = { songs: [], favorites: [], playlists: [] };
@@ -763,7 +678,6 @@ files['index.html'] = `<!DOCTYPE html>
             
             const savedPass = localStorage.getItem('sarah_access_token') || "";
             try {
-                // 8.10.1 修复：在加载期间维持锁屏卡片响应
                 const res = await fetch('/api/songs', {
                     headers: { 'X-Sarah-Password': savedPass }
                 });
@@ -774,25 +688,17 @@ files['index.html'] = `<!DOCTYPE html>
                     return;
                 }
 
-                // 认证成功：显示主界面，移除锁屏
                 document.getElementById('main-ui').classList.remove('auth-hidden');
                 document.getElementById('m-player').classList.remove('auth-hidden');
                 document.getElementById('lock-screen').classList.remove('active');
 
-                const raw = await res.json();
-                if (Array.isArray(raw)) {
-                    libState = { songs: raw, favorites: getFavsFromLocal(), playlists: [] };
-                    await saveSync(false);
-                } else {
-                    libState = raw;
-                }
+                libState = await res.json();
                 
                 db = libState.songs;
                 buildIndexMap(); 
                 renderCustomTabs();
                 renderAllLists(); 
                 
-                // 8.10.1 优化：将播放器初始化放在微任务中，防止阻塞 UI
                 setTimeout(() => {
                     setupPlayer(); 
                     updateUIModes(); 
@@ -816,34 +722,22 @@ files['index.html'] = `<!DOCTYPE html>
                     }
                 });
 
-                if (db.length > 0) { 
-                    updateBackground(true);
-                    refreshUIMetaAt(0); 
-                } else {
-                    updateBackground(true);
-                }
+                updateBackground(true);
+                if (db.length > 0) refreshUIMetaAt(0);
             } catch (e) {
                 console.error("Init Failed:", e);
-                // 发生严重加载错误时强制重置缓存
-                if (navigator.serviceWorker.controller) {
-                    location.reload();
-                }
+                if (navigator.serviceWorker.controller) location.reload();
             }
         }
 
         async function handleAuth() {
             const pass = document.getElementById('auth-input').value;
             if (!pass) return;
-            
             const btn = document.getElementById('auth-confirm-btn');
             const originalText = btn.innerText;
             btn.innerText = "正在解密乐库...";
             btn.disabled = true;
-
-            const res = await fetch('/api/songs', {
-                headers: { 'X-Sarah-Password': pass }
-            });
-            
+            const res = await fetch('/api/songs', { headers: { 'X-Sarah-Password': pass } });
             if (res.status === 200) {
                 localStorage.setItem('sarah_access_token', pass);
                 init(); 
@@ -856,33 +750,23 @@ files['index.html'] = `<!DOCTYPE html>
 
         function buildIndexMap() {
             dbIndexMap.clear();
-            for (let j = 0; j < db.length; j++) {
-                dbIndexMap.set(db[j].file_id, j);
-            }
+            for (let j = 0; j < db.length; j++) dbIndexMap.set(db[j].file_id, j);
         }
 
-        function getFavsFromLocal() {
-            return JSON.parse(localStorage.getItem('sarah_favs') || '[]');
-        }
+        function getFavsFromLocal() { return JSON.parse(localStorage.getItem('sarah_favs') || '[]'); }
 
         function setupPlayer() {
             if (ap) ap.destroy();
             const pass = localStorage.getItem('sarah_access_token') || "";
-            const trackList = db.map(s => {
-                return {
-                    name: s.title,
-                    artist: s.artist,
-                    cover: s.cover || DEFAULT_LOGO,
-                    url: '/api/stream?file_id=' + s.file_id + '&auth=' + pass,
-                    lrc: s.lrc || '[00:00.00]暂无歌词'
-                };
-            });
+            const trackList = db.map(s => ({
+                name: s.title,
+                artist: s.artist,
+                cover: s.cover || DEFAULT_LOGO,
+                url: '/api/stream?file_id=' + s.file_id + '&auth=' + pass,
+                lrc: s.lrc || '[00:00.00]暂无歌词'
+            }));
             
-            ap = new APlayer({
-                container: document.getElementById('ap-hidden'),
-                lrcType: 1,
-                audio: trackList
-            });
+            ap = new APlayer({ container: document.getElementById('ap-hidden'), lrcType: 1, audio: trackList });
             
             ap.on('play', () => {
                 const s = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>';
@@ -903,32 +787,18 @@ files['index.html'] = `<!DOCTYPE html>
 
             ap.on('timeupdate', () => {
                 if (isScrubbing) return;
-                const cur = ap.audio.currentTime;
-                const dur = ap.audio.duration || 0;
+                const cur = ap.audio.currentTime, dur = ap.audio.duration || 0;
                 const p = (cur / (dur || 1) * 100) + '%';
-                
-                ['prog-bar', 'm-prog-bar'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.style.width = p;
-                });
-                
-                ['cur-time', 'm-cur-time'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.innerText = fmtTime(cur);
-                });
-                
-                ['total-time', 'm-total-time'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.innerText = fmtTime(dur);
-                });
-                
+                ['prog-bar', 'm-prog-bar'].forEach(id => { const el = document.getElementById(id); if (el) el.style.width = p; });
+                ['cur-time', 'm-cur-time'].forEach(id => { const el = document.getElementById(id); if (el) el.innerText = fmtTime(cur); });
+                ['total-time', 'm-total-time'].forEach(id => { const el = document.getElementById(id); if (el) el.innerText = fmtTime(dur); });
                 syncLyrics(cur);
             });
 
             ap.on('listswitch', (data) => { 
                 const targetIdx = data.index !== undefined ? data.index : ap.list.index;
                 refreshUIMetaByAudio(ap.list.audios[targetIdx]);
-                updateBackground(true); 
+                updateBackground(false); 
             });
         }
 
@@ -938,72 +808,43 @@ files['index.html'] = `<!DOCTYPE html>
             const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id');
             const song = db[dbIndexMap.get(fileId)] || currentAudio;
             navigator.mediaSession.metadata = new MediaMetadata({
-                title: song.title || song.name,
-                artist: song.artist,
-                album: 'Sarah Music',
+                title: song.title || song.name, artist: song.artist, album: 'Sarah Music',
                 artwork: [{ src: song.cover || DEFAULT_LOGO, sizes: '512x512', type: 'image/png' }]
             });
             navigator.mediaSession.playbackState = 'playing';
-            navigator.mediaSession.setActionHandler('play', () => handlePlayToggle());
-            navigator.mediaSession.setActionHandler('pause', () => handlePlayToggle());
-            navigator.mediaSession.setActionHandler('previoustrack', () => handlePrev());
-            navigator.mediaSession.setActionHandler('nexttrack', () => handleNext());
         }
 
         function updateBackground(isForceRandom = false) {
             const isMob = window.innerWidth <= 768;
             if (isForceRandom) {
                 let nextIdx;
-                do {
-                    nextIdx = Math.floor(Math.random() * solaraTheme.length);
-                } while (nextIdx === currentThemeIdx && solaraTheme.length > 1);
+                do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1);
                 currentThemeIdx = nextIdx;
             }
             const theme = solaraTheme[currentThemeIdx];
             const finalBg = isMob ? '#4d7c5f' : theme.bg;
-            const metaTheme = document.querySelector('meta[name="theme-color"]');
-            if (metaTheme) metaTheme.setAttribute('content', finalBg);
             document.body.style.backgroundColor = finalBg;
-            
             if (!isMob) { 
                 document.getElementById('bg-stage').style.background = \`linear-gradient(135deg, \${theme.bg} 0%, \${theme.deep} 100%)\`; 
-                const mainUI = document.getElementById('main-ui');
-                if (mainUI) {
-                    mainUI.style.background = \`linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%)\`;
-                }
             } else {
                 document.getElementById('bg-stage').style.background = '#4d7c5f';
             }
-            
             document.documentElement.style.setProperty('--dynamic-accent', isMob ? '#ffffff' : theme.accent); 
-            document.documentElement.style.setProperty('--settings-icon-color', isMob ? '#ffffff' : theme.deep);
 
-            const listTabs = document.querySelectorAll('#tabs-scroll div, .m-pl-card');
-            listTabs.forEach(el => {
+            document.querySelectorAll('#tabs-scroll div, .m-pl-card').forEach(el => {
                 const tabId = el.getAttribute('id') || '';
                 const mobileDataId = el.getAttribute('onclick') ? el.getAttribute('onclick').match(/'([^']+)'/)?.[1] : null;
-                const isActive = (tabId === 'tab-play' && currentTab === 'all') || 
-                                 (tabId === 'tab-fav' && currentTab === 'fav') || 
-                                 (tabId === 'tab-pl-' + currentTab) || 
-                                 (mobileDataId === currentTab && el.classList.contains('m-pl-card'));
-                
+                const isActive = (tabId === 'tab-play' && currentTab === 'all') || (tabId === 'tab-fav' && currentTab === 'fav') || (tabId === 'tab-pl-' + currentTab) || (mobileDataId === currentTab && el.classList.contains('m-pl-card'));
                 el.classList.toggle('active', isActive);
                 if (!el.classList.contains('m-pl-card')) {
                     el.style.background = isActive ? theme.accent : 'transparent';
                     el.style.color = isActive ? 'white' : theme.accent;
-                    el.style.opacity = isActive ? '1' : '0.75';
                 }
             });
-            
             document.querySelectorAll('.btn-round').forEach(el => { 
                 if (!el.classList.contains('!bg-white/10') && !el.parentElement.classList.contains('m-header')) {
                     el.style.background = isMob ? '#ffffff' : theme.accent;
                     el.style.color = isMob ? '#4d7c5f' : 'white';
-                }
-                if (el.id === 'pc-settings-trigger' && !isMob) {
-                   el.style.color = 'white';
-                   el.style.borderColor = 'rgba(255, 255, 255, 0.45)';
-                   el.style.background = 'rgba(255, 255, 255, 0.25)';
                 }
             });
             renderAdminPlaylistTabs();
@@ -1011,8 +852,7 @@ files['index.html'] = `<!DOCTYPE html>
 
         function refreshUIMetaByAudio(audio) {
             if (!audio) return;
-            const params = new URLSearchParams(audio.url.split('?')[1]);
-            const fileId = params.get('file_id');
+            const fileId = new URLSearchParams(audio.url.split('?')[1]).get('file_id');
             const songIdx = dbIndexMap.get(fileId);
             if (songIdx !== undefined) refreshUIMetaAt(songIdx);
         }
@@ -1022,93 +862,54 @@ files['index.html'] = `<!DOCTYPE html>
             if (!song) return;
             if (lastActiveFileId !== song.file_id) {
                 const clipping = document.getElementById('m-clipping-node');
-                if (clipping) {
-                    clipping.style.animation = 'none';
-                    void clipping.offsetWidth;
-                    clipping.style.animation = '';
-                }
+                if (clipping) { clipping.style.animation = 'none'; void clipping.offsetWidth; clipping.style.animation = ''; }
                 lastActiveFileId = song.file_id;
             }
             const updateCoverUI = (coverImgId, logoBoxId) => {
-                const img = document.getElementById(coverImgId);
-                const logo = document.getElementById(logoBoxId);
+                const img = document.getElementById(coverImgId), logo = document.getElementById(logoBoxId);
                 if (!img || !logo) return;
                 if (song.cover) {
-                    img.style.display = 'none';
-                    const newImg = new Image();
-                    newImg.src = song.cover;
-                    newImg.onload = () => {
-                        img.src = song.cover;
-                        img.style.display = 'block';
-                        logo.style.setProperty('display', 'none', 'important');
-                    };
-                } else {
-                    img.style.display = 'none';
-                    logo.style.setProperty('display', 'flex', 'important');
-                }
+                    img.src = song.cover; img.style.display = 'block';
+                    logo.style.setProperty('display', 'none', 'important');
+                } else { img.style.display = 'none'; logo.style.setProperty('display', 'flex', 'important'); }
             };
             updateCoverUI('ui-cover', 'pc-logo-box');
             updateCoverUI('m-ui-cover', 'm-logo-box');
-            ['ui-title', 'm-ui-title'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerText = song.title;
+            ['ui-title', 'm-ui-title', 'ui-artist', 'm-ui-artist'].forEach(id => { 
+                const el = document.getElementById(id); if (el) el.innerText = id.includes('title') ? song.title : song.artist;
             });
-            ['ui-artist', 'm-ui-artist'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerText = song.artist;
-            });
-            
             const pattern = /\\\[(\\d+):(\\d+).(\\d+)\\\](.*)/;
             lrcLines = (song.lrc || "").split(/\\r?\\n/).map(l => {
                 const m = pattern.exec(l);
                 return m ? { t: parseInt(m[1]) * 60 + parseInt(m[2]), text: m[4].trim() } : null;
             }).filter(v => v && v.text);
-            
             const renderLrc = (id) => { 
-                const el = document.getElementById(id);
-                if (!el) return; 
-                if (lrcLines.length === 0) {
-                    el.innerHTML = '<div class="lrc-line active !opacity-30">暂无歌词</div>';
-                    el.classList.add('justify-center');
-                } else {
-                    el.classList.remove('justify-center');
-                    const spacer = '<div style="height:65px;flex-shrink:0;"></div>';
+                const el = document.getElementById(id); if (!el) return; 
+                if (lrcLines.length === 0) { el.innerHTML = '<div class="lrc-line active !opacity-30">暂无歌词</div>'; el.classList.add('justify-center'); } 
+                else {
+                    el.classList.remove('justify-center'); const spacer = '<div style="height:65px;flex-shrink:0;"></div>';
                     el.innerHTML = spacer + lrcLines.map((l, i) => \`<div class="lrc-line" id="\${id}-lrc-\${i}" onclick="ap.seek(\${l.t})">\${l.text}</div>\`).join('') + spacer; 
                 }
             };
-            renderLrc('lrc-view');
-            renderLrc('m-lrc-flow');
+            renderLrc('lrc-view'); renderLrc('m-lrc-flow');
             updateHighlights(song.file_id);
         }
 
         function syncLyrics(t) {
             if (lrcLines.length === 0) return;
             let active = -1;
-            for (let i = 0; i < lrcLines.length; i++) {
-                if (t >= lrcLines[i].t) active = i;
-            }
+            for (let i = 0; i < lrcLines.length; i++) if (t >= lrcLines[i].t) active = i;
             if (active !== -1) {
                 ['lrc-view', 'm-lrc-flow'].forEach(id => {
-                    const view = document.getElementById(id);
-                    if (!view) return;
-                    view.querySelectorAll('.lrc-line').forEach((el, i) => {
-                        el.classList.toggle('active', i === active);
-                    });
+                    const view = document.getElementById(id); if (!view) return;
+                    view.querySelectorAll('.lrc-line').forEach((el, i) => el.classList.toggle('active', i === active));
                     const target = document.getElementById(id + '-lrc-' + active); 
-                    if (target) {
-                        view.scrollTo({
-                            top: target.offsetTop - (view.offsetHeight / 2) + (target.offsetHeight / 2),
-                            behavior: 'smooth'
-                        });
-                    }
+                    if (target) view.scrollTo({ top: target.offsetTop - (view.offsetHeight / 2) + (target.offsetHeight / 2), behavior: 'smooth' });
                 });
             }
         }
 
-        function refreshMeta() {
-            if (!ap || !ap.list.audios.length) return;
-            refreshUIMetaByAudio(ap.list.audios[ap.list.index]);
-        }
+        function refreshMeta() { if (ap && ap.list.audios.length) refreshUIMetaByAudio(ap.list.audios[ap.list.index]); }
 
         function updateHighlights(currentId) {
             document.querySelectorAll('.song-item').forEach(el => {
@@ -1118,16 +919,14 @@ files['index.html'] = `<!DOCTYPE html>
             });
             const isFav = libState.favorites.includes(currentId);
             ['fav-trigger', 'm-fav-trigger'].forEach(id => {
-                const el = document.getElementById(id);
-                if (!el) return;
+                const el = document.getElementById(id); if (!el) return;
                 el.style.color = isFav ? '#ef4444' : (id === 'fav-trigger' ? 'rgba(0,0,0,0.2)' : 'white');
                 el.querySelector('svg').setAttribute('fill', isFav ? 'currentColor' : 'none');
             });
         }
 
         function renderCustomTabs() {
-            const container = document.getElementById('custom-tabs');
-            container.innerHTML = libState.playlists.map((pl, i) => \`
+            document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl, i) => \`
                 <div id="tab-pl-\${i}" onclick="switchList('\${i}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>
             \`).join('');
         }
@@ -1135,741 +934,261 @@ files['index.html'] = `<!DOCTYPE html>
         function renderAllLists(data) {
             let listData = data;
             if (!listData) {
-                if (currentTab === 'all') {
-                    listData = db;
-                } else if (currentTab === 'fav') {
-                    listData = libState.favorites.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
-                } else {
-                    const pl = libState.playlists[parseInt(currentTab)];
-                    listData = pl ? pl.ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean) : [];
-                }
+                if (currentTab === 'all') listData = db;
+                else if (currentTab === 'fav') listData = libState.favorites.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
+                else { const pl = libState.playlists[parseInt(currentTab)]; listData = pl ? pl.ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean) : []; }
             }
-            
             const isMob = window.innerWidth <= 768;
-            const searchInputId = isMob ? 'm-list-search' : 'search-input';
-            const q = document.getElementById(searchInputId).value.toLowerCase();
-            
-            if (q) {
-                listData = listData.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
-            }
+            const q = document.getElementById(isMob ? 'm-list-search' : 'search-input').value.toLowerCase();
+            if (q) listData = listData.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
             
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null;
             const currentId = currentAudio ? new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id') : null;
             
-            // 8.10.1 极致性能渲染：DocumentFragment 注入
             const frag = document.createDocumentFragment();
             listData.forEach(s => {
                 const div = document.createElement('div');
-                div.className = \`song-item group \${s.file_id === currentId ? 'active' : ''}\`;
-                div.dataset.id = s.file_id;
+                div.className = \`song-item group \${s.file_id === currentId ? 'active' : ''}\`; div.dataset.id = s.file_id;
                 div.onclick = () => handleTrackSwitch(dbIndexMap.get(s.file_id), s.file_id);
-                div.innerHTML = \`
-                    <img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
-                    <div class="flex-1 truncate">
-                        <div class="song-title-text truncate">\${s.title}</div>
-                        <div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div>
-                    </div>\`;
+                div.innerHTML = \`<img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div>\`;
                 frag.appendChild(div);
             });
-
-            if (listData.length === 0) {
-                const empty = document.createElement('div');
-                empty.className = "py-20 text-center opacity-20 font-black text-white/40";
-                empty.innerText = "列表暂无旋律";
-                frag.appendChild(empty);
-            }
-
-            const targetView = document.getElementById('list-view');
-            const targetMobileView = document.getElementById('m-list-view');
-            
-            targetView.innerHTML = ""; targetView.appendChild(frag.cloneNode(true));
-            targetMobileView.innerHTML = ""; targetMobileView.appendChild(frag);
+            if (listData.length === 0) { const empty = document.createElement('div'); empty.className = "py-20 text-center opacity-20 font-black text-white/40"; empty.innerText = "列表暂无旋律"; frag.appendChild(empty); }
+            const v = document.getElementById('list-view'), mv = document.getElementById('m-list-view');
+            v.innerHTML = ""; v.appendChild(frag.cloneNode(true)); mv.innerHTML = ""; mv.appendChild(frag);
         }
 
         async function handleTrackSwitch(idx, fileId) {
             if (!ap) return;
             let targetIdx = idx;
-            if (fileId) {
-                const foundIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fileId));
-                if (foundIdx !== -1) targetIdx = foundIdx;
-            }
-            const targetVol = ap.audio.volume;
-            for (let i = 5; i >= 0; i--) {
-                ap.volume(targetVol * (i/5), true);
-                await new Promise(r => setTimeout(r, 10));
-            }
-            ap.list.switch(targetIdx);
-            ap.play();
-            setTimeout(async () => {
-                for (let i = 0; i <= 5; i++) {
-                    ap.volume(targetVol * (i/5), true);
-                    await new Promise(r => setTimeout(r, 15));
-                }
-            }, 100);
+            if (fileId) { const foundIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fileId)); if (foundIdx !== -1) targetIdx = foundIdx; }
+            ap.list.switch(targetIdx); ap.play();
         }
 
-        function toggleMode() {
-            modeIdx = (modeIdx + 1) % modes.length;
-            updateUIModes();
-        }
+        function toggleMode() { modeIdx = (modeIdx + 1) % modes.length; updateUIModes(); }
 
         function updateUIModes() {
             const mode = modes[modeIdx];
-            if (ap) {
-                ap.options.loop = mode === 'single' ? 'one' : 'all';
-                ap.options.order = mode === 'random' ? 'random' : 'list';
-            }
+            if (ap) { ap.options.loop = mode === 'single' ? 'one' : 'all'; ap.options.order = mode === 'random' ? 'random' : 'list'; }
             const icons = {
                 list: '<path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>',
                 single: '<path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path><path d="M11 9h1v6"></path><path d="M10 15h3"></path>',
                 random: '<path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path>'
             };
-            document.getElementById('mode-icon').innerHTML = icons[mode];
-            document.getElementById('m-mode-icon').innerHTML = icons[mode];
+            document.getElementById('mode-icon').innerHTML = icons[mode]; document.getElementById('m-mode-icon').innerHTML = icons[mode];
         }
 
-        function handlePlayToggle() {
-            if (!ap) return;
-            if (ap.paused) ap.play(); else ap.pause();
-        }
+        function handlePlayToggle() { if (ap) ap.paused ? ap.play() : ap.pause(); }
+        function handlePrev() { if (ap && ap.list.audios.length) handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length); }
+        function handleNext() { if (ap && ap.list.audios.length) handleTrackSwitch((ap.list.index + 1) % ap.list.audios.length); }
 
-        function handlePrev() {
-            if (!ap || ap.list.audios.length === 0) return;
-            if (modes[modeIdx] === 'random' && ap.list.audios.length > 1) {
-                let nextIdx;
-                do {
-                    nextIdx = Math.floor(Math.random() * ap.list.audios.length);
-                } while (nextIdx === ap.list.index);
-                handleTrackSwitch(nextIdx);
-            } else {
-                handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length);
-            }
-        }
-
-        function handleNext() {
-            if (!ap || ap.list.audios.length === 0) return;
-            if (modes[modeIdx] === 'random' && ap.list.audios.length > 1) {
-                let nextIdx;
-                do {
-                    nextIdx = Math.floor(Math.random() * ap.list.audios.length);
-                } while (nextIdx === ap.list.index);
-                handleTrackSwitch(nextIdx);
-            } else {
-                handleTrackSwitch((ap.list.index + 1) % ap.list.audios.length);
-            }
-        }
-
-        function handleMouseSeekStart(e) {
-            isScrubbing = true;
-            handleMouseSeekMove(e);
-            window.addEventListener('mousemove', handleMouseSeekMove);
-            window.addEventListener('mouseup', handleMouseSeekEnd);
-        }
-
+        function handleMouseSeekStart(e) { isScrubbing = true; handleMouseSeekMove(e); window.addEventListener('mousemove', handleMouseSeekMove); window.addEventListener('mouseup', handleMouseSeekEnd); }
         function handleMouseSeekMove(e) {
             if (!isScrubbing) return;
-            const r = document.getElementById('pc-scrubber');
-            const rect = r.getBoundingClientRect();
+            const r = document.getElementById('pc-scrubber'), rect = r.getBoundingClientRect();
             const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
             document.getElementById('prog-bar').style.width = (p * 100) + '%';
             document.getElementById('cur-time').innerText = fmtTime(p * (ap.audio.duration || 0));
         }
-
         function handleMouseSeekEnd(e) {
             if (!isScrubbing) return;
-            const r = document.getElementById('pc-scrubber');
-            const rect = r.getBoundingClientRect();
+            const r = document.getElementById('pc-scrubber'), rect = r.getBoundingClientRect();
             const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
             if (ap) ap.seek(p * (ap.audio.duration || 0));
-            isScrubbing = false;
-            window.removeEventListener('mousemove', handleMouseSeekMove);
-            window.removeEventListener('mouseup', handleMouseSeekEnd);
+            isScrubbing = false; window.removeEventListener('mousemove', handleMouseSeekMove); window.removeEventListener('mouseup', handleMouseSeekEnd);
         }
 
-        function handleMouseVolStart(e) {
-            isDraggingVol = true;
-            handleMouseVolMove(e);
-            window.addEventListener('mousemove', handleMouseVolMove);
-            window.addEventListener('mouseup', handleMouseVolEnd);
-        }
-
+        function handleMouseVolStart(e) { isDraggingVol = true; handleMouseVolMove(e); window.addEventListener('mousemove', handleMouseVolMove); window.addEventListener('mouseup', handleMouseVolEnd); }
         function handleMouseVolMove(e) {
             if (!isDraggingVol) return;
-            const r = document.getElementById('pc-vol-rail');
-            const rect = r.getBoundingClientRect();
+            const r = document.getElementById('pc-vol-rail'), rect = r.getBoundingClientRect();
             const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-            if (ap) {
-                ap.volume(p, true);
-                updateVolUI(p);
-            }
+            if (ap) { ap.volume(p, true); updateVolUI(p); }
         }
+        function handleMouseVolEnd() { isDraggingVol = false; window.removeEventListener('mousemove', handleMouseVolMove); window.removeEventListener('mouseup', handleMouseVolEnd); }
 
-        function handleMouseVolEnd() {
-            isDraggingVol = false;
-            window.removeEventListener('mousemove', handleMouseVolMove);
-            window.removeEventListener('mouseup', handleMouseVolEnd);
-        }
-
-        function handleTouchStart(e) {
-            isScrubbing = true;
-            handleTouchMove(e);
-        }
-
+        function handleTouchStart(e) { isScrubbing = true; handleTouchMove(e); }
         function handleTouchMove(e) {
-            if (!isScrubbing) return;
-            if (e.cancelable) e.preventDefault();
-            const r = document.getElementById('m-scrubber-wrap');
-            const rect = r.getBoundingClientRect();
+            if (!isScrubbing) return; if (e.cancelable) e.preventDefault();
+            const r = document.getElementById('m-scrubber'), rect = r.getBoundingClientRect();
             const p = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
             document.getElementById('m-prog-bar').style.width = (p * 100) + '%';
             document.getElementById('m-cur-time').innerText = fmtTime(p * (ap.audio.duration || 0));
         }
-
         function handleTouchEnd(e) {
-            if (!isScrubbing) return;
-            const r = document.getElementById('m-scrubber-wrap');
-            const rect = r.getBoundingClientRect();
+            if (!isScrubbing) return; const r = document.getElementById('m-scrubber'), rect = r.getBoundingClientRect();
             const p = Math.max(0, Math.min(1, (e.changedTouches[0].clientX - rect.left) / rect.width));
             if (ap) ap.seek(p * (ap.audio.duration || 0));
             isScrubbing = false;
         }
 
         function toggleMute() {
-            if (isMuted) {
-                ap.volume(lastVolume, true);
-                updateVolUI(lastVolume);
-                isMuted = false;
-            } else {
-                lastVolume = ap.audio.volume;
-                ap.volume(0, true);
-                updateVolUI(0);
-                isMuted = true;
-            }
+            if (isMuted) { ap.volume(lastVolume, true); updateVolUI(lastVolume); isMuted = false; }
+            else { lastVolume = ap.audio.volume; ap.volume(0, true); updateVolUI(0); isMuted = true; }
         }
-
         function updateVolUI(p) {
-            const vBar = document.getElementById('vol-bar');
-            const vIcon = document.getElementById('v-icon');
+            const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon');
             if (vBar) vBar.style.width = (p * 100) + '%';
             if (vIcon) {
-                let path = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : 
-                           (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : 
-                           '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>');
+                let path = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>');
                 vIcon.innerHTML = path;
             }
         }
 
-        function handleSearch() { 
-            renderAllLists(); 
-        }
-
-        function handleMobileListSearch() { 
-            renderAllLists(); 
-        }
-
-        function clearSearch(inputId) {
-            const input = document.getElementById(inputId);
-            input.value = "";
-            renderAllLists();
-        }
+        function handleSearch() { renderAllLists(); }
+        function handleMobileListSearch() { renderAllLists(); }
+        function clearSearch(inputId) { document.getElementById(inputId).value = ""; renderAllLists(); }
 
         function setSleep(mins) {
             if (sleepTimerInt) clearInterval(sleepTimerInt);
             const statusEl = document.getElementById('sleep-status');
-            if (mins === 0) {
-                sleepEndTime = null;
-                statusEl.innerText = "";
-            } else {
+            if (mins === 0) { sleepEndTime = null; statusEl.innerText = ""; }
+            else {
                 sleepEndTime = Date.now() + mins * 60000;
                 sleepTimerInt = setInterval(() => {
                     const diff = sleepEndTime - Date.now();
-                    if (diff <= 0) {
-                        ap.pause();
-                        clearInterval(sleepTimerInt);
-                        sleepEndTime = null;
-                        statusEl.innerText = "";
-                    } else {
-                        statusEl.innerText = \`睡眠倒计时 \${Math.floor(diff/60000)}:\${(Math.floor(diff/1000)%60).toString().padStart(2,'0')}\`;
-                    }
+                    if (diff <= 0) { ap.pause(); clearInterval(sleepTimerInt); sleepEndTime = null; statusEl.innerText = ""; }
+                    else { statusEl.innerText = \`睡眠倒计时 \${Math.floor(diff/60000)}:\${(Math.floor(diff/1000)%60).toString().padStart(2,'0')}\`; }
                 }, 1000);
             }
         }
 
-        function fmtTime(s) {
-            if (isNaN(s) || s < 0) return "00:00";
-            const m = Math.floor(s/60);
-            const sec = Math.floor(s%60);
-            return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec);
-        }
+        function fmtTime(s) { if (isNaN(s) || s < 0) return "00:00"; const m = Math.floor(s/60), sec = Math.floor(s%60); return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec); }
 
         function handleLikeToggle() { 
-            const currentAudio = ap.list.audios[ap.list.index];
-            if (!currentAudio) return;
+            const currentAudio = ap.list.audios[ap.list.index]; if (!currentAudio) return;
             const id = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id');
             const idx = libState.favorites.indexOf(id);
             if (idx > -1) libState.favorites.splice(idx, 1); else libState.favorites.push(id);
-            
-            updateHighlights(id);
-            if (currentTab === 'fav') renderAllLists();
-            
-            saveSync(false);
+            updateHighlights(id); if (currentTab === 'fav') renderAllLists();
+            // 8.12.0 移除 saveSync
         }
 
         function switchList(t) {
-            currentTab = t;
-            
-            const containers = [document.getElementById('list-view'), document.getElementById('m-list-view')];
+            currentTab = t; const containers = [document.getElementById('list-view'), document.getElementById('m-list-view')];
             containers.forEach(el => el.classList.add('entering'));
-            
-            setTimeout(() => {
-                updateBackground(false);
-                renderAllLists();
-                if (document.getElementById('admin-panel').classList.contains('active')) renderAdminSongList();
-                
-                requestAnimationFrame(() => {
-                    containers.forEach(el => el.classList.remove('entering'));
-                });
-            }, 50); 
+            setTimeout(() => { updateBackground(false); renderAllLists(); if (document.getElementById('admin-panel').classList.contains('active')) renderAdminSongList(); requestAnimationFrame(() => containers.forEach(el => el.classList.remove('entering'))); }, 50); 
         }
 
-        function toggleAdmin(s) {
-            document.getElementById('admin-panel').classList.toggle('active', s);
-            if (s) { renderAdminPlaylistTabs(); renderAdminSongList(); }
-        }
-
-        function toggleUploadArea() { document.getElementById('upload-area').classList.toggle('hidden'); }
+        function toggleAdmin(s) { document.getElementById('admin-panel').classList.toggle('active', s); if (s) { renderAdminPlaylistTabs(); renderAdminSongList(); } }
         function toggleSleepArea() { document.getElementById('sleep-area').classList.toggle('hidden'); }
 
         function showSarahDialog(title, msg, isInput, defaultValue, callback) {
-            const overlay = document.getElementById('sarah-dialog');
-            const inputWrap = document.getElementById('dialog-input-wrap');
-            const inputField = document.getElementById('dialog-input');
-            const confirmBtn = document.getElementById('dialog-confirm');
-            document.getElementById('dialog-title').innerText = title;
-            document.getElementById('dialog-msg').innerText = msg;
-            if (isInput) {
-                inputWrap.classList.remove('hidden');
-                inputField.value = defaultValue || "";
-            } else {
-                inputWrap.classList.add('hidden');
-            }
-            confirmBtn.onclick = () => {
-                const val = isInput ? inputField.value : true;
-                overlay.classList.remove('active');
-                callback(val);
-            };
+            const overlay = document.getElementById('sarah-dialog'), inputWrap = document.getElementById('dialog-input-wrap'), inputField = document.getElementById('dialog-input'), confirmBtn = document.getElementById('dialog-confirm');
+            document.getElementById('dialog-title').innerText = title; document.getElementById('dialog-msg').innerText = msg;
+            if (isInput) { inputWrap.classList.remove('hidden'); inputField.value = defaultValue || ""; } else inputWrap.classList.add('hidden');
+            confirmBtn.onclick = () => { const val = isInput ? inputField.value : true; overlay.classList.remove('active'); callback(val); };
             overlay.classList.add('active');
         }
-
         function closeSarahDialog() { document.getElementById('sarah-dialog').classList.remove('active'); }
 
         function renderAdminPlaylistTabs() {
-            const container = document.getElementById('admin-playlist-tabs');
-            if (!container) return;
+            const container = document.getElementById('admin-playlist-tabs'); if (!container) return;
             let html = \`<div class="browser-tab \${currentTab === 'all' ? 'active' : ''}" onclick="switchList('all')"><span class="browser-tab-text">全库</span></div><div class="browser-tab \${currentTab === 'fav' ? 'active' : ''}" onclick="switchList('fav')"><span class="browser-tab-text">收藏</span></div>\`;
-            libState.playlists.forEach((pl, i) => {
-                html += \`<div class="browser-tab \${currentTab === i.toString() ? 'active' : ''}" onclick="switchList('\${i}')" ondblclick="renamePlaylistPrompt(\${i})"><span class="browser-tab-text">\${pl.name}</span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist(\${i})"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`;
-            });
+            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentTab === i.toString() ? 'active' : ''}" onclick="switchList('\${i}')" ondblclick="renamePlaylistPrompt(\${i})"><span class="browser-tab-text">\${pl.name}</span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist(\${i})"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
             container.innerHTML = html;
         }
 
         function renderAdminSongList() {
-            const container = document.getElementById('admin-song-list');
-            let listData = [];
-            if (currentTab === 'all') {
-                listData = db;
-            } else if (currentTab === 'fav') {
-                listData = libState.favorites.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
-            } else {
-                const pl = libState.playlists[parseInt(currentTab)];
-                listData = pl ? pl.ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean) : [];
-            }
-            
-            container.innerHTML = listData.map((s, i) => \`
-                <div class="admin-song-row" id="admin-row-\${i}" data-fileid="\${s.file_id}" onmousedown="handleAdminDragStart(event, \${i}, false)" ontouchstart="handleAdminDragStart(event, \${i}, true)" oncontextmenu="return false;">
-                    <div class="admin-song-info">
-                        <input class="admin-song-input admin-song-title-input" value="\${s.title}" readonly onchange="updateSongInfo('\${s.file_id}', 'title', this.value)">
-                        <input class="admin-song-input admin-song-artist-input" value="\${s.artist}" readonly onchange="updateSongInfo('\${s.file_id}', 'artist', this.value)">
-                    </div>
-                    <div class="admin-action-group">
-                        <div class="admin-action-btn" onclick="openPlaylistSelector('\${s.file_id}')" title="分发"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 4v16m8-8H4"></path></svg></div>
-                        <div class="admin-action-btn delete" onclick="deleteFromContext(\${i}, '\${s.file_id}')" title="删除"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></div>
-                        <div class="admin-action-btn" onclick="toggleEditMode(\${i})" title="编辑"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div>
-                    </div>
-                </div>\`).join('') || '<div class="py-10 text-center text-white/20 text-xs font-black">列表内暂无歌曲</div>';
+            const container = document.getElementById('admin-song-list'); let listData = [];
+            if (currentTab === 'all') listData = db;
+            else if (currentTab === 'fav') listData = libState.favorites.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
+            else { const pl = libState.playlists[parseInt(currentTab)]; listData = pl ? pl.ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean) : []; }
+            container.innerHTML = listData.map((s, i) => \`<div class="admin-song-row" id="admin-row-\${i}" data-fileid="\${s.file_id}" onmousedown="handleAdminDragStart(event, \${i}, false)" ontouchstart="handleAdminDragStart(event, \${i}, true)" oncontextmenu="return false;"><div class="admin-song-info"><input class="admin-song-input admin-song-title-input" value="\${s.title}" readonly onchange="updateSongInfo('\${s.file_id}', 'title', this.value)"><input class="admin-song-input admin-song-artist-input" value="\${s.artist}" readonly onchange="updateSongInfo('\${s.file_id}', 'artist', this.value)"></div><div class="admin-action-group"><div class="admin-action-btn" onclick="openPlaylistSelector('\${s.file_id}')" title="分发"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 4v16m8-8H4"></path></svg></div><div class="admin-action-btn delete" onclick="deleteFromContext(\${i}, '\${s.file_id}')" title="删除"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></div><div class="admin-action-btn" onclick="toggleEditMode(\${i})" title="编辑"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div></div></div>\`).join('') || '<div class="py-10 text-center text-white/20 text-xs font-black">列表内暂无歌曲</div>';
         }
 
         function handleAdminDragStart(e, idx, isTouch) {
             if ((e.target.tagName === 'INPUT' && !e.target.readOnly) || e.target.closest('.admin-action-btn')) return;
-            const targetEl = e.currentTarget;
-            let lastY = isTouch ? e.touches[0].clientY : e.clientY;
-            let lastX = isTouch ? e.touches[0].clientX : e.clientX;
-            
+            const targetEl = e.currentTarget; let lastY = isTouch ? e.touches[0].clientY : e.clientY, lastX = isTouch ? e.touches[0].clientX : e.clientX;
             const initDrag = (clientX, clientY) => {
-                if (currentDraggedEl) return;
-                currentDraggedEl = targetEl;
-                const rect = currentDraggedEl.getBoundingClientRect();
-                touchOffsetTop = clientY - rect.top;
-                dragPlaceholder = document.createElement('div');
-                dragPlaceholder.className = 'admin-song-placeholder';
-                currentDraggedEl.parentNode.insertBefore(dragPlaceholder, currentDraggedEl);
-                
-                const ghost = currentDraggedEl.cloneNode(true);
-                ghost.classList.add('is-dragging');
-                ghost.style.width = rect.width + 'px';
-                ghost.style.left = rect.left + 'px';
-                ghost.style.top = (clientY - touchOffsetTop) + 'px';
-                document.body.appendChild(ghost);
-                currentDraggedEl.classList.add('is-hidden');
-                
+                if (currentDraggedEl) return; currentDraggedEl = targetEl; const rect = currentDraggedEl.getBoundingClientRect(); touchOffsetTop = clientY - rect.top;
+                dragPlaceholder = document.createElement('div'); dragPlaceholder.className = 'admin-song-placeholder'; currentDraggedEl.parentNode.insertBefore(dragPlaceholder, currentDraggedEl);
+                const ghost = currentDraggedEl.cloneNode(true); ghost.classList.add('is-dragging'); ghost.style.width = rect.width + 'px'; ghost.style.left = rect.left + 'px'; ghost.style.top = (clientY - touchOffsetTop) + 'px'; document.body.appendChild(ghost); currentDraggedEl.classList.add('is-hidden');
                 const moveHandler = (moveEvent) => {
-                    if (moveEvent.cancelable) moveEvent.preventDefault();
-                    const moveY = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
-                    const moveX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
-                    ghost.style.top = (moveY - touchOffsetTop) + 'px';
-                    
-                    const hovered = document.elementFromPoint(moveX, moveY);
-                    const targetRow = hovered ? hovered.closest('.admin-song-row') : null;
+                    const moveY = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY, moveX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX; ghost.style.top = (moveY - touchOffsetTop) + 'px';
+                    const hovered = document.elementFromPoint(moveX, moveY), targetRow = hovered ? hovered.closest('.admin-song-row') : null;
                     if (targetRow && targetRow !== currentDraggedEl && targetRow !== dragPlaceholder) {
-                        const tRect = targetRow.getBoundingClientRect();
-                        if (moveY < (tRect.top + tRect.height / 2)) {
-                            targetRow.parentNode.insertBefore(dragPlaceholder, targetRow);
-                        } else {
-                            targetRow.parentNode.insertBefore(dragPlaceholder, targetRow.nextSibling);
-                        }
+                        const tRect = targetRow.getBoundingClientRect(); if (moveY < (tRect.top + tRect.height / 2)) targetRow.parentNode.insertBefore(dragPlaceholder, targetRow); else targetRow.parentNode.insertBefore(dragPlaceholder, targetRow.nextSibling);
                     }
                 };
                 const endHandler = () => {
-                    window.removeEventListener(isTouch ? 'touchmove' : 'mousemove', moveHandler);
-                    window.removeEventListener(isTouch ? 'touchend' : 'mouseup', endHandler);
-                    if (dragPlaceholder) {
-                        dragPlaceholder.parentNode.insertBefore(currentDraggedEl, dragPlaceholder);
-                        dragPlaceholder.remove();
-                    }
-                    if (ghost) ghost.remove();
-                    currentDraggedEl.classList.remove('is-hidden');
-                    finalizeSortFromDOM();
-                    currentDraggedEl = null;
-                    dragPlaceholder = null;
+                    window.removeEventListener(isTouch ? 'touchmove' : 'mousemove', moveHandler); window.removeEventListener(isTouch ? 'touchend' : 'mouseup', endHandler);
+                    if (dragPlaceholder) { dragPlaceholder.parentNode.insertBefore(currentDraggedEl, dragPlaceholder); dragPlaceholder.remove(); }
+                    if (ghost) ghost.remove(); currentDraggedEl.classList.remove('is-hidden'); finalizeSortFromDOM(); currentDraggedEl = null; dragPlaceholder = null;
                 };
-                window.addEventListener(isTouch ? 'touchmove' : 'mousemove', moveHandler, { passive: false });
-                window.addEventListener(isTouch ? 'touchend' : 'mouseup', endHandler);
+                window.addEventListener(isTouch ? 'touchmove' : 'mousemove', moveHandler, { passive: false }); window.addEventListener(isTouch ? 'touchend' : 'mouseup', endHandler);
             };
-            
             if (isTouch) {
-                if (longPressTimer) clearTimeout(longPressTimer);
-                longPressTimer = setTimeout(() => {
-                    if (navigator.vibrate) navigator.vibrate(50);
-                    initDrag(lastX, lastY);
-                }, 500);
-                targetEl.addEventListener('touchmove', (te) => {
-                    lastX = te.touches[0].clientX;
-                    lastY = te.touches[0].clientY;
-                    if (Math.abs(te.touches[0].clientX - lastX) > 10 || Math.abs(te.touches[0].clientY - lastY) > 10) {
-                        clearTimeout(longPressTimer);
-                    }
-                }, { passive: true });
+                if (longPressTimer) clearTimeout(longPressTimer); longPressTimer = setTimeout(() => initDrag(lastX, lastY), 500);
+                targetEl.addEventListener('touchmove', (te) => { if (Math.abs(te.touches[0].clientX - lastX) > 10 || Math.abs(te.touches[0].clientY - lastY) > 10) clearTimeout(longPressTimer); }, { passive: true });
                 targetEl.addEventListener('touchend', () => clearTimeout(longPressTimer), { once: true });
-            } else {
-                initDrag(e.clientX, e.clientY);
-            }
+            } else initDrag(e.clientX, e.clientY);
         }
 
         function finalizeSortFromDOM() {
             const newFileIds = Array.from(document.querySelectorAll('#admin-song-list .admin-song-row')).map(row => row.getAttribute('data-fileid'));
-            if (currentTab === 'all') {
-                db = newFileIds.map(id => db.find(s => s.file_id === id)).filter(Boolean);
-                libState.songs = db;
-            } else if (currentTab === 'fav') {
-                libState.favorites = newFileIds;
-            } else {
-                const pl = libState.playlists[parseInt(currentTab)];
-                if (pl) pl.ids = newFileIds;
-            }
-            saveSync(false);
+            if (currentTab === 'all') { db = newFileIds.map(id => db.find(s => s.file_id === id)).filter(Boolean); libState.songs = db; }
+            else if (currentTab === 'fav') libState.favorites = newFileIds;
+            else { const pl = libState.playlists[parseInt(currentTab)]; if (pl) pl.ids = newFileIds; }
+            buildIndexMap(); renderAllLists();
         }
 
         function toggleEditMode(idx) {
-            const row = document.getElementById('admin-row-' + idx);
-            const isEditing = row.classList.toggle('editing');
-            const inputs = row.querySelectorAll('.admin-song-input');
-            const btn = row.querySelector('[onclick^="toggleEditMode"]');
-            inputs.forEach(input => input.readOnly = !isEditing);
-            if (isEditing) inputs[0].focus();
+            const row = document.getElementById('admin-row-' + idx), isEditing = row.classList.toggle('editing'), inputs = row.querySelectorAll('.admin-song-input'), btn = row.querySelector('[onclick^="toggleEditMode"]');
+            inputs.forEach(input => input.readOnly = !isEditing); if (isEditing) inputs[0].focus();
             btn.innerHTML = isEditing ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M5 13l4 4L19 7"></path></svg>' : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
         }
 
-        function updateSongInfo(fileId, field, val) {
-            const song = db.find(s => s.file_id === fileId);
-            if (song) { song[field] = val; saveSync(false); }
-        }
+        function updateSongInfo(fileId, field, val) { const song = db.find(s => s.file_id === fileId); if (song) { song[field] = val; renderAllLists(); } }
 
         function deleteFromContext(idx, fileId) {
             showSarahDialog("删除确认", "确定执行此删除操作吗？", false, null, (confirmed) => {
                 if (!confirmed) return;
-                if (currentTab === 'all') {
-                    db = db.filter(s => s.file_id !== fileId);
-                    libState.songs = db;
-                    libState.favorites = libState.favorites.filter(id => id !== fileId);
-                    libState.playlists.forEach(p => p.ids = p.ids.filter(id => id !== fileId));
-                } else if (currentTab === 'fav') {
-                    libState.favorites = libState.favorites.filter(id => id !== fileId);
-                } else {
-                    const pl = libState.playlists[parseInt(currentTab)];
-                    if (pl) pl.ids = pl.ids.filter(id => id !== fileId);
-                }
-                renderAdminSongList();
-                saveSync(false);
+                if (currentTab === 'all') { db = db.filter(s => s.file_id !== fileId); libState.songs = db; libState.favorites = libState.favorites.filter(id => id !== fileId); libState.playlists.forEach(p => p.ids = p.ids.filter(id => id !== fileId)); }
+                else if (currentTab === 'fav') libState.favorites = libState.favorites.filter(id => id !== fileId);
+                else { const pl = libState.playlists[parseInt(currentTab)]; if (pl) pl.ids = pl.ids.filter(id => id !== fileId); }
+                buildIndexMap(); renderAdminSongList(); renderAllLists();
             });
         }
 
         function openPlaylistSelector(fileId) {
-            const modal = document.getElementById('playlist-selector-modal');
-            const list = document.getElementById('playlist-selector-list');
-            list.innerHTML = libState.playlists.map((pl, i) => {
-                const isExists = pl.ids.includes(fileId);
-                return \`<div onclick="toggleInPlaylist(\${i}, '\${fileId}')" class="p-4 bg-white/5 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/10 transition-all \${isExists ? 'opacity-30 grayscale' : 'opacity-100'}"><span class="text-xs text-white font-black">\${pl.name}</span>\${isExists ? '<span class="text-[10px] font-black uppercase text-white/50">已存在</span>' : '<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M12 4v16m8-8H4"></path></svg>'}</div>\`;
-            }).join('') || '<div class="py-10 text-center text-white/20 text-xs font-black">暂无自定义歌单</div>';
+            const modal = document.getElementById('playlist-selector-modal'), list = document.getElementById('playlist-selector-list');
+            list.innerHTML = libState.playlists.map((pl, i) => { const isExists = pl.ids.includes(fileId); return \`<div onclick="toggleInPlaylist(\${i}, '\${fileId}')" class="p-4 bg-white/5 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/10 transition-all \${isExists ? 'opacity-30 grayscale' : 'opacity-100'}"><span class="text-xs text-white font-black">\${pl.name}</span>\${isExists ? '<span class="text-[10px] font-black uppercase text-white/50">已存在</span>' : '<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M12 4v16m8-8H4"></path></svg>'}</div>\`; }).join('') || '<div class="py-10 text-center text-white/20 text-xs font-black">暂无自定义歌单</div>';
             modal.classList.add('active');
         }
-
         function closePlaylistSelector() { document.getElementById('playlist-selector-modal').classList.remove('active'); }
-        
-        function toggleInPlaylist(plIdx, fileId) {
-            const pl = libState.playlists[plIdx];
-            if (pl.ids.includes(fileId)) return;
-            pl.ids.push(fileId);
-            openPlaylistSelector(fileId);
-            saveSync(false);
-        }
+        function toggleInPlaylist(plIdx, fileId) { const pl = libState.playlists[plIdx]; if (pl.ids.includes(fileId)) return; pl.ids.push(fileId); openPlaylistSelector(fileId); }
 
         function addPlaylistPrompt() {
             showSarahDialog("新建歌单", "请输入新歌单名称：", true, "", (name) => {
-                if (name && name.trim()) {
-                    libState.playlists.push({ name: name.trim(), ids: [] });
-                    renderCustomTabs();
-                    renderAdminPlaylistTabs();
-                    saveSync(false);
-                }
+                if (name && name.trim()) { libState.playlists.push({ name: name.trim(), ids: [] }); renderCustomTabs(); renderAdminPlaylistTabs(); }
             });
         }
 
         function renamePlaylistPrompt(idx) {
             const oldName = libState.playlists[idx].name;
             showSarahDialog("重命名歌单", "请输入新的歌单名称：", true, oldName, (newName) => {
-                if (newName && newName.trim() && newName !== oldName) {
-                    libState.playlists[idx].name = newName.trim();
-                    renderCustomTabs();
-                    renderAdminPlaylistTabs();
-                    saveSync(false);
-                }
+                if (newName && newName.trim() && newName !== oldName) { libState.playlists[idx].name = newName.trim(); renderCustomTabs(); renderAdminPlaylistTabs(); }
             });
         }
 
         function deletePlaylist(idx) {
             showSarahDialog("删除确认", \`确定删除歌单 "\${libState.playlists[idx].name}" 吗？\`, false, null, (confirmed) => {
-                if (confirmed) {
-                    libState.playlists.splice(idx, 1);
-                    if (currentTab === idx.toString()) currentTab = 'all';
-                    renderCustomTabs();
-                    renderAdminPlaylistTabs();
-                    renderAllLists();
-                    saveSync(false);
-                }
+                if (confirmed) { libState.playlists.splice(idx, 1); if (currentTab === idx.toString()) currentTab = 'all'; renderCustomTabs(); renderAdminPlaylistTabs(); renderAllLists(); }
             });
         }
 
         function toggleMobileDrawer(s) {
-            const drawer = document.getElementById('m-drawer');
-            const overlay = document.getElementById('m-overlay');
-            if (s) {
-                renderMobilePlaylistCards();
-                drawer.classList.add('active');
-                overlay.style.display = 'block';
-            } else {
-                drawer.classList.remove('active');
-                overlay.style.display = 'none';
-            }
+            const drawer = document.getElementById('m-drawer'), overlay = document.getElementById('m-overlay');
+            if (s) { renderMobilePlaylistCards(); drawer.classList.add('active'); overlay.style.display = 'block'; }
+            else { drawer.classList.remove('active'); overlay.style.display = 'none'; }
         }
-
         function renderMobilePlaylistCards() {
-            const container = document.getElementById('m-pl-cards');
-            const cardData = [{ id: 'all', name: '全库' }, { id: 'fav', name: '收藏' }, ...libState.playlists.map((p, i) => ({ id: i.toString(), name: p.name }))];
+            const container = document.getElementById('m-pl-cards'); const cardData = [{ id: 'all', name: '全库' }, { id: 'fav', name: '收藏' }, ...libState.playlists.map((p, i) => ({ id: i.toString(), name: p.name }))];
             container.innerHTML = cardData.map(c => \`<div onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab === c.id ? 'active' : ''}"><span class="m-pl-card-name">\${c.name}</span></div>\`).join('');
         }
 
-        function previewTag(input) { 
-            const files = Array.from(input.files);
-            const tip = document.getElementById('file-count-tip');
-            if (files.length > 0) tip.innerText = \`已选择 \${files.length} 首待同步\`;
-            
-            // 清理缓存图
-            tempMetaMap.clear();
-
-            files.forEach(f => {
-                jsmediatags.read(f, {
-                    onSuccess: (tag) => {
-                        const { title, artist, picture, lyrics } = tag.tags;
-                        let cover = '';
-                        if (picture) {
-                            const { data, format } = picture;
-                            let b64 = "";
-                            for (let i = 0; i < data.length; i++) { b64 += String.fromCharCode(data[i]); }
-                            cover = \`data:\${format};base64,\${window.btoa(b64)}\`;
-                        }
-                        tempMetaMap.set(f.name, { 
-                            title: title || f.name.replace(/\\.[^/.]+$/, ""), 
-                            artist: artist || "未知", 
-                            cover, 
-                            lrc: lyrics ? lyrics.lyrics : "" 
-                        });
-                    },
-                    onError: () => {
-                        tempMetaMap.set(f.name, { 
-                            title: f.name.replace(/\\.[^/.]+$/, ""), 
-                            artist: "未知", 
-                            cover: '', 
-                            lrc: "" 
-                        });
-                    }
-                });
-            });
-        }
-
-        // 8.10.1 强化并发引擎：支持重试与真正的排队可见性
-        async function handleUp() { 
-            const input = document.getElementById('f-in');
-            const filesArr = Array.from(input.files);
-            if (!filesArr.length) return; 
-            
-            const btn = document.getElementById('auto-sync-trigger');
-            const progressList = document.getElementById('upload-progress-list');
-            
-            btn.disabled = true;
-            btn.innerText = "批量同步中...";
-            
-            // 立即渲染所有排队项
-            progressList.innerHTML = filesArr.map((f, i) => \`
-                <div class="up-progress-item" id="up-item-\${i}">
-                    <div class="flex justify-between text-[10px] text-white/70 font-bold mb-1">
-                        <span class="truncate max-w-[70%]">\${f.name}</span>
-                        <span class="up-pct">队列中</span>
-                    </div>
-                    <div class="up-progress-bar-bg">
-                        <div class="up-progress-bar-fill" style="width: 0%"></div>
-                    </div>
-                </div>
-            \`).join('');
-            
-            const pass = localStorage.getItem('sarah_access_token') || "";
-            const CONCURRENT_LIMIT = 3; 
-            const queue = Array.from({ length: filesArr.length }, (_, i) => i);
-            
-            const uploadWorker = async () => {
-                while (queue.length > 0) {
-                    const idx = queue.shift();
-                    const f = filesArr[idx];
-                    const fd = new FormData();
-                    fd.append('file', f);
-                    
-                    const progressEl = document.getElementById("up-item-" + idx);
-                    const barFill = progressEl.querySelector('.up-progress-bar-fill');
-                    const pctText = progressEl.querySelector('.up-pct');
-
-                    await new Promise(resolve => {
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('POST', '/api/upload');
-                        xhr.setRequestHeader('X-Sarah-Password', pass);
-                        
-                        xhr.upload.onprogress = (e) => {
-                            if (e.lengthComputable) {
-                                const percent = Math.round((e.loaded / e.total) * 100);
-                                barFill.style.width = percent + "%";
-                                pctText.innerText = "同步 " + percent + "%";
-                            }
-                        };
-
-                        xhr.onload = () => {
-                            if (xhr.status === 200) {
-                                const res = JSON.parse(xhr.responseText);
-                                db.unshift({ 
-                                    ...(tempMetaMap.get(f.name) || { title: f.name, artist: "未知" }), 
-                                    file_id: res.file_id 
-                                });
-                                pctText.innerText = "✅ 同步完成";
-                                pctText.classList.add('text-emerald-400');
-                                barFill.style.width = "100%";
-                            } else {
-                                pctText.innerText = "❌ 失败";
-                                pctText.classList.add('text-red-400');
-                            }
-                            resolve();
-                        };
-                        xhr.onerror = () => { resolve(); };
-                        xhr.send(fd);
-                    });
-                }
-            };
-
-            const workers = Array(Math.min(CONCURRENT_LIMIT, filesArr.length)).fill(0).map(() => uploadWorker());
-            await Promise.all(workers);
-            
-            libState.songs = db;
-            await saveSync(false);
-            renderAdminSongList();
-            showMsg("✅ 乐库已云端热更新");
-            
-            btn.disabled = false;
-            btn.innerText = "开始上传并自动同步";
-            document.getElementById('f-in').value = "";
-            document.getElementById('file-count-tip').innerText = "点击或拖拽旋律至此上传";
-            
-            setTimeout(() => { progressList.innerHTML = ""; }, 5000);
-        }
-
-        async function saveSync(shouldReload) { 
-            const pass = localStorage.getItem('sarah_access_token') || "";
-            try {
-                const res = await fetch('/api/manage', {
-                    method: 'POST',
-                    headers: { 'X-Sarah-Password': pass },
-                    body: JSON.stringify({ data: libState })
-                });
-                const result = await res.json();
-                if (result.success) { 
-                    buildIndexMap();
-                    renderAllLists();
-                    renderCustomTabs();
-                    renderAdminPlaylistTabs(); 
-                    if (ap) {
-                        const currentAudio = ap.list.audios[ap.list.index];
-                        const currentId = currentAudio ? new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id') : null;
-                        ap.list.audios = db.map(s => ({
-                            name: s.title,
-                            artist: s.artist,
-                            cover: s.cover || DEFAULT_LOGO,
-                            url: \`/api/stream?file_id=\${s.file_id}&auth=\${pass}\`,
-                            lrc: s.lrc || '[00:00.00]暂无歌词'
-                        }));
-                        if (currentId) {
-                            const newIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + currentId));
-                            if (newIdx !== -1) ap.list.index = newIdx;
-                        }
-                    }
-                    if (shouldReload) setTimeout(() => location.reload(), 1000); 
-                }
-            } catch(e) {
-                console.error("SaveSync Error:", e);
-            }
-        }
-
-        function showMsg(txt) {
-            const b = document.getElementById('msg-box');
-            b.innerText = txt;
-            b.classList.add('active');
-            setTimeout(() => b.classList.remove('active'), 3000);
-        }
-
+        function showMsg(txt) { const b = document.getElementById('msg-box'); b.innerText = txt; b.classList.add('active'); setTimeout(() => b.classList.remove('active'), 3000); }
         window.onload = init;
     </script>
 </body>
@@ -1884,7 +1203,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在执行极致性能部署 (v8.10.1)---');
+    console.log('\n---正在执行极致加速部署 (v8.12.0)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1892,6 +1211,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 8.10.1 (极致加速版) 已部署至 GitHub。');
+        console.log('\n✅ Sarah MUSIC 8.12.0 (轻量会话版) 已部署。');
     } catch(e) { console.error('\n❌ Git 推送失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }

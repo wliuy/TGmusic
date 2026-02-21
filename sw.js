@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sarah-music-v8101';
+const CACHE_NAME = 'sarah-music-v8120';
 const ASSETS = ['/'];
 
 self.addEventListener('install', (e) => {
@@ -23,7 +23,6 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // 核心修复：API 动态请求永远穿透缓存，解决白屏与数据滞后
   if (e.request.url.includes('/api/')) {
     return e.respondWith(fetch(e.request));
   }
