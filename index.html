@@ -540,7 +540,7 @@
             });
         }
 
-        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl, i) => `<div id="tab-pl-${i}" onclick="switchList('${i}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">	ext{pl.name}</div>`).join(''); }
+        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl, i) => `<div id="tab-pl-${i}" onclick="switchList('${i}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">${pl.name}</div>`).join(''); }
         
         function renderAllLists() {
             let ids = [];
@@ -555,7 +555,7 @@
 
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null;
             const currentId = currentAudio ? new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id') : null;
-            const html = listData.map(s => `<div data-id="${s.file_id}" onclick="handleTrackSwitch(${dbIndexMap.get(s.file_id)}, '${s.file_id}')" class="song-item group ${s.file_id === currentId ? 'active' : ''}"><img src="${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">${s.artist}</div></div></div>`).join('') || '<div class="py-20 text-center opacity-20 font-black text-white/40">列表暂无旋律</div>';
+            const html = listData.map(s => `<div data-id="${s.file_id}" onclick="handleTrackSwitch(${dbIndexMap.get(s.file_id)}, '${s.file_id}')" class="song-item group ${s.file_id === currentId ? 'active' : ''}"><img src="${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">	ext{s.artist}</div></div></div>`).join('') || '<div class="py-20 text-center opacity-20 font-black text-white/40">列表暂无旋律</div>';
             document.getElementById('list-view').innerHTML = html;
             document.getElementById('m-list-view').innerHTML = html;
         }
@@ -738,10 +738,9 @@
                 const pId = "up-p-" + i;
                 container.innerHTML += `<div class="upload-preview-item" id="${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">${f.name}</span><div id="${pId}-s" class="preview-status-dot"></div></div><div class="preview-prog-container" id="${pId}-w"><div class="preview-prog-fill" id="${pId}-f"></div></div></div>`;
                 jsmediatags.read(f, { onSuccess: (t) => {
-                    const { title, artist, picture, lyrics } = t.tags; let cv = '';
-                    if (picture) { const { data, format } = picture; let b = ""; for (let j = 0; j < data.length; j++) b += String.fromCharCode(data[j]); cv = `data:${format};base64,${btoa(b)}`; }
-                    if (cv.length > 800000) cv = '';
-                    tempMetaMap.set(f.name, { title: title || f.name.replace(/\.[^/.]+$/, ""), artist: artist || "未知", cover: cv, lrc: lyrics?.lyrics || "" });
+                    const { title, artist, picture, lyrics } = t.tags; let blob = null;
+                    if (picture) { const { data, format } = picture; blob = new Blob([new Uint8Array(data)], { type: format }); }
+                    tempMetaMap.set(f.name, { title: title || f.name.replace(/\.[^/.]+$/, ""), artist: artist || "未知", coverBlob: blob, lrc: lyrics?.lyrics || "" });
                 }});
             });
         }
@@ -755,7 +754,9 @@
                     const it = queue.shift(); if(!it) break;
                     const sDot = document.getElementById("up-p-"+it.i+"-s"), pWrap = document.getElementById("up-p-"+it.i+"-w"), pFill = document.getElementById("up-p-"+it.i+"-f");
                     sDot.className = "preview-status-dot uploading"; pWrap.style.display = "block";
-                    const fd = new FormData(); fd.append('file', it.f); fd.append('meta', JSON.stringify(tempMetaMap.get(it.f.name) || { title: it.f.name }));
+                    const meta = tempMetaMap.get(it.f.name) || { title: it.f.name };
+                    const fd = new FormData(); fd.append('file', it.f); fd.append('meta', JSON.stringify(meta));
+                    if (meta.coverBlob) fd.append('cover', meta.coverBlob, 'cover.jpg');
                     const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload');
                     xhr.upload.onprogress = e => { if(e.lengthComputable) pFill.style.width = (e.loaded/e.total*100) + '%'; };
                     await new Promise(r => {
@@ -770,7 +771,6 @@
                     });
                 }
             };
-            // 确保 3 线程并发，顺序写入 D1
             await Promise.all([worker(), worker(), worker()]);
             showMsg("✅ 同步流程结束"); btn.disabled = false; init();
             if(currentTab === 'logs') renderUploadLogs();

@@ -10,7 +10,7 @@ const { execSync } = require('child_process');
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.0.3 (D1 无损重构，修复 SQLITE_TOOBIG 错误)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.0.3 (D1 无损重构，封面 URL 化存储解决 SQLITE_TOOBIG)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -102,26 +102,41 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
   } catch (err) { return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500 }); }
 }`;
 
-// --- API: 上传中心 (同步 D1 + 日志增强) ---
+// --- API: 上传中心 (同步 D1 + 封面 URL 化) ---
 files['functions/api/upload.js'] = `export async function onRequest(context) {
   const { request, env } = context;
   const BOT_TOKEN = env.TG_Bot_Token;
   const CHAT_ID = env.TG_Chat_ID;
   
-  // 自动初始化日志表
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS upload_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, status TEXT, reason TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
 
   let filename = "Unknown";
   try {
     const formData = await request.formData();
-    const file = formData.get('file');
-    filename = file.name || "Unknown";
+    const audioFile = formData.get('file');
+    const coverFile = formData.get('cover');
+    filename = audioFile.name || "Unknown";
     const meta = JSON.parse(formData.get('meta') || '{}');
     
+    // 步骤 1: 处理封面上传 (若有)
+    let finalCoverUrl = "";
+    if (coverFile) {
+      const imgFormData = new FormData();
+      imgFormData.append('chat_id', CHAT_ID);
+      imgFormData.append('photo', coverFile);
+      const imgRes = await fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/sendPhoto", { method: 'POST', body: imgFormData });
+      const imgData = await imgRes.json();
+      if (imgData.ok) {
+        const photoArr = imgData.result.photo;
+        const bestFid = photoArr[photoArr.length - 1].file_id;
+        finalCoverUrl = "/api/stream?file_id=" + bestFid;
+      }
+    }
+
+    // 步骤 2: 上传音频
     const tgFormData = new FormData();
     tgFormData.append('chat_id', CHAT_ID);
-    tgFormData.append('audio', file);
-    
+    tgFormData.append('audio', audioFile);
     const tgRes = await fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/sendAudio", { method: 'POST', body: tgFormData });
     const result = await tgRes.json();
     
@@ -133,7 +148,7 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
     
     const fid = result.result.audio.file_id;
     await env.DB.prepare("INSERT INTO songs (file_id, title, artist, cover, lrc) VALUES (?1, ?2, ?3, ?4, ?5)")
-      .bind(fid, meta.title || "未知", meta.artist || "未知", meta.cover || "", meta.lrc || "").run();
+      .bind(fid, meta.title || "未知", meta.artist || "未知", finalCoverUrl, meta.lrc || "").run();
     
     await env.DB.prepare("INSERT INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES ('all', ?, ?)")
       .bind(fid, Date.now()).run();
@@ -707,7 +722,7 @@ files['index.html'] = `<!DOCTYPE html>
             });
         }
 
-        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl, i) => \`<div id="tab-pl-\${i}" onclick="switchList('\${i}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\text{pl.name}</div>\`).join(''); }
+        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl, i) => \`<div id="tab-pl-\${i}" onclick="switchList('\${i}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); }
         
         function renderAllLists() {
             let ids = [];
@@ -722,7 +737,7 @@ files['index.html'] = `<!DOCTYPE html>
 
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null;
             const currentId = currentAudio ? new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id') : null;
-            const html = listData.map(s => \`<div data-id="\${s.file_id}" onclick="handleTrackSwitch(\${dbIndexMap.get(s.file_id)}, '\${s.file_id}')" class="song-item group \${s.file_id === currentId ? 'active' : ''}"><img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div></div>\`).join('') || '<div class="py-20 text-center opacity-20 font-black text-white/40">列表暂无旋律</div>';
+            const html = listData.map(s => \`<div data-id="\${s.file_id}" onclick="handleTrackSwitch(\${dbIndexMap.get(s.file_id)}, '\${s.file_id}')" class="song-item group \${s.file_id === currentId ? 'active' : ''}"><img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\text{s.artist}</div></div></div>\`).join('') || '<div class="py-20 text-center opacity-20 font-black text-white/40">列表暂无旋律</div>';
             document.getElementById('list-view').innerHTML = html;
             document.getElementById('m-list-view').innerHTML = html;
         }
@@ -905,10 +920,9 @@ files['index.html'] = `<!DOCTYPE html>
                 const pId = "up-p-" + i;
                 container.innerHTML += \`<div class="upload-preview-item" id="\${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">\${f.name}</span><div id="\${pId}-s" class="preview-status-dot"></div></div><div class="preview-prog-container" id="\${pId}-w"><div class="preview-prog-fill" id="\${pId}-f"></div></div></div>\`;
                 jsmediatags.read(f, { onSuccess: (t) => {
-                    const { title, artist, picture, lyrics } = t.tags; let cv = '';
-                    if (picture) { const { data, format } = picture; let b = ""; for (let j = 0; j < data.length; j++) b += String.fromCharCode(data[j]); cv = \`data:\${format};base64,\${btoa(b)}\`; }
-                    if (cv.length > 800000) cv = '';
-                    tempMetaMap.set(f.name, { title: title || f.name.replace(/\\.[^/.]+$/, ""), artist: artist || "未知", cover: cv, lrc: lyrics?.lyrics || "" });
+                    const { title, artist, picture, lyrics } = t.tags; let blob = null;
+                    if (picture) { const { data, format } = picture; blob = new Blob([new Uint8Array(data)], { type: format }); }
+                    tempMetaMap.set(f.name, { title: title || f.name.replace(/\\.[^/.]+$/, ""), artist: artist || "未知", coverBlob: blob, lrc: lyrics?.lyrics || "" });
                 }});
             });
         }
@@ -922,7 +936,9 @@ files['index.html'] = `<!DOCTYPE html>
                     const it = queue.shift(); if(!it) break;
                     const sDot = document.getElementById("up-p-"+it.i+"-s"), pWrap = document.getElementById("up-p-"+it.i+"-w"), pFill = document.getElementById("up-p-"+it.i+"-f");
                     sDot.className = "preview-status-dot uploading"; pWrap.style.display = "block";
-                    const fd = new FormData(); fd.append('file', it.f); fd.append('meta', JSON.stringify(tempMetaMap.get(it.f.name) || { title: it.f.name }));
+                    const meta = tempMetaMap.get(it.f.name) || { title: it.f.name };
+                    const fd = new FormData(); fd.append('file', it.f); fd.append('meta', JSON.stringify(meta));
+                    if (meta.coverBlob) fd.append('cover', meta.coverBlob, 'cover.jpg');
                     const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload');
                     xhr.upload.onprogress = e => { if(e.lengthComputable) pFill.style.width = (e.loaded/e.total*100) + '%'; };
                     await new Promise(r => {
@@ -937,7 +953,6 @@ files['index.html'] = `<!DOCTYPE html>
                     });
                 }
             };
-            // 确保 3 线程并发，顺序写入 D1
             await Promise.all([worker(), worker(), worker()]);
             showMsg("✅ 同步流程结束"); btn.disabled = false; init();
             if(currentTab === 'logs') renderUploadLogs();
@@ -976,6 +991,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.0.3 构建成功。已修复大尺寸封面导致的 SQLITE_TOOBIG 写入异常。');
+        console.log('\n✅ Sarah MUSIC 9.0.3 构建成功。封面已改为由 Telegram 托管并以 URL 形式存储，彻底根治 SQLITE_TOOBIG。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
