@@ -252,7 +252,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.0.2</p>
+            <p class="brand-sub">Premium Music Hub | v9.0.3</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -347,7 +347,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.0.2</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.0.3</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -383,7 +383,7 @@
             { bg: '#ffc8dd', accent: '#ec407a', deep: '#f5b8cf' }, { bg: '#e9d8a6', accent: '#9b2226', deep: '#7b241c' }, 
             { bg: '#f8fafc', accent: '#0ea5e9', deep: '#0c4a6e' }, { bg: '#1e293b', accent: '#f59e0b', deep: '#451a03' }, 
             { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' }, { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' }, 
-            { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' }, { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
+            { bg: '#fff1f2', accent: '#fb7185', debug: '#881337' }, { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
         ];
 
         // 原子化指令下发 D1
@@ -540,7 +540,7 @@
             });
         }
 
-        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl, i) => `<div id="tab-pl-${i}" onclick="switchList('${i}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">${pl.name}</div>`).join(''); }
+        function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl, i) => `<div id="tab-pl-${i}" onclick="switchList('${i}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">	ext{pl.name}</div>`).join(''); }
         
         function renderAllLists() {
             let ids = [];
@@ -740,6 +740,7 @@
                 jsmediatags.read(f, { onSuccess: (t) => {
                     const { title, artist, picture, lyrics } = t.tags; let cv = '';
                     if (picture) { const { data, format } = picture; let b = ""; for (let j = 0; j < data.length; j++) b += String.fromCharCode(data[j]); cv = `data:${format};base64,${btoa(b)}`; }
+                    if (cv.length > 800000) cv = '';
                     tempMetaMap.set(f.name, { title: title || f.name.replace(/\.[^/.]+$/, ""), artist: artist || "未知", cover: cv, lrc: lyrics?.lyrics || "" });
                 }});
             });
