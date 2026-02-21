@@ -1,18 +1,1 @@
-{
-  "name": "Sarah Music",
-  "short_name": "Sarah",
-  "description": "Premium TG Cloud Music Player",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#4d7c5f",
-  "theme_color": "#4d7c5f",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "https://tc.yang.pp.ua/file/logo/sarah-y.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ]
-}
+{"name":"Sarah Music","short_name":"Sarah","start_url":"/","display":"standalone","background_color":"#4d7c5f","theme_color":"#4d7c5f","icons":[{"src":"https://tc.yang.pp.ua/file/logo/sarah-y.png","sizes":"512x512","type":"image/png"}]}
