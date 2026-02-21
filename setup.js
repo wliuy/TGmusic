@@ -92,34 +92,58 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
           .bind(playlist_id, fid, idx)
       );
       await env.DB.batch(statements);
+    } else if (action === 'get_logs') {
+      const logs = await env.DB.prepare("SELECT * FROM upload_logs ORDER BY timestamp DESC LIMIT 50").all();
+      return new Response(JSON.stringify({ success: true, logs: logs.results || [] }));
+    } else if (action === 'clear_logs') {
+      await env.DB.prepare("DELETE FROM upload_logs").run();
     }
     return new Response(JSON.stringify({ success: true }));
   } catch (err) { return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500 }); }
 }`;
 
-// --- API: 上传中心 (同步 D1) ---
+// --- API: 上传中心 (同步 D1 + 日志增强) ---
 files['functions/api/upload.js'] = `export async function onRequest(context) {
   const { request, env } = context;
   const BOT_TOKEN = env.TG_Bot_Token;
   const CHAT_ID = env.TG_Chat_ID;
+  
+  // 自动初始化日志表
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS upload_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, status TEXT, reason TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
+
+  let filename = "Unknown";
   try {
     const formData = await request.formData();
     const file = formData.get('file');
+    filename = file.name || "Unknown";
     const meta = JSON.parse(formData.get('meta') || '{}');
+    
     const tgFormData = new FormData();
     tgFormData.append('chat_id', CHAT_ID);
     tgFormData.append('audio', file);
+    
     const tgRes = await fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/sendAudio", { method: 'POST', body: tgFormData });
     const result = await tgRes.json();
-    if (!result.ok) return new Response(JSON.stringify(result), { status: 400 });
+    
+    if (!result.ok) {
+      const errorMsg = result.description || "Telegram API Error";
+      await env.DB.prepare("INSERT INTO upload_logs (filename, status, reason) VALUES (?, 'FAIL', ?)").bind(filename, errorMsg).run();
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400 });
+    }
+    
     const fid = result.result.audio.file_id;
     await env.DB.prepare("INSERT INTO songs (file_id, title, artist, cover, lrc) VALUES (?1, ?2, ?3, ?4, ?5)")
       .bind(fid, meta.title || "未知", meta.artist || "未知", meta.cover || "", meta.lrc || "").run();
-    // 默认归入全库列表
+    
     await env.DB.prepare("INSERT INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES ('all', ?, ?)")
       .bind(fid, Date.now()).run();
+
+    await env.DB.prepare("INSERT INTO upload_logs (filename, status, reason) VALUES (?, 'SUCCESS', 'OK')").bind(filename).run();
     return new Response(JSON.stringify({ success: true, file_id: fid }));
-  } catch (err) { return new Response(err.message, { status: 500 }); }
+  } catch (err) { 
+    await env.DB.prepare("INSERT INTO upload_logs (filename, status, reason) VALUES (?, 'FAIL', ?)").bind(filename, err.message).run();
+    return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500 }); 
+  }
 }`;
 
 files['manifest.json'] = `{
@@ -647,7 +671,7 @@ files['index.html'] = `<!DOCTYPE html>
             upUI('ui-cover', 'pc-logo-box'); upUI('m-ui-cover', 'm-logo-box');
             ['ui-title', 'm-ui-title'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.title; });
             ['ui-artist', 'm-ui-artist'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.artist; });
-            const pattern = /\\\[(\\d+):(\\d+).(\\d+)\\\](.*)/;
+            const pattern = /\\[(\\d+):(\\d+).(\\d+)\\](.*)/;
             lrcLines = (song.lrc || "").split(/\\r?\\n/).map(l => { const m = pattern.exec(l); return m ? { t: parseInt(m[1]) * 60 + parseInt(m[2]), text: m[4].trim() } : null; }).filter(v => v && v.text);
             const renderL = (id) => {
                 const el = document.getElementById(id); if(!el) return;
@@ -768,7 +792,7 @@ files['index.html'] = `<!DOCTYPE html>
             await dbOp('toggle_fav', { file_id: fid }); init(); 
         }
 
-        function switchList(t) { currentTab = t; updateBackground(false); renderAllLists(); if(document.getElementById('admin-panel').classList.contains('active')) renderAdminSongList(); }
+        function switchList(t) { currentTab = t; updateBackground(false); renderAllLists(); if(document.getElementById('admin-panel').classList.contains('active')) { if(t === 'logs') renderUploadLogs(); else renderAdminSongList(); renderAdminPlaylistTabs(); } }
         function toggleAdmin(s) { document.getElementById('admin-panel').classList.toggle('active', s); if(s) { renderAdminPlaylistTabs(); renderAdminSongList(); } }
         function toggleUploadArea() { document.getElementById('sleep-area').classList.add('hidden'); document.getElementById('upload-area').classList.toggle('hidden'); }
         function toggleSleepArea() { document.getElementById('upload-area').classList.add('hidden'); document.getElementById('sleep-area').classList.toggle('hidden'); }
@@ -784,7 +808,25 @@ files['index.html'] = `<!DOCTYPE html>
             const container = document.getElementById('admin-playlist-tabs'); if(!container) return;
             let html = \`<div class="browser-tab \${currentTab === 'all' ? 'active' : ''}" onclick="switchList('all')"><span class="browser-tab-text">全库</span></div><div class="browser-tab \${currentTab === 'fav' ? 'active' : ''}" onclick="switchList('fav')"><span class="browser-tab-text">收藏</span></div>\`;
             libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentTab === i.toString() ? 'active' : ''}" onclick="switchList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')"><span class="browser-tab-text">\${pl.name}</span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
+            html += \`<div class="browser-tab \${currentTab === 'logs' ? 'active' : ''} !bg-black/20" onclick="switchList('logs')"><span class="browser-tab-text">日志</span></div>\`;
             container.innerHTML = html;
+        }
+
+        async function renderUploadLogs() {
+            const container = document.getElementById('admin-song-list');
+            container.innerHTML = '<div class="py-10 text-center text-white/40 animate-pulse">正在获取 D1 日志...</div>';
+            const res = await dbOp('get_logs');
+            if (!res.success) { container.innerHTML = '<div class="py-10 text-center text-red-300">获取日志失败</div>'; return; }
+            container.innerHTML = res.logs.map(log => \`
+                <div class="p-4 bg-white/5 rounded-2xl mb-2 flex flex-col gap-1 border border-white/5">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[12px] font-black text-white truncate max-w-[70%]">\${log.filename}</span>
+                        <span class="text-[9px] px-2 py-0.5 rounded \${log.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}">\${log.status}</span>
+                    </div>
+                    <div class="text-[10px] text-white/40 italic">\${log.reason || '无详情'}</div>
+                    <div class="text-[8px] text-white/20 text-right mt-1">\${new Date(log.timestamp).toLocaleString()}</div>
+                </div>
+            \`).join('') || '<div class="py-10 text-center text-white/20">暂无上传记录</div>';
         }
 
         function renderAdminSongList() {
@@ -792,6 +834,7 @@ files['index.html'] = `<!DOCTYPE html>
             let ids = [];
             if(currentTab === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
             else if(currentTab === 'fav') ids = libState.favorites;
+            else if(currentTab === 'logs') { renderUploadLogs(); return; }
             else ids = libState.playlists[parseInt(currentTab)]?.ids || [];
             const list = ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
             container.innerHTML = list.map((s, i) => \`<div class="admin-song-row" id="admin-row-\${i}" data-fileid="\${s.file_id}" onmousedown="handleAdminDragStart(event, \${i}, false)" ontouchstart="handleAdminDragStart(event, \${i}, true)"><div class="admin-song-info"><input class="admin-song-input admin-song-title-input" value="\${s.title}" readonly onchange="updateSongInfo('\${s.file_id}', 'title', this.value)"><input class="admin-song-input admin-song-artist-input" value="\${s.artist}" readonly onchange="updateSongInfo('\${s.file_id}', 'artist', this.value)"></div><div class="admin-action-group"><div class="admin-action-btn" onclick="openPlaylistSelector('\${s.file_id}')"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 4v16m8-8H4"></path></svg></div><div class="admin-action-btn delete" onclick="deleteSong('\${s.file_id}')"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></div><div class="admin-action-btn" onclick="toggleEditMode(\${i})"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div></div></div>\`).join('') || '<div class="py-10 text-center text-white/20 text-xs">暂无歌曲</div>';
@@ -882,21 +925,28 @@ files['index.html'] = `<!DOCTYPE html>
                     const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload');
                     xhr.upload.onprogress = e => { if(e.lengthComputable) pFill.style.width = (e.loaded/e.total*100) + '%'; };
                     await new Promise(r => {
-                        xhr.onload = () => { if(xhr.status === 200) sDot.className = "preview-status-dot success"; else sDot.className = "preview-status-dot error"; r(); };
+                        xhr.onload = () => { 
+                            const res = JSON.parse(xhr.responseText || '{}');
+                            if(xhr.status === 200 && res.success) sDot.className = "preview-status-dot success"; 
+                            else { sDot.className = "preview-status-dot error"; console.error("Upload Fail:", res.error); }
+                            r(); 
+                        };
                         xhr.onerror = () => { sDot.className = "preview-status-dot error"; r(); };
                         xhr.send(fd);
                     });
                 }
             };
+            // 确保 3 线程并发，顺序写入 D1
             await Promise.all([worker(), worker(), worker()]);
-            showMsg("✅ 同步完成"); btn.disabled = false; init();
-            setTimeout(() => document.getElementById('upload-preview-list').innerHTML = "", 3000);
+            showMsg("✅ 同步流程结束"); btn.disabled = false; init();
+            if(currentTab === 'logs') renderUploadLogs();
+            setTimeout(() => document.getElementById('upload-preview-list').innerHTML = "", 5000);
         }
 
         function toggleMobileDrawer(s) {
             const d = document.getElementById('m-drawer'), o = document.getElementById('m-overlay');
             if(s) { 
-                const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p,i)=>({id:i.toString(),name:p.name}))];
+                const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p,i)=>({id:i.toString(),name:p.name})), {id:'logs',name:'日志'}];
                 document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\${c.name}</div>\`).join('');
                 d.classList.add('active'); o.style.display = 'block'; 
             } else { d.classList.remove('active'); o.style.display = 'none'; }
@@ -925,6 +975,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.0.2 构建成功。已恢复全量 UI 细节，实现 D1 独立排序架构。');
+        console.log('\n✅ Sarah MUSIC 9.0.2 构建成功。已实现三线程稳健上传与 D1 详尽日志系统。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }

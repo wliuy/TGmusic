@@ -30,6 +30,11 @@ export async function onRequest(context) {
           .bind(playlist_id, fid, idx)
       );
       await env.DB.batch(statements);
+    } else if (action === 'get_logs') {
+      const logs = await env.DB.prepare("SELECT * FROM upload_logs ORDER BY timestamp DESC LIMIT 50").all();
+      return new Response(JSON.stringify({ success: true, logs: logs.results || [] }));
+    } else if (action === 'clear_logs') {
+      await env.DB.prepare("DELETE FROM upload_logs").run();
     }
     return new Response(JSON.stringify({ success: true }));
   } catch (err) { return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500 }); }
