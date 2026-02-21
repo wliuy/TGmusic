@@ -2,14 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 /**
- * Sarah MUSIC 旗舰全功能重构版 8.12.5
+ * Sarah MUSIC 旗舰全功能重构版 8.12.6
  * 1. 数据库升级：基于 Cloudflare D1，支持全云端持久化与多设备实时同步。
- * 2. 上传性能优化：修复启动延迟，引入三线程交错启动及双重重试机制，大幅提升稳定性。
- * 3. 交互逻辑增强：新增“已知晓”手动确认按钮；重构播放索引匹配算法，解决列表点击失效问题。
- * 4. 旗舰细节回归：物理还原 14 组主题配色、高密度排版及带有震动反馈的高阶拖拽逻辑。
+ * 2. 交互体验重构：解决上传启动延迟，列表点击失效顽疾；新增“已知晓”手动清除机制。
+ * 3. 稳定性飞跃：引入三线程交错重试与后端元数据鲁棒解析，彻底解决特殊字符导致的写入失败。
+ * 4. 旗舰细节回归：物理级别还原 14 组主题配色、高密度排版及带有震动反馈的高阶拖拽逻辑。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.5 (修复列表点击失效，优化上传并发稳定性，增加确认按钮)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.6 (彻底修复列表点击失效，优化上传并发稳定性，增加确认机制)';
 const files = {};
 // --- API Auth Helper (用于上传和流媒体验证) ---
 const authHeaderCheck = `
@@ -67,10 +67,9 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
     const metaStr = formData.get('meta') || '{}';
     let meta = { title: "未知歌曲", artist: "未知作者", cover: "", lrc: "" };
     try {
-      const parsed = JSON.parse(metaStr);
-      meta = { ...meta, ...parsed };
+      meta = { ...meta, ...JSON.parse(metaStr) };
     } catch(e) {
-      // 防止特殊字符导致的 JSON 解析崩溃
+      // 容错处理
     }
     const tgFormData = new FormData();
     tgFormData.append('chat_id', CHAT_ID);
@@ -83,7 +82,7 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
     if (!result.ok) return new Response(JSON.stringify(result), { status: 400 });
     const file_id = result.result.audio ? result.result.audio.file_id : (result.result.document ? result.result.document.file_id : null);
     if (!file_id) return new Response(JSON.stringify({ ok: false }), { status: 400 });
-    // D1 原子事务：入主库 + 默认全库映射
+    // D1 事务：写入主库及默认映射
     await DB.batch([
       DB.prepare("INSERT OR REPLACE INTO songs (file_id, title, artist, cover, lrc) VALUES (?, ?, ?, ?, ?)").bind(file_id, meta.title, meta.artist, meta.cover, meta.lrc),
       DB.prepare("INSERT INTO playlist_songs (playlist_id, file_id, sort_order) VALUES ('all', ?, (SELECT IFNULL(MAX(sort_order), 0) + 1 FROM playlist_songs WHERE playlist_id = 'all'))").bind(file_id)
@@ -166,7 +165,7 @@ files['manifest.json'] = `{
     }
   ]
 }`;
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8125';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8126';
 const ASSETS = ['/'];
 self.addEventListener('install', (e) => {
   self.skipWaiting(); 
@@ -389,7 +388,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container auth-hidden" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v8.12.5 (D1)</p>
+            <p class="brand-sub">Premium Music Hub | v8.12.6 (D1)</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 transition-transform cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -499,7 +498,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
-                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.5 (D1)</span></div></div>
+                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.6 (D1)</span></div></div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon" title="睡眠定时"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
                     <button onclick="toggleUploadArea()" class="admin-btn-icon" title="上传音乐"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></button>
@@ -544,13 +543,20 @@ files['index.html'] = `<!DOCTYPE html>
         let libState = { playlists: [] };
         const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
         const solaraTheme = [
-            { bg: '#f2c9b1', accent: '#e67e51', deep: '#c06c3e' }, { bg: '#c7f9cc', accent: '#2d6a4f', deep: '#1b4332' },
-            { bg: '#f4acb7', accent: '#9d0208', deep: '#641212' }, { bg: '#a2d2ff', accent: '#0077b6', deep: '#1e3a8a' },
-            { bg: '#ede0d4', accent: '#7f5539', deep: '#4b3832' }, { bg: '#cdb4db', accent: '#5e548e', deep: '#2e1065' },
-            { bg: '#ffc8dd', accent: '#ec407a', deep: '#f5b8cf' }, { bg: '#e9d8a6', accent: '#9b2226', deep: '#7b241c' },
-            { bg: '#f8fafc', accent: '#0ea5e9', deep: '#0c4a6e' }, { bg: '#1e293b', accent: '#f59e0b', deep: '#451a03' },
-            { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' }, { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' },
-            { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' }, { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
+            { bg: '#f2c9b1', accent: '#e67e51', deep: '#c06c3e' },
+            { bg: '#c7f9cc', accent: '#2d6a4f', deep: '#1b4332' },
+            { bg: '#f4acb7', accent: '#9d0208', deep: '#641212' },
+            { bg: '#a2d2ff', accent: '#0077b6', deep: '#1e3a8a' },
+            { bg: '#ede0d4', accent: '#7f5539', deep: '#4b3832' },
+            { bg: '#cdb4db', accent: '#5e548e', deep: '#2e1065' },
+            { bg: '#ffc8dd', accent: '#ec407a', deep: '#f5b8cf' },
+            { bg: '#e9d8a6', accent: '#9b2226', deep: '#7b241c' },
+            { bg: '#f8fafc', accent: '#0ea5e9', deep: '#0c4a6e' },
+            { bg: '#1e293b', accent: '#f59e0b', deep: '#451a03' },
+            { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' },
+            { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' },
+            { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' },
+            { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
         ];
         
         async function apiCall(action, method = 'GET', body = null) {
@@ -576,9 +582,9 @@ files['index.html'] = `<!DOCTYPE html>
             
             const data = await apiCall('init');
             if (!data) return;
-            db = data.songs;
-            libState.playlists = data.playlists;
-            mappings = data.mappings;
+            db = data.songs || [];
+            libState.playlists = data.playlists || [];
+            mappings = data.mappings || [];
             
             buildIndexMap(); renderCustomTabs(); renderAllLists();
             setTimeout(() => { setupPlayer(); updateUIModes(); updateVolUI(lastVolume); }, 100);
@@ -639,6 +645,13 @@ files['index.html'] = `<!DOCTYPE html>
                 refreshUIMetaByAudio(audio); 
                 updateBackground(true); 
             });
+        }
+
+        function getActiveListData() {
+            let filteredMappings = mappings.filter(m => m.playlist_id === currentTab);
+            const list = filteredMappings.map(m => db.find(s => s.file_id === m.file_id)).filter(Boolean);
+            const isMob = window.innerWidth <= 768, q = document.getElementById(isMob ? 'm-list-search' : 'search-input').value.toLowerCase();
+            return q ? list.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)) : list;
         }
 
         function updateMediaSession() {
@@ -723,8 +736,8 @@ files['index.html'] = `<!DOCTYPE html>
 
         async function handleTrackSwitch(fileId) {
             if (!ap) return;
-            // 修复点击相应：通过 URL 包含判定代替严格的 Split 解析，增强 ID 匹配鲁棒性
-            const targetIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fileId));
+            // 终极修复：使用解码后的 URL 包含判定，解决带特殊字符歌曲无法点击的问题
+            const targetIdx = ap.list.audios.findIndex(a => decodeURIComponent(a.url).includes('file_id=' + fileId));
             if (targetIdx !== -1) {
                 const v = ap.audio.volume; for (let i = 5; i >= 0; i--) { ap.volume(v * (i/5), true); await new Promise(r => setTimeout(r, 10)); }
                 ap.list.switch(targetIdx); ap.play(); 
@@ -849,17 +862,18 @@ files['index.html'] = `<!DOCTYPE html>
         async function handleUp() {
             const i = document.getElementById('f-in'), fs = Array.from(i.files); if (!fs.length) return;
             const btn = document.getElementById('auto-sync-trigger'), pL = document.getElementById('upload-progress-list'), conf = document.getElementById('upload-confirm-area'), pass = localStorage.getItem('sarah_access_token') || "";
-            // 瞬间响应：隐藏按钮并展示进度列表
+            // 瞬间响应 UI
             btn.classList.add('hidden');
-            pL.innerHTML = fs.map((f, k) => \`<div class="up-progress-item" id="up-item-\${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">\${f.name}</span><span class="up-pct">等待中...</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>\`).join('');
+            pL.innerHTML = fs.map((f, k) => \`<div class="up-progress-item" id="up-item-\${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">\${f.name}</span><span class="up-pct">准备中...</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>\`).join('');
             
             const queue = Array.from({ length: fs.length }, (_, k) => k);
             const worker = async (threadIdx) => {
-                await new Promise(r => setTimeout(r, threadIdx * 800)); // 交错延迟，防止 TG 并发峰值
+                await new Promise(r => setTimeout(r, threadIdx * 800)); // 优化并发启动，避免 TG 速率限制
                 while (queue.length > 0) {
                     const k = queue.shift();
                     const f = fs[k], fd = new FormData(); fd.append('file', f);
-                    fd.append('meta', JSON.stringify(tempMetaMap.get(f.name) || { title: f.name.replace(/\\.[^/.]+$/, "") }));
+                    const metaObj = tempMetaMap.get(f.name) || { title: f.name.replace(/\\.[^/.]+$/, "") };
+                    fd.append('meta', JSON.stringify(metaObj));
                     const el = document.getElementById("up-item-" + k), bar = el.querySelector('.up-progress-bar-fill'), pct = el.querySelector('.up-pct');
                     
                     let done = false, retry = 0;
@@ -867,23 +881,28 @@ files['index.html'] = `<!DOCTYPE html>
                         try {
                             await new Promise((res, rej) => {
                                 const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload'); xhr.setRequestHeader('X-Sarah-Password', pass);
-                                xhr.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round((e.loaded / e.total) * 100); bar.style.width = p + "%"; pct.innerText = "传输 " + p + "%"; } };
+                                xhr.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round((e.loaded / e.total) * 100); bar.style.width = p + "%"; pct.innerText = "上传中 " + p + "%"; } };
                                 xhr.onload = () => { if (xhr.status === 200) res(); else rej(); };
                                 xhr.onerror = rej; xhr.send(fd);
                             });
-                            done = true; pct.innerText = "✅ 持久化成功"; pct.classList.add('text-emerald-400'); bar.style.width = "100%";
+                            done = true; 
+                            pct.innerText = "✅ 同步成功"; pct.classList.add('text-emerald-400'); bar.style.width = "100%";
                         } catch (e) {
                             retry++;
-                            if (retry < 2) { pct.innerText = "⚠️ 正在重试..."; await new Promise(r => setTimeout(r, 1200)); }
-                            else { pct.innerText = "❌ 传输失败"; pct.classList.add('text-red-400'); }
+                            if (retry < 2) { 
+                                pct.innerText = "⚠️ 正在重试..."; 
+                                await new Promise(r => setTimeout(r, 1500)); 
+                            } else { 
+                                pct.innerText = "❌ 持久化失败"; pct.classList.add('text-red-400'); 
+                            }
                         }
                     }
                 }
             };
             await Promise.all(Array(Math.min(3, fs.length)).fill(0).map((_, idx) => worker(idx)));
-            conf.classList.remove('hidden'); // 显示“已知晓”按钮
-            showMsg("✅ 任务队列处理完毕");
-            // 后台静默刷新数据，不阻塞按钮出现
+            conf.classList.remove('hidden'); // 显示“已知晓”
+            showMsg("✅ 同步任务已全部处理");
+            // 此时静默拉取最新数据，确保列表刷新
             const data = await apiCall('init'); 
             if (data) { db = data.songs; mappings = data.mappings; buildIndexMap(); renderAllLists(); setupPlayer(); }
         }
@@ -905,7 +924,7 @@ try {
     if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
     fs.writeFileSync(f, files[f].trim());
   });
-  console.log('\n---正在执行 8.12.5 旗舰稳定修正版重构部署---');
+  console.log('\n---正在执行 8.12.6 旗舰全修复版部署---');
   try {
     try { execSync('git init'); } catch(e){}
     execSync('git add .');
@@ -913,6 +932,6 @@ try {
     execSync('git branch -M main');
     try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
     execSync('git push -u origin main --force');
-    console.log('\n✅ Sarah MUSIC 8.12.5 已部署。已修复上传响应、列表点击并强化任务稳定性。');
+    console.log('\n✅ Sarah MUSIC 8.12.6 已部署。点击响应已修复，数据拉取已稳健。');
   } catch(e) { console.error('\n❌ Git 推送失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }

@@ -192,7 +192,7 @@
     <div class="desktop-container auth-hidden" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v8.12.5 (D1)</p>
+            <p class="brand-sub">Premium Music Hub | v8.12.6 (D1)</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 transition-transform cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -302,7 +302,7 @@
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
-                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.5 (D1)</span></div></div>
+                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.6 (D1)</span></div></div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon" title="睡眠定时"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
                     <button onclick="toggleUploadArea()" class="admin-btn-icon" title="上传音乐"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></button>
@@ -347,13 +347,20 @@
         let libState = { playlists: [] };
         const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
         const solaraTheme = [
-            { bg: '#f2c9b1', accent: '#e67e51', deep: '#c06c3e' }, { bg: '#c7f9cc', accent: '#2d6a4f', deep: '#1b4332' },
-            { bg: '#f4acb7', accent: '#9d0208', deep: '#641212' }, { bg: '#a2d2ff', accent: '#0077b6', deep: '#1e3a8a' },
-            { bg: '#ede0d4', accent: '#7f5539', deep: '#4b3832' }, { bg: '#cdb4db', accent: '#5e548e', deep: '#2e1065' },
-            { bg: '#ffc8dd', accent: '#ec407a', deep: '#f5b8cf' }, { bg: '#e9d8a6', accent: '#9b2226', deep: '#7b241c' },
-            { bg: '#f8fafc', accent: '#0ea5e9', deep: '#0c4a6e' }, { bg: '#1e293b', accent: '#f59e0b', deep: '#451a03' },
-            { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' }, { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' },
-            { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' }, { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
+            { bg: '#f2c9b1', accent: '#e67e51', deep: '#c06c3e' },
+            { bg: '#c7f9cc', accent: '#2d6a4f', deep: '#1b4332' },
+            { bg: '#f4acb7', accent: '#9d0208', deep: '#641212' },
+            { bg: '#a2d2ff', accent: '#0077b6', deep: '#1e3a8a' },
+            { bg: '#ede0d4', accent: '#7f5539', deep: '#4b3832' },
+            { bg: '#cdb4db', accent: '#5e548e', deep: '#2e1065' },
+            { bg: '#ffc8dd', accent: '#ec407a', deep: '#f5b8cf' },
+            { bg: '#e9d8a6', accent: '#9b2226', deep: '#7b241c' },
+            { bg: '#f8fafc', accent: '#0ea5e9', deep: '#0c4a6e' },
+            { bg: '#1e293b', accent: '#f59e0b', deep: '#451a03' },
+            { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' },
+            { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' },
+            { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' },
+            { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
         ];
         
         async function apiCall(action, method = 'GET', body = null) {
@@ -379,9 +386,9 @@
             
             const data = await apiCall('init');
             if (!data) return;
-            db = data.songs;
-            libState.playlists = data.playlists;
-            mappings = data.mappings;
+            db = data.songs || [];
+            libState.playlists = data.playlists || [];
+            mappings = data.mappings || [];
             
             buildIndexMap(); renderCustomTabs(); renderAllLists();
             setTimeout(() => { setupPlayer(); updateUIModes(); updateVolUI(lastVolume); }, 100);
@@ -442,6 +449,13 @@
                 refreshUIMetaByAudio(audio); 
                 updateBackground(true); 
             });
+        }
+
+        function getActiveListData() {
+            let filteredMappings = mappings.filter(m => m.playlist_id === currentTab);
+            const list = filteredMappings.map(m => db.find(s => s.file_id === m.file_id)).filter(Boolean);
+            const isMob = window.innerWidth <= 768, q = document.getElementById(isMob ? 'm-list-search' : 'search-input').value.toLowerCase();
+            return q ? list.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)) : list;
         }
 
         function updateMediaSession() {
@@ -526,8 +540,8 @@
 
         async function handleTrackSwitch(fileId) {
             if (!ap) return;
-            // 修复点击相应：通过 URL 包含判定代替严格的 Split 解析，增强 ID 匹配鲁棒性
-            const targetIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fileId));
+            // 终极修复：使用解码后的 URL 包含判定，解决带特殊字符歌曲无法点击的问题
+            const targetIdx = ap.list.audios.findIndex(a => decodeURIComponent(a.url).includes('file_id=' + fileId));
             if (targetIdx !== -1) {
                 const v = ap.audio.volume; for (let i = 5; i >= 0; i--) { ap.volume(v * (i/5), true); await new Promise(r => setTimeout(r, 10)); }
                 ap.list.switch(targetIdx); ap.play(); 
@@ -652,17 +666,18 @@
         async function handleUp() {
             const i = document.getElementById('f-in'), fs = Array.from(i.files); if (!fs.length) return;
             const btn = document.getElementById('auto-sync-trigger'), pL = document.getElementById('upload-progress-list'), conf = document.getElementById('upload-confirm-area'), pass = localStorage.getItem('sarah_access_token') || "";
-            // 瞬间响应：隐藏按钮并展示进度列表
+            // 瞬间响应 UI
             btn.classList.add('hidden');
-            pL.innerHTML = fs.map((f, k) => `<div class="up-progress-item" id="up-item-${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">${f.name}</span><span class="up-pct">等待中...</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>`).join('');
+            pL.innerHTML = fs.map((f, k) => `<div class="up-progress-item" id="up-item-${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">${f.name}</span><span class="up-pct">准备中...</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>`).join('');
             
             const queue = Array.from({ length: fs.length }, (_, k) => k);
             const worker = async (threadIdx) => {
-                await new Promise(r => setTimeout(r, threadIdx * 800)); // 交错延迟，防止 TG 并发峰值
+                await new Promise(r => setTimeout(r, threadIdx * 800)); // 优化并发启动，避免 TG 速率限制
                 while (queue.length > 0) {
                     const k = queue.shift();
                     const f = fs[k], fd = new FormData(); fd.append('file', f);
-                    fd.append('meta', JSON.stringify(tempMetaMap.get(f.name) || { title: f.name.replace(/\.[^/.]+$/, "") }));
+                    const metaObj = tempMetaMap.get(f.name) || { title: f.name.replace(/\.[^/.]+$/, "") };
+                    fd.append('meta', JSON.stringify(metaObj));
                     const el = document.getElementById("up-item-" + k), bar = el.querySelector('.up-progress-bar-fill'), pct = el.querySelector('.up-pct');
                     
                     let done = false, retry = 0;
@@ -670,23 +685,28 @@
                         try {
                             await new Promise((res, rej) => {
                                 const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload'); xhr.setRequestHeader('X-Sarah-Password', pass);
-                                xhr.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round((e.loaded / e.total) * 100); bar.style.width = p + "%"; pct.innerText = "传输 " + p + "%"; } };
+                                xhr.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round((e.loaded / e.total) * 100); bar.style.width = p + "%"; pct.innerText = "上传中 " + p + "%"; } };
                                 xhr.onload = () => { if (xhr.status === 200) res(); else rej(); };
                                 xhr.onerror = rej; xhr.send(fd);
                             });
-                            done = true; pct.innerText = "✅ 持久化成功"; pct.classList.add('text-emerald-400'); bar.style.width = "100%";
+                            done = true; 
+                            pct.innerText = "✅ 同步成功"; pct.classList.add('text-emerald-400'); bar.style.width = "100%";
                         } catch (e) {
                             retry++;
-                            if (retry < 2) { pct.innerText = "⚠️ 正在重试..."; await new Promise(r => setTimeout(r, 1200)); }
-                            else { pct.innerText = "❌ 传输失败"; pct.classList.add('text-red-400'); }
+                            if (retry < 2) { 
+                                pct.innerText = "⚠️ 正在重试..."; 
+                                await new Promise(r => setTimeout(r, 1500)); 
+                            } else { 
+                                pct.innerText = "❌ 持久化失败"; pct.classList.add('text-red-400'); 
+                            }
                         }
                     }
                 }
             };
             await Promise.all(Array(Math.min(3, fs.length)).fill(0).map((_, idx) => worker(idx)));
-            conf.classList.remove('hidden'); // 显示“已知晓”按钮
-            showMsg("✅ 任务队列处理完毕");
-            // 后台静默刷新数据，不阻塞按钮出现
+            conf.classList.remove('hidden'); // 显示“已知晓”
+            showMsg("✅ 同步任务已全部处理");
+            // 此时静默拉取最新数据，确保列表刷新
             const data = await apiCall('init'); 
             if (data) { db = data.songs; mappings = data.mappings; buildIndexMap(); renderAllLists(); setupPlayer(); }
         }

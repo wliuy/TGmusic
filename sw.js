@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sarah-music-v8125';
+const CACHE_NAME = 'sarah-music-v8126';
 const ASSETS = ['/'];
 self.addEventListener('install', (e) => {
   self.skipWaiting(); 
