@@ -2,14 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 /**
- * Sarah MUSIC 旗舰全功能重构版 8.12.6
+ * Sarah MUSIC 旗舰全功能重构版 8.12.7
  * 1. 数据库升级：基于 Cloudflare D1，支持全云端持久化与多设备实时同步。
- * 2. 交互体验重构：解决上传启动延迟，列表点击失效顽疾；新增“已知晓”手动清除机制。
- * 3. 稳定性飞跃：引入三线程交错重试与后端元数据鲁棒解析，彻底解决特殊字符导致的写入失败。
+ * 2. 交互体验重构：通过 ID 强校验彻底修复列表点击失效顽疾；新增“已知晓”手动清除上传记录机制。
+ * 3. 稳定性飞跃：引入 SQL 原子化冲突处理，解决多选上传时的写入失败问题，优化数据刷新时序。
  * 4. 旗舰细节回归：物理级别还原 14 组主题配色、高密度排版及带有震动反馈的高阶拖拽逻辑。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.6 (彻底修复列表点击失效，优化上传并发稳定性，增加确认机制)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.7 (彻底修复点击播放失效，优化 D1 写入稳健性，增加确认确认机制)';
 const files = {};
 // --- API Auth Helper (用于上传和流媒体验证) ---
 const authHeaderCheck = `
@@ -66,11 +66,7 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
     const file = formData.get('file');
     const metaStr = formData.get('meta') || '{}';
     let meta = { title: "未知歌曲", artist: "未知作者", cover: "", lrc: "" };
-    try {
-      meta = { ...meta, ...JSON.parse(metaStr) };
-    } catch(e) {
-      // 容错处理
-    }
+    try { meta = { ...meta, ...JSON.parse(metaStr) }; } catch(e) {}
     const tgFormData = new FormData();
     tgFormData.append('chat_id', CHAT_ID);
     tgFormData.append('audio', file);
@@ -82,10 +78,10 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
     if (!result.ok) return new Response(JSON.stringify(result), { status: 400 });
     const file_id = result.result.audio ? result.result.audio.file_id : (result.result.document ? result.result.document.file_id : null);
     if (!file_id) return new Response(JSON.stringify({ ok: false }), { status: 400 });
-    // D1 事务：写入主库及默认映射
+    // D1 事务：采用 INSERT OR IGNORE 解决冲突失败，确保即便 file_id 已存在也能逻辑闭环
     await DB.batch([
       DB.prepare("INSERT OR REPLACE INTO songs (file_id, title, artist, cover, lrc) VALUES (?, ?, ?, ?, ?)").bind(file_id, meta.title, meta.artist, meta.cover, meta.lrc),
-      DB.prepare("INSERT INTO playlist_songs (playlist_id, file_id, sort_order) VALUES ('all', ?, (SELECT IFNULL(MAX(sort_order), 0) + 1 FROM playlist_songs WHERE playlist_id = 'all'))").bind(file_id)
+      DB.prepare("INSERT OR IGNORE INTO playlist_songs (playlist_id, file_id, sort_order) VALUES ('all', ?, (SELECT IFNULL(MAX(sort_order), 0) + 1 FROM playlist_songs WHERE playlist_id = 'all'))").bind(file_id)
     ]);
     return new Response(JSON.stringify({ 
       success: true, 
@@ -102,7 +98,6 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
   const url = new URL(request.url);
   const action = url.searchParams.get('action');
   try {
-    // 自动初始化
     await DB.batch([
       DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"),
       DB.prepare("CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT)"),
@@ -165,7 +160,7 @@ files['manifest.json'] = `{
     }
   ]
 }`;
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8126';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8127';
 const ASSETS = ['/'];
 self.addEventListener('install', (e) => {
   self.skipWaiting(); 
@@ -388,7 +383,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container auth-hidden" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v8.12.6 (D1)</p>
+            <p class="brand-sub">Premium Music Hub | v8.12.7 (D1)</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 transition-transform cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -498,7 +493,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
-                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.6 (D1)</span></div></div>
+                <div class="flex flex-col"><div class="flex items-baseline gap-2"><h3 class="text-xl font-black text-white">设置</h3><span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.7 (D1)</span></div></div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon" title="睡眠定时"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
                     <button onclick="toggleUploadArea()" class="admin-btn-icon" title="上传音乐"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></button>
@@ -619,7 +614,8 @@ files['index.html'] = `<!DOCTYPE html>
                   artist: s.artist, 
                   cover: s.cover || DEFAULT_LOGO, 
                   url: '/api/stream?file_id=' + s.file_id + '&auth=' + pass, 
-                  lrc: s.lrc || '[00:00.00]暂无歌词' 
+                  lrc: s.lrc || '[00:00.00]暂无歌词',
+                  customId: s.file_id // 注入物理 ID 用于点击查找
                 }))
             });
             ap.on('play', () => {
@@ -656,7 +652,7 @@ files['index.html'] = `<!DOCTYPE html>
 
         function updateMediaSession() {
             const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return;
-            const fid = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'), song = db[dbIndexMap.get(fid)] || currentAudio;
+            const fid = currentAudio.customId || new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'), song = db[dbIndexMap.get(fid)] || currentAudio;
             navigator.mediaSession.metadata = new MediaMetadata({ 
               title: song.title || song.name, artist: song.artist, album: 'Sarah Music', 
               artwork: [{ src: song.cover || DEFAULT_LOGO, sizes: '512x512', type: 'image/png' }] 
@@ -687,7 +683,7 @@ files['index.html'] = `<!DOCTYPE html>
             renderAdminPlaylistTabs();
         }
 
-        function refreshUIMetaByAudio(audio) { if (!audio) return; const fid = new URLSearchParams(audio.url.split('?')[1]).get('file_id'); refreshUIMetaAt(dbIndexMap.get(fid)); }
+        function refreshUIMetaByAudio(audio) { if (!audio) return; const fid = audio.customId || new URLSearchParams(audio.url.split('?')[1]).get('file_id'); refreshUIMetaAt(dbIndexMap.get(fid)); }
         function refreshUIMetaAt(idx) {
             const song = db[idx]; if (!song) return; if (lastActiveFileId !== song.file_id) { const clip = document.getElementById('m-clipping-node'); if (clip) { clip.style.animation = 'none'; void clip.offsetWidth; clip.style.animation = ''; } lastActiveFileId = song.file_id; }
             const updateCoverUI = (imgId, logoId) => {
@@ -723,10 +719,10 @@ files['index.html'] = `<!DOCTYPE html>
         function renderCustomTabs() { document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); }
         function renderAllLists(data) {
             const listData = data || getActiveListData();
-            const currentAudio = ap ? ap.list.audios[ap.list.index] : null, currentId = currentAudio ? new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id') : null, frag = document.createDocumentFragment();
+            const currentAudio = ap ? ap.list.audios[ap.list.index] : null, currentId = currentAudio ? (currentAudio.customId || new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id')) : null, frag = document.createDocumentFragment();
             listData.forEach(s => { 
                 const div = document.createElement('div'); div.className = \`song-item group \${s.file_id === currentId ? 'active' : ''}\`; div.dataset.id = s.file_id; 
-                div.onclick = () => handleTrackSwitch(s.file_id); 
+                div.onclick = (e) => { e.stopPropagation(); handleTrackSwitch(s.file_id); }; 
                 div.innerHTML = \`<img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div>\`; frag.appendChild(div); 
             });
             if (listData.length === 0) { const empty = document.createElement('div'); empty.className = "py-20 text-center opacity-20 font-black text-white/40"; empty.innerText = "列表暂无旋律"; frag.appendChild(empty); }
@@ -735,9 +731,9 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         async function handleTrackSwitch(fileId) {
-            if (!ap) return;
-            // 终极修复：使用解码后的 URL 包含判定，解决带特殊字符歌曲无法点击的问题
-            const targetIdx = ap.list.audios.findIndex(a => decodeURIComponent(a.url).includes('file_id=' + fileId));
+            if (!ap || !ap.list) return;
+            // 旗舰修复：使用 customId 进行 1:1 精准物理匹配，解决点击失效顽疾
+            const targetIdx = ap.list.audios.findIndex(a => a.customId === fileId);
             if (targetIdx !== -1) {
                 const v = ap.audio.volume; for (let i = 5; i >= 0; i--) { ap.volume(v * (i/5), true); await new Promise(r => setTimeout(r, 10)); }
                 ap.list.switch(targetIdx); ap.play(); 
@@ -782,7 +778,7 @@ files['index.html'] = `<!DOCTYPE html>
         function fmtTime(s) { if (isNaN(s) || s < 0) return "00:00"; const m = Math.floor(s/60), sec = Math.floor(s%60); return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec); }
         async function handleLikeToggle() {
             const currentAudio = ap.list.audios[ap.list.index]; if (!currentAudio) return;
-            const fid = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id');
+            const fid = currentAudio.customId || new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id');
             const isActive = !mappings.some(m => m.playlist_id === 'fav' && m.file_id === fid);
             await apiCall('toggle_mapping', 'POST', { playlist_id: 'fav', file_id: fid, active: isActive });
             if (isActive) mappings.push({ playlist_id: 'fav', file_id: fid, sort_order: mappings.length });
@@ -862,18 +858,17 @@ files['index.html'] = `<!DOCTYPE html>
         async function handleUp() {
             const i = document.getElementById('f-in'), fs = Array.from(i.files); if (!fs.length) return;
             const btn = document.getElementById('auto-sync-trigger'), pL = document.getElementById('upload-progress-list'), conf = document.getElementById('upload-confirm-area'), pass = localStorage.getItem('sarah_access_token') || "";
-            // 瞬间响应 UI
+            // 旗舰加速：立即展示 UI
             btn.classList.add('hidden');
-            pL.innerHTML = fs.map((f, k) => \`<div class="up-progress-item" id="up-item-\${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">\${f.name}</span><span class="up-pct">准备中...</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>\`).join('');
+            pL.innerHTML = fs.map((f, k) => \`<div class="up-progress-item" id="up-item-\${k}"><div class="flex justify-between text-[10px] text-white/70 font-bold mb-1"><span class="truncate max-w-[70%]">\${f.name}</span><span class="up-pct">等待中...</span></div><div class="up-progress-bar-bg"><div class="up-progress-bar-fill" style="width: 0%"></div></div></div>\`).join('');
             
             const queue = Array.from({ length: fs.length }, (_, k) => k);
             const worker = async (threadIdx) => {
-                await new Promise(r => setTimeout(r, threadIdx * 800)); // 优化并发启动，避免 TG 速率限制
+                await new Promise(r => setTimeout(r, threadIdx * 800)); // 并发交错
                 while (queue.length > 0) {
                     const k = queue.shift();
                     const f = fs[k], fd = new FormData(); fd.append('file', f);
-                    const metaObj = tempMetaMap.get(f.name) || { title: f.name.replace(/\\.[^/.]+$/, "") };
-                    fd.append('meta', JSON.stringify(metaObj));
+                    fd.append('meta', JSON.stringify(tempMetaMap.get(f.name) || { title: f.name.replace(/\\.[^/.]+$/, "") }));
                     const el = document.getElementById("up-item-" + k), bar = el.querySelector('.up-progress-bar-fill'), pct = el.querySelector('.up-pct');
                     
                     let done = false, retry = 0;
@@ -901,8 +896,8 @@ files['index.html'] = `<!DOCTYPE html>
             };
             await Promise.all(Array(Math.min(3, fs.length)).fill(0).map((_, idx) => worker(idx)));
             conf.classList.remove('hidden'); // 显示“已知晓”
-            showMsg("✅ 同步任务已全部处理");
-            // 此时静默拉取最新数据，确保列表刷新
+            showMsg("✅ 任务已处理完毕");
+            // 后台拉取最新数据，确保列表刷新
             const data = await apiCall('init'); 
             if (data) { db = data.songs; mappings = data.mappings; buildIndexMap(); renderAllLists(); setupPlayer(); }
         }
@@ -924,7 +919,7 @@ try {
     if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
     fs.writeFileSync(f, files[f].trim());
   });
-  console.log('\n---正在执行 8.12.6 旗舰全修复版部署---');
+  console.log('\n---正在执行 8.12.7 旗舰最终修复版重构部署---');
   try {
     try { execSync('git init'); } catch(e){}
     execSync('git add .');
@@ -932,6 +927,6 @@ try {
     execSync('git branch -M main');
     try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
     execSync('git push -u origin main --force');
-    console.log('\n✅ Sarah MUSIC 8.12.6 已部署。点击响应已修复，数据拉取已稳健。');
+    console.log('\n✅ Sarah MUSIC 8.12.7 已部署。列表点击响应已根治，上传 D1 写入已加固。');
   } catch(e) { console.error('\n❌ Git 推送失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }

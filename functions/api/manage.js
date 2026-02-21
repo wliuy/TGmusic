@@ -16,7 +16,6 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const action = url.searchParams.get('action');
   try {
-    // 自动初始化
     await DB.batch([
       DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"),
       DB.prepare("CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT)"),
