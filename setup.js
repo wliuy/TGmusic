@@ -3,15 +3,19 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 8.12.0
- * 1. 架构精简：完全剔除 KV 数据库依赖与上传逻辑，转为轻量级会话/静态模式。
- * 2. 移除冗余：清理了后端管理与上传接口，优化了 Function 响应速度。
- * 3. 逻辑解耦：移除了 saveSync 同步流，操作响应改为纯本地内存更新。
- * 4. 保持纯正：严格维持 8.10.1 时代的 UI 审美与高性能渲染引擎。
+ * Sarah MUSIC 旗舰全功能重构版 8.12.1
+ * 1. 数据库升级：全面接入 Cloudflare D1 SQL，通过关系型架构实现数据精准管理。
+ * 2. 独立排序支持：全库使用 global_order，歌单使用 mapping 表的 position，实现排序逻辑解耦。
+ * 3. 状态同步恢复：重新激活 saveSync 机制，管理操作（排序、编辑、收藏）将实时写入 SQL。
+ * 4. 暂无上传逻辑：根据指令维持 8.12.0 的上传去载状态，专注于数据库重构。
  * 5. 规范排版：严格执行防手贱声明，每一行缩进与换行均保持清晰。
+ * * SQL 初始化语句 (需在 D1 执行):
+ * CREATE TABLE songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT, is_favorite INTEGER DEFAULT 0, global_order INTEGER);
+ * CREATE TABLE playlists (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);
+ * CREATE TABLE playlist_mapping (playlist_id INTEGER, song_file_id TEXT, position INTEGER);
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.0 (移除数据库与上传逻辑，转向会话模式)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 8.12.1 (D1 SQL 重构完成 - 独立排序逻辑支持)';
 const files = {};
 
 // --- API Auth Helper ---
@@ -66,14 +70,36 @@ files['functions/api/stream.js'] = `export async function onRequest(context) {
   }
 }`;
 
-// 8.12.0 移除 KV 逻辑，仅返回基础数据结构
+// 8.12.1 从 D1 SQL 获取数据结构
 files['functions/api/songs.js'] = `export async function onRequest(context) {
   const { request, env } = context;
   ${authHeaderCheck}
   try {
-    // 移除数据库读取，返回默认初始状态
-    const defaultData = { songs: [], favorites: [], playlists: [] };
-    return new Response(JSON.stringify(defaultData), { 
+    const DB = env.DB;
+    if (!DB) return new Response(JSON.stringify({ error: "D1 Not Bound" }), { status: 500 });
+
+    // 获取按全库排序的歌曲
+    const songs = (await DB.prepare("SELECT * FROM songs ORDER BY global_order ASC").all()).results;
+    
+    // 获取收藏列表
+    const favorites = songs.filter(s => s.is_favorite === 1).map(s => s.file_id);
+    
+    // 获取所有歌单元数据
+    const playlistRows = (await DB.prepare("SELECT * FROM playlists").all()).results;
+    
+    // 组装歌单及其内部关联的歌曲 (按各自的 position 排序)
+    const playlists = [];
+    for (const pl of playlistRows) {
+      const mapping = (await DB.prepare("SELECT song_file_id FROM playlist_mapping WHERE playlist_id = ? ORDER BY position ASC").bind(pl.id).all()).results;
+      playlists.push({
+        id: pl.id,
+        name: pl.name,
+        ids: mapping.map(m => m.song_file_id)
+      });
+    }
+
+    const data = { songs, favorites, playlists };
+    return new Response(JSON.stringify(data), { 
       headers: { 
         'Content-Type': 'application/json', 
         'Access-Control-Allow-Origin': '*',
@@ -81,7 +107,54 @@ files['functions/api/songs.js'] = `export async function onRequest(context) {
       } 
     });
   } catch (err) { 
-    return new Response("[]", { status: 500 }); 
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 }); 
+  }
+}`;
+
+// 8.12.1 管理同步：将 libState 状态写入 D1 SQL
+files['functions/api/manage.js'] = `export async function onRequest(context) {
+  const { request, env } = context;
+  ${authHeaderCheck}
+  if (request.method !== 'POST') return new Response("Bad Method", { status: 405 });
+  
+  try {
+    const DB = env.DB;
+    const payload = await request.json();
+    const { songs, favorites, playlists } = payload.data || payload;
+
+    const statements = [];
+    
+    // 1. 同步歌曲主表与全局顺序
+    statements.push(DB.prepare("DELETE FROM songs"));
+    songs.forEach((s, idx) => {
+      const isFav = favorites.includes(s.file_id) ? 1 : 0;
+      statements.push(DB.prepare("INSERT INTO songs (file_id, title, artist, cover, lrc, is_favorite, global_order) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(s.file_id, s.title, s.artist, s.cover, s.lrc, isFav, idx));
+    });
+
+    // 2. 同步歌单表及其独立排序映射
+    statements.push(DB.prepare("DELETE FROM playlists"));
+    statements.push(DB.prepare("DELETE FROM playlist_mapping"));
+    
+    for (let i = 0; i < playlists.length; i++) {
+      const pl = playlists[i];
+      const plId = i + 1;
+      statements.push(DB.prepare("INSERT INTO playlists (id, name) VALUES (?, ?)")
+        .bind(plId, pl.name));
+      
+      pl.ids.forEach((sid, pos) => {
+        statements.push(DB.prepare("INSERT INTO playlist_mapping (playlist_id, song_file_id, position) VALUES (?, ?, ?)")
+          .bind(plId, sid, pos));
+      });
+    }
+
+    await DB.batch(statements);
+
+    return new Response(JSON.stringify({ success: true }), { 
+      headers: { 'Content-Type': 'application/json' } 
+    });
+  } catch (err) { 
+    return new Response(err.message, { status: 500 }); 
   }
 }`;
 
@@ -104,7 +177,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8120';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v8121';
 const ASSETS = ['/'];
 
 self.addEventListener('install', (e) => {
@@ -333,11 +406,11 @@ files['index.html'] = `<!DOCTYPE html>
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(20px); z-index: 2000; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
         
-        #admin-box { width: 92%; max-width: 900px; height: 85vh; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(60px); border-radius: 28px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.3); outline: none !important; }
-        .admin-header { padding: 25px 30px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        #admin-box { width: 92%; max-width: 900px; height: 85vh; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(60px); border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.3); outline: none !important; }
+        .admin-header { padding: 25px 30px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .admin-action-bar { display: flex; align-items: center; gap: 12px; }
-        .admin-btn-icon { width: 46px; height: 46px; display: grid; place-items: center; background: rgba(255,255,255,0.2); border-radius: 16px; border: 1.5px solid rgba(255,255,255,0.3); transition: 0.3s; cursor: pointer; color: white; backdrop-filter: brightness(1.2); }
-        .admin-btn-icon:hover { background: rgba(255,255,255,0.4); transform: scale(1.05); }
+        .admin-btn-icon { width: 46px; height: 46px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.2); border-radius: 16px; border: 1.5px solid rgba(255, 255, 255, 0.3); transition: 0.3s; cursor: pointer; color: white; backdrop-filter: brightness(1.2); }
+        .admin-btn-icon:hover { background: rgba(255, 255, 255, 0.4); transform: scale(1.05); }
         .admin-btn-icon:active { transform: scale(0.95); }
 
         .admin-content { flex: 1; overflow-y: auto; padding: 30px; }
@@ -472,7 +545,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container auth-hidden" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v8.12.0</p>
+            <p class="brand-sub">Premium Music Hub | v8.12.1</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 transition-transform cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -599,7 +672,7 @@ files['index.html'] = `<!DOCTYPE html>
                 <div class="flex flex-col">
                     <div class="flex items-baseline gap-2">
                         <h3 class="text-xl font-black text-white">设置</h3>
-                        <span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.0</span>
+                        <span class="text-[11px] font-black text-white/50 bg-white/10 px-2 py-0.5 rounded-md tracking-wider">v8.12.1</span>
                     </div>
                 </div>
                 <div class="admin-action-bar">
@@ -752,8 +825,6 @@ files['index.html'] = `<!DOCTYPE html>
             dbIndexMap.clear();
             for (let j = 0; j < db.length; j++) dbIndexMap.set(db[j].file_id, j);
         }
-
-        function getFavsFromLocal() { return JSON.parse(localStorage.getItem('sarah_favs') || '[]'); }
 
         function setupPlayer() {
             if (ap) ap.destroy();
@@ -1061,7 +1132,7 @@ files['index.html'] = `<!DOCTYPE html>
             const idx = libState.favorites.indexOf(id);
             if (idx > -1) libState.favorites.splice(idx, 1); else libState.favorites.push(id);
             updateHighlights(id); if (currentTab === 'fav') renderAllLists();
-            // 8.12.0 移除 saveSync
+            saveSync(false);
         }
 
         function switchList(t) {
@@ -1131,6 +1202,7 @@ files['index.html'] = `<!DOCTYPE html>
             else if (currentTab === 'fav') libState.favorites = newFileIds;
             else { const pl = libState.playlists[parseInt(currentTab)]; if (pl) pl.ids = newFileIds; }
             buildIndexMap(); renderAllLists();
+            saveSync(false);
         }
 
         function toggleEditMode(idx) {
@@ -1139,7 +1211,7 @@ files['index.html'] = `<!DOCTYPE html>
             btn.innerHTML = isEditing ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M5 13l4 4L19 7"></path></svg>' : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
         }
 
-        function updateSongInfo(fileId, field, val) { const song = db.find(s => s.file_id === fileId); if (song) { song[field] = val; renderAllLists(); } }
+        function updateSongInfo(fileId, field, val) { const song = db.find(s => s.file_id === fileId); if (song) { song[field] = val; renderAllLists(); saveSync(false); } }
 
         function deleteFromContext(idx, fileId) {
             showSarahDialog("删除确认", "确定执行此删除操作吗？", false, null, (confirmed) => {
@@ -1147,7 +1219,7 @@ files['index.html'] = `<!DOCTYPE html>
                 if (currentTab === 'all') { db = db.filter(s => s.file_id !== fileId); libState.songs = db; libState.favorites = libState.favorites.filter(id => id !== fileId); libState.playlists.forEach(p => p.ids = p.ids.filter(id => id !== fileId)); }
                 else if (currentTab === 'fav') libState.favorites = libState.favorites.filter(id => id !== fileId);
                 else { const pl = libState.playlists[parseInt(currentTab)]; if (pl) pl.ids = pl.ids.filter(id => id !== fileId); }
-                buildIndexMap(); renderAdminSongList(); renderAllLists();
+                buildIndexMap(); renderAdminSongList(); renderAllLists(); saveSync(false);
             });
         }
 
@@ -1157,25 +1229,40 @@ files['index.html'] = `<!DOCTYPE html>
             modal.classList.add('active');
         }
         function closePlaylistSelector() { document.getElementById('playlist-selector-modal').classList.remove('active'); }
-        function toggleInPlaylist(plIdx, fileId) { const pl = libState.playlists[plIdx]; if (pl.ids.includes(fileId)) return; pl.ids.push(fileId); openPlaylistSelector(fileId); }
+        function toggleInPlaylist(plIdx, fileId) { const pl = libState.playlists[plIdx]; if (pl.ids.includes(fileId)) return; pl.ids.push(fileId); openPlaylistSelector(fileId); saveSync(false); }
 
         function addPlaylistPrompt() {
             showSarahDialog("新建歌单", "请输入新歌单名称：", true, "", (name) => {
-                if (name && name.trim()) { libState.playlists.push({ name: name.trim(), ids: [] }); renderCustomTabs(); renderAdminPlaylistTabs(); }
+                if (name && name.trim()) { libState.playlists.push({ name: name.trim(), ids: [] }); renderCustomTabs(); renderAdminPlaylistTabs(); saveSync(false); }
             });
         }
 
         function renamePlaylistPrompt(idx) {
             const oldName = libState.playlists[idx].name;
             showSarahDialog("重命名歌单", "请输入新的歌单名称：", true, oldName, (newName) => {
-                if (newName && newName.trim() && newName !== oldName) { libState.playlists[idx].name = newName.trim(); renderCustomTabs(); renderAdminPlaylistTabs(); }
+                if (newName && newName.trim() && newName !== oldName) { libState.playlists[idx].name = newName.trim(); renderCustomTabs(); renderAdminPlaylistTabs(); saveSync(false); }
             });
         }
 
         function deletePlaylist(idx) {
             showSarahDialog("删除确认", \`确定删除歌单 "\${libState.playlists[idx].name}" 吗？\`, false, null, (confirmed) => {
-                if (confirmed) { libState.playlists.splice(idx, 1); if (currentTab === idx.toString()) currentTab = 'all'; renderCustomTabs(); renderAdminPlaylistTabs(); renderAllLists(); }
+                if (confirmed) { libState.playlists.splice(idx, 1); if (currentTab === idx.toString()) currentTab = 'all'; renderCustomTabs(); renderAdminPlaylistTabs(); renderAllLists(); saveSync(false); }
             });
+        }
+
+        async function saveSync(shouldReload) {
+            const pass = localStorage.getItem('sarah_access_token') || "";
+            try {
+                const res = await fetch('/api/manage', {
+                    method: 'POST',
+                    headers: { 'X-Sarah-Password': pass },
+                    body: JSON.stringify({ data: libState })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    if (shouldReload) setTimeout(() => location.reload(), 1000);
+                }
+            } catch (e) { console.error("SaveSync Failed:", e); }
         }
 
         function toggleMobileDrawer(s) {
@@ -1203,7 +1290,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在执行极致加速部署 (v8.12.0)---');
+    console.log('\n---正在执行数据库重构部署 (v8.12.1)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1211,6 +1298,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 8.12.0 (轻量会话版) 已部署。');
+        console.log('\n✅ Sarah MUSIC 8.12.1 (D1 SQL 版) 已部署。');
     } catch(e) { console.error('\n❌ Git 推送失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
