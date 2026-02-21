@@ -1,13 +1,11 @@
-const CACHE_NAME = 'sarah-music-v8121';
+const CACHE_NAME = 'sarah-music-v8122';
 const ASSETS = ['/'];
-
 self.addEventListener('install', (e) => {
   self.skipWaiting(); 
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
 });
-
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -21,7 +19,6 @@ self.addEventListener('activate', (e) => {
     }).then(() => self.clients.claim())
   );
 });
-
 self.addEventListener('fetch', (e) => {
   if (e.request.url.includes('/api/')) {
     return e.respondWith(fetch(e.request));
