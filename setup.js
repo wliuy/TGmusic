@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.3.2
+ * Sarah MUSIC 旗舰全功能重构版 9.3.3
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.3.2 (优化手机端布局，缩减设置页空白，支持歌单标签排序)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.3.3 (修复数据加载崩溃，移除版本字样，恢复插值语法)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -43,6 +43,9 @@ files['functions/api/stream.js'] = `export async function onRequest(context) {
 files['functions/api/songs.js'] = `export async function onRequest(context) {
   const { env } = context;
   try {
+    // 自动补全 9.3.2 排序所需的字段，防止旧库崩溃
+    await env.DB.prepare("ALTER TABLE playlists ADD COLUMN created_at INTEGER DEFAULT 0").run().catch(()=>{});
+    
     const songs = await env.DB.prepare("SELECT * FROM songs").all();
     const mappings = await env.DB.prepare("SELECT * FROM playlist_mapping ORDER BY sort_order DESC").all();
     const playlists = await env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav') ORDER BY created_at ASC").all();
@@ -193,7 +196,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v932';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v933';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -393,7 +396,7 @@ files['index.html'] = `<!DOCTYPE html>
         .admin-action-btn:hover { background: var(--dynamic-accent); transform: scale(1.05); }
         .admin-action-btn.delete:hover { background: #ef4444; }
 
-        .upload-preview-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); animation: slideIn 0.3s ease-out; }
+        .upload-preview-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255,255,255,0.1); animation: slideIn 0.3s ease-out; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .preview-main-row { display: flex; align-items: center; gap: 12px; width: 100%; }
         .preview-prog-container { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 10px; overflow: hidden; }
@@ -412,7 +415,7 @@ files['index.html'] = `<!DOCTYPE html>
         .upload-hint span { font-size: 11px; font-weight: 900; color: white; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
 
         @media (max-width: 768px) { 
-            #admin-box { width: 92% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
+            #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
             .admin-header { padding: 10px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 50px; }
             #admin-header-center { flex: none; width: auto; padding: 0; order: 2; }
             .browser-tab { min-width: 60px; max-width: 100px; padding: 0 8px; }
@@ -453,7 +456,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.3.2</p>
+            <p class="brand-sub">Premium Music Hub | v9.3.3</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -534,12 +537,21 @@ files['index.html'] = `<!DOCTYPE html>
     </div>
 
     <div id="m-overlay" onclick="toggleMobileDrawer(false); toggleAdmin(false)"></div>
+    <div id="m-drawer" class="m-drawer">
+        <div id="m-pl-cards" class="no-scrollbar"></div>
+        <div class="m-list-search-wrap">
+            <input type="text" id="m-list-search" class="m-list-search-box" placeholder="搜索列表内旋律..." oninput="handleSearch()">
+            <div onclick="clearSearch('m-list-search')" class="m-clear-search"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4"><path d="M6 18L18 6M6 6l12 12"></path></svg></div>
+        </div>
+        <div id="m-list-view" class="flex-1 overflow-y-auto custom-scroll text-white px-4 pb-10"></div>
+    </div>
+
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.3.2</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.3.3</span>
                 </div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
@@ -1112,7 +1124,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (9.3.2 D1 无损旗舰版)---');
+    console.log('\n---正在同步至 GitHub (9.3.3)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1120,6 +1132,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.3.2 构建成功。已缩减留白并支持歌单标签排序。');
+        console.log('\n✅ Sarah MUSIC 9.3.3 构建成功。已修复数据加载崩溃并优化界面留白。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
