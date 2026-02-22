@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.2.9
+ * Sarah MUSIC 旗舰全功能重构版 9.3.0
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.2.9 (移除同步弹窗，修复编辑UI错位，优化并发队列与列表刷新逻辑)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.3.0 (移除音量记忆故障，优化手机端设置页布局，缩减设置页空白)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -189,7 +189,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v929';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v930';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -333,7 +333,7 @@ files['index.html'] = `<!DOCTYPE html>
         .sarah-dialog-overlay.active { display: flex !important; }
         
         #admin-box { width: 92%; max-width: 900px; height: 85vh; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(60px); border-radius: 28px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.3); outline: none !important; }
-        .admin-header { padding: 15px 30px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 90px; }
+        .admin-header { padding: 10px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 70px; }
         .admin-action-bar { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
         .admin-btn-icon { width: 46px; height: 46px; display: grid; place-items: center; background: rgba(255,255,255,0.2); border-radius: 16px; border: 1.5px solid rgba(255,255,255,0.3); transition: 0.3s; cursor: pointer; color: white; backdrop-filter: brightness(1.2); }
         .admin-btn-icon:hover { background: rgba(255,255,255,0.4); transform: scale(1.05); }
@@ -342,7 +342,7 @@ files['index.html'] = `<!DOCTYPE html>
         #admin-header-center { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 0 20px; }
         .admin-console-box { background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; width: auto; max-width: 100%; }
 
-        .admin-content { flex: 1; overflow-y: auto; padding: 30px; }
+        .admin-content { flex: 1; overflow-y: auto; padding: 20px; }
         
         .admin-tabs-nav { display: flex; align-items: flex-end; gap: 4px; overflow-x: auto; margin-bottom: 15px; padding: 0 5px; }
         .admin-tabs-nav::-webkit-scrollbar { display: none; }
@@ -409,8 +409,8 @@ files['index.html'] = `<!DOCTYPE html>
 
         @media (max-width: 768px) { 
             #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
-            .admin-header { padding: 18px 20px; flex-direction: column; gap: 10px; height: auto; }
-            #admin-header-center { width: 100%; padding: 0; }
+            .admin-header { padding: 12px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 60px; }
+            #admin-header-center { flex: none; width: auto; padding: 0; }
             .browser-tab { min-width: 60px; max-width: 100px; padding: 0 8px; }
         }
 
@@ -449,7 +449,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.2.9</p>
+            <p class="brand-sub">Premium Music Hub | v9.3.0</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -544,7 +544,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.2.9</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.3.0</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -613,8 +613,6 @@ files['index.html'] = `<!DOCTYPE html>
                 updateBackground(true); 
                 if (libState.all_order.length > 0) refreshUIMetaAt(dbIndexMap.get(libState.all_order[0]));
                 else if (db.length > 0) refreshUIMetaAt(0);
-                const savedVol = localStorage.getItem('sarah-vol');
-                if(ap) { ap.volume(parseFloat(savedVol || 0.7), true); updateVolUI(ap.audio.volume); }
             } catch (e) { console.error(e); }
         }
 
@@ -645,15 +643,17 @@ files['index.html'] = `<!DOCTYPE html>
             const trackList = ids.map(id => {
               const s = db[dbIndexMap.get(id)];
               if (!s) return null;
+              const isFlac = (s.title && s.title.toLowerCase().includes('.flac')) || (s.lrc && s.lrc.includes('flac'));
               return { 
                 name: s.title, 
                 artist: s.artist, 
                 cover: s.cover || DEFAULT_LOGO, 
                 url: '/api/stream?file_id=' + s.file_id, 
-                lrc: s.lrc || '[00:00.00]暂无歌词'
+                lrc: s.lrc || '[00:00.00]暂无歌词',
+                type: isFlac ? 'flac' : 'normal'
               };
             }).filter(Boolean);
-            ap = new APlayer({ container: document.getElementById('ap-hidden'), lrcType: 1, audio: trackList, volume: parseFloat(localStorage.getItem('sarah-vol') || 0.7) });
+            ap = new APlayer({ container: document.getElementById('ap-hidden'), lrcType: 1, audio: trackList, volume: 0.7 });
             ap.on('play', () => { 
                 const s = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
@@ -851,7 +851,7 @@ files['index.html'] = `<!DOCTYPE html>
         function handleTouchEnd(e) { if (!isScrubbing) return; const rect = document.getElementById('m-scrubber-wrap').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.changedTouches[0].clientX - rect.left) / rect.width)); ap.seek(p * (ap.audio.duration || 0)); isScrubbing = false; }
 
         function toggleMute() { if (isMuted) { ap.volume(lastVolume, true); updateVolUI(lastVolume); isMuted = false; } else { lastVolume = ap.audio.volume; ap.volume(0, true); updateVolUI(0); isMuted = true; } }
-        function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>'); localStorage.setItem('sarah-vol', p); }
+        function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>'); }
 
         function handleSearch() { renderAllLists(); }
         function clearSearch(id) { document.getElementById(id).value = ""; renderAllLists(); }
@@ -1104,7 +1104,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (9.2.9 D1 无损旗舰版)---');
+    console.log('\n---正在同步至 GitHub (9.3.0 D1 无损旗舰版)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1112,6 +1112,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.2.9 构建成功。已修复编辑态错位，支持静默异步并发上传。');
+        console.log('\n✅ Sarah MUSIC 9.3.0 构建成功。已修复音量故障并优化手机端设置布局。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
