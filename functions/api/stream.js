@@ -16,7 +16,8 @@ export async function onRequest(context) {
     headers.set('Cache-Control', 'public, max-age=31536000');
     if (!headers.has('Content-Type')) {
       const fp = fileInfo.result.file_path || "";
-      headers.set('Content-Type', fp.toLowerCase().endsWith('.flac') ? 'audio/flac' : 'audio/mpeg');
+      const isFlac = fp.toLowerCase().endsWith('.flac');
+      headers.set('Content-Type', isFlac ? 'audio/flac' : 'audio/mpeg');
     }
     return new Response(fileRes.body, { status: fileRes.status, headers });
   } catch (err) { return new Response("Service Error", { status: 500 }); }
