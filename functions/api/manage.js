@@ -6,8 +6,12 @@ export async function onRequest(context) {
     if (action === 'update_song') {
       await env.DB.prepare("UPDATE songs SET title = ?1, artist = ?2 WHERE file_id = ?3").bind(data.title, data.artist, data.file_id).run();
     } else if (action === 'delete_song') {
-      await env.DB.prepare("DELETE FROM songs WHERE file_id = ?").bind(data.file_id).run();
-      await env.DB.prepare("DELETE FROM playlist_mapping WHERE file_id = ?").bind(data.file_id).run();
+      if (data.playlist_id === 'all') {
+        await env.DB.prepare("DELETE FROM songs WHERE file_id = ?").bind(data.file_id).run();
+        await env.DB.prepare("DELETE FROM playlist_mapping WHERE file_id = ?").bind(data.file_id).run();
+      } else {
+        await env.DB.prepare("DELETE FROM playlist_mapping WHERE playlist_id = ? AND file_id = ?").bind(data.playlist_id, data.file_id).run();
+      }
     } else if (action === 'toggle_fav') {
       const exist = await env.DB.prepare("SELECT 1 FROM playlist_mapping WHERE playlist_id = 'fav' AND file_id = ?").bind(data.file_id).first();
       if (exist) await env.DB.prepare("DELETE FROM playlist_mapping WHERE playlist_id = 'fav' AND file_id = ?").bind(data.file_id).run();
