@@ -8,7 +8,7 @@ export async function onRequest(context) {
     const res = {
       songs: songs.results || [],
       favorites: mappings.results.filter(m => m.playlist_id === 'fav').map(m => m.file_id),
-      playlists: (playlists.results || []).sort((a, b) => (b.sort_order || 0) - (a.sort_order || 0)).map(p => ({
+      playlists: (playlists.results || []).sort((a, b) => (Number(b.sort_order) || 0) - (Number(a.sort_order) || 0)).map(p => ({
         id: p.id,
         name: p.name,
         ids: mappings.results.filter(m => m.playlist_id === p.id).map(m => m.file_id)
