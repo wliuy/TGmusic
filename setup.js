@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.2.0
+ * Sarah MUSIC 旗舰全功能重构版 9.2.1
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.2.0 (修复随机播放与切歌列表遵循，增加歌单歌曲计数)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.2.1 (修复随机背景颜色故障，增加全局计数，优化上传播放同步，增加音量记忆)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -185,7 +185,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v920';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v921';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -445,7 +445,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.2.0</p>
+            <p class="brand-sub">Premium Music Hub | v9.2.1</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -540,7 +540,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.2.0</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.2.1</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -576,7 +576,7 @@ files['index.html'] = `<!DOCTYPE html>
             { bg: '#ffc8dd', accent: '#ec407a', deep: '#f5b8cf' }, { bg: '#e9d8a6', accent: '#9b2226', deep: '#7b241c' }, 
             { bg: '#f8fafc', accent: '#0ea5e9', deep: '#0c4a6e' }, { bg: '#1e293b', accent: '#f59e0b', deep: '#451a03' }, 
             { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' }, { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' }, 
-            { bg: '#fff1f2', accent: '#fb7185', debug: '#881337' }, { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
+            { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' }, { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
         ];
 
         // 原子化指令下发 D1
@@ -609,6 +609,7 @@ files['index.html'] = `<!DOCTYPE html>
                 updateBackground(true); 
                 if (libState.all_order.length > 0) refreshUIMetaAt(dbIndexMap.get(libState.all_order[0]));
                 else if (db.length > 0) refreshUIMetaAt(0);
+                if(ap) ap.volume(parseFloat(localStorage.getItem('sarah-vol') || 0.7), true);
             } catch (e) { console.error(e); }
         }
 
@@ -618,6 +619,13 @@ files['index.html'] = `<!DOCTYPE html>
             if (raw.error) return;
             libState = raw; db = libState.songs;
             buildIndexMap(); renderCustomTabs(); renderAllLists();
+            if(ap) {
+              const ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
+              ap.list.audios = ids.map(id => {
+                const s = db[dbIndexMap.get(id)];
+                return s ? { name: s.title, artist: s.artist, cover: s.cover || DEFAULT_LOGO, url: '/api/stream?file_id=' + s.file_id, lrc: s.lrc || '[00:00.00]暂无歌词' } : null;
+              }).filter(Boolean);
+            }
             if(document.getElementById('admin-panel').classList.contains('active')) {
               renderAdminPlaylistTabs(); renderAdminSongList();
             }
@@ -721,7 +729,7 @@ files['index.html'] = `<!DOCTYPE html>
             const renderL = (id) => {
                 const el = document.getElementById(id); if(!el) return;
                 if (!lrcLines.length) { el.innerHTML = '<div class="lrc-line active !opacity-30">暂无歌词</div>'; el.classList.add('justify-center'); }
-                else { el.classList.remove('justify-center'); el.innerHTML = '<div style="height:65px;flex-shrink:0;"></div>' + lrcLines.map((l, i) => \`<div class="lrc-line" id="\${id}-lrc-\${i}" onclick="ap.seek(\ selection-tag>\${l.t})">\${l.text}</div>\`).join('') + '<div style="height:65px;flex-shrink:0;"></div>'; }
+                else { el.classList.remove('justify-center'); el.innerHTML = '<div style="height:65px;flex-shrink:0;"></div>' + lrcLines.map((l, i) => \`<div class="lrc-line" id="\ selection-tag>\${id}-lrc-\${i}" onclick="ap.seek(\${l.t})">\${l.text}</div>\`).join('') + '<div style="height:65px;flex-shrink:0;"></div>'; }
             };
             renderL('lrc-view'); renderL('m-lrc-flow');
             updateHighlights(song.file_id);
@@ -797,17 +805,17 @@ files['index.html'] = `<!DOCTYPE html>
         function handlePrev() {
             let ids = currentTab === 'all' ? (libState.all_order.length ? libState.all_order : db.map(s => s.file_id)) : (currentTab === 'fav' ? libState.favorites : (libState.playlists[parseInt(currentTab)]?.ids || []));
             const cur = ap.list.audios[ap.list.index]; if(!cur) return;
-            const fid = new URLSearchParams(cur.url.split('?')[1]).get('file_id');
-            const idx = ids.indexOf(fid); if(idx === -1) { handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length); return; }
+            const fileId = new URLSearchParams(cur.url.split('?')[1]).get('file_id');
+            const idx = ids.indexOf(fileId); if(idx === -1) { handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length); return; }
             handleTrackSwitch(-1, ids[(idx - 1 + ids.length) % ids.length]);
         }
         function handleNext() {
             let ids = currentTab === 'all' ? (libState.all_order.length ? libState.all_order : db.map(s => s.file_id)) : (currentTab === 'fav' ? libState.favorites : (libState.playlists[parseInt(currentTab)]?.ids || []));
             const cur = ap.list.audios[ap.list.index]; if(!cur) return;
-            const fid = new URLSearchParams(cur.url.split('?')[1]).get('file_id');
-            const idx = ids.indexOf(fid);
+            const fileId = new URLSearchParams(cur.url.split('?')[1]).get('file_id');
+            const idx = ids.indexOf(fileId);
             if (modes[modeIdx] === 'random' && ids.length > 1) {
-                const others = ids.filter(i => i !== fid);
+                const others = ids.filter(i => i !== fileId);
                 handleTrackSwitch(-1, others[Math.floor(Math.random() * others.length)]);
             } else {
                 if(idx === -1) { handleTrackSwitch((ap.list.index + 1) % ap.list.audios.length); return; }
@@ -828,7 +836,7 @@ files['index.html'] = `<!DOCTYPE html>
         function handleTouchEnd(e) { if (!isScrubbing) return; const rect = document.getElementById('m-scrubber-wrap').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.changedTouches[0].clientX - rect.left) / rect.width)); ap.seek(p * (ap.audio.duration || 0)); isScrubbing = false; }
 
         function toggleMute() { if (isMuted) { ap.volume(lastVolume, true); updateVolUI(lastVolume); isMuted = false; } else { lastVolume = ap.audio.volume; ap.volume(0, true); updateVolUI(0); isMuted = true; } }
-        function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>'); }
+        function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>'); localStorage.setItem('sarah-vol', p); }
 
         function handleSearch() { renderAllLists(); }
         function clearSearch(id) { document.getElementById(id).value = ""; renderAllLists(); }
@@ -851,11 +859,11 @@ files['index.html'] = `<!DOCTYPE html>
         
         async function handleLikeToggle() { 
             const cur = ap.list.audios[ap.list.index]; if(!cur) return; 
-            const fid = new URLSearchParams(cur.url.split('?')[1]).get('file_id');
-            if (libState.favorites.includes(fid)) libState.favorites = libState.favorites.filter(id => id !== fid);
-            else libState.favorites.push(fid);
-            updateHighlights(fid);
-            await dbOp('toggle_fav', { file_id: fid }); silentRefresh(); 
+            const fileId = new URLSearchParams(cur.url.split('?')[1]).get('file_id');
+            if (libState.favorites.includes(fileId)) libState.favorites = libState.favorites.filter(id => id !== fileId);
+            else libState.favorites.push(fileId);
+            updateHighlights(fileId);
+            await dbOp('toggle_fav', { file_id: fileId }); silentRefresh(); 
         }
 
         function switchList(t) { currentTab = t; updateBackground(false); renderAllLists(); }
@@ -874,7 +882,7 @@ files['index.html'] = `<!DOCTYPE html>
 
         function renderAdminPlaylistTabs() {
             const container = document.getElementById('admin-playlist-tabs'); if(!container) return;
-            let html = \`<div class="browser-tab \${currentAdminTab === 'all' ? 'active' : ''}" onclick="switchAdminList('all')"><span class="browser-tab-text">全库</span></div><div class="browser-tab \${currentAdminTab === 'fav' ? 'active' : ''}" onclick="switchAdminList('fav')"><span class="browser-tab-text">收藏</span></div>\`;
+            let html = \`<div class="browser-tab \${currentAdminTab === 'all' ? 'active' : ''}" onclick="switchAdminList('all')"><span class="browser-tab-text">全库 <i class="opacity-40 text-[9px] font-normal italic">\${libState.songs.length}</i></span></div><div class="browser-tab \${currentAdminTab === 'fav' ? 'active' : ''}" onclick="switchAdminList('fav')"><span class="browser-tab-text">收藏 <i class="opacity-40 text-[9px] font-normal italic">\${libState.favorites.length}</i></span></div>\`;
             libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')"><span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-normal italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
             container.innerHTML = html;
         }
@@ -888,7 +896,7 @@ files['index.html'] = `<!DOCTYPE html>
                 <div class="p-4 bg-white/5 rounded-2xl mb-2 flex flex-col gap-1 border border-white/5">
                     <div class="flex justify-between items-center">
                         <span class="text-[12px] font-black text-white truncate max-w-[70%]">\${log.filename}</span>
-                        <span class="text-[9px] px-2 py-0.5 rounded \${log.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}">\${log.status}</span>
+                        <span class="text-[9px] px-2 py-0.5 rounded \selection-tag>\${log.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}">\${log.status}</span>
                     </div>
                     <div class="text-[10px] text-white/40 italic">\${log.reason || '无详情'}</div>
                     <div class="text-[8px] text-white/20 text-right mt-1">\${new Date(log.timestamp).toLocaleString()}</div>
@@ -955,7 +963,7 @@ files['index.html'] = `<!DOCTYPE html>
         function openPlaylistSelector(fid) {
             document.getElementById('playlist-selector-list').innerHTML = libState.playlists.map(pl => {
                 const ex = pl.ids.includes(fid);
-                return \`<div onclick="addToPlaylist('\${pl.id}', '\${fid}')" class="p-4 bg-white/10 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/20 \${ex?'text-emerald-400 font-bold':''}">\${ex ? \`<span class="text-emerald-400">\${pl.name}</span>\` : \`<span class="text-white">\${pl.name}</span>\`} \${ex ? '<span class="text-[10px] text-emerald-400">已添加</span>' : '<span class="text-white font-bold">➕</span>'}</div>\`;
+                return \`<div onclick="addToPlaylist('\${pl.id}', '\${fid}')" class="p-4 bg-white/10 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/20 \${ex?'text-emerald-400 font-bold':''}">\${ex ? \`<span class="text-emerald-400">\${pl.name}</span>\` : \`<span class="text-white">\text{pl.name}</span>\`} \${ex ? '<span class="text-[10px] text-emerald-400">已添加</span>' : '<span class="text-white font-bold">➕</span>'}</div>\`;
             }).join('');
             document.getElementById('playlist-selector-modal').classList.remove('hidden'); document.getElementById('playlist-selector-modal').classList.add('flex');
         }
@@ -1020,7 +1028,7 @@ files['index.html'] = `<!DOCTYPE html>
             const d = document.getElementById('m-drawer'), o = document.getElementById('m-overlay');
             if(s) { 
                 const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p,i)=>({id:i.toString(),name:p.name}))];
-                document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\${c.name}</div>\`).join('');
+                document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\text{c.name}</div>\`).join('');
                 d.classList.add('active'); o.style.display = 'block'; 
             } else { d.classList.remove('active'); o.style.display = 'none'; }
         }
@@ -1040,7 +1048,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (9.2.0 D1 无损旗舰版)---');
+    console.log('\n---正在同步至 GitHub (9.2.1 D1 无损旗舰版)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1048,6 +1056,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.2.0 构建成功。已修复切歌/随机逻辑并增加歌单计数。');
+        console.log('\n✅ Sarah MUSIC 9.2.1 构建成功。已修复随机背景颜色故障，增加全局计数，优化上传播放同步，增加音量记忆。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
