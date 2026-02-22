@@ -14,7 +14,10 @@ export async function onRequest(context) {
     const headers = new Headers(fileRes.headers);
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('Cache-Control', 'public, max-age=31536000');
-    if (!headers.has('Content-Type')) headers.set('Content-Type', 'audio/mpeg');
+    if (!headers.has('Content-Type')) {
+      const fp = fileInfo.result.file_path || "";
+      headers.set('Content-Type', fp.toLowerCase().endsWith('.flac') ? 'audio/flac' : 'audio/mpeg');
+    }
     return new Response(fileRes.body, { status: fileRes.status, headers });
   } catch (err) { return new Response("Service Error", { status: 500 }); }
 }

@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.2.3
+ * Sarah MUSIC 旗舰全功能重构版 9.2.4
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.2.3 (列表定位增强，音量记忆修复，设置界面UI色彩固定)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.2.4 (支持FLAC格式，优化新建歌单按钮交互，计数加粗)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -30,7 +30,10 @@ files['functions/api/stream.js'] = `export async function onRequest(context) {
     const headers = new Headers(fileRes.headers);
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('Cache-Control', 'public, max-age=31536000');
-    if (!headers.has('Content-Type')) headers.set('Content-Type', 'audio/mpeg');
+    if (!headers.has('Content-Type')) {
+      const fp = fileInfo.result.file_path || "";
+      headers.set('Content-Type', fp.toLowerCase().endsWith('.flac') ? 'audio/flac' : 'audio/mpeg');
+    }
     return new Response(fileRes.body, { status: fileRes.status, headers });
   } catch (err) { return new Response("Service Error", { status: 500 }); }
 }`;
@@ -185,7 +188,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v923';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v924';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -445,7 +448,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.2.3</p>
+            <p class="brand-sub">Premium Music Hub | v9.2.4</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -540,7 +543,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.2.3</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.2.4</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -554,7 +557,7 @@ files['index.html'] = `<!DOCTYPE html>
             </div>
             <div class="admin-content custom-scroll">
                 <div id="upload-preview-list" class="space-y-2 mb-6"></div>
-                <div class="flex items-center mb-4"><div id="admin-playlist-tabs" class="admin-tabs-nav flex-1"></div><div onclick="addPlaylistPrompt()" class="browser-tab-add"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 4v16m8-8H4"></path></svg></div></div>
+                <div class="flex items-center mb-4"><div id="admin-playlist-tabs" class="admin-tabs-nav flex-1"></div></div>
                 <div id="admin-song-list" class="space-y-2 mb-8 relative min-h-[100px]"></div>
             </div>
         </div>
@@ -884,8 +887,9 @@ files['index.html'] = `<!DOCTYPE html>
 
         function renderAdminPlaylistTabs() {
             const container = document.getElementById('admin-playlist-tabs'); if(!container) return;
-            let html = \`<div class="browser-tab \${currentAdminTab === 'all' ? 'active' : ''}" onclick="switchAdminList('all')"><span class="browser-tab-text">全库 <i class="opacity-40 text-[9px] font-normal italic">\${libState.songs.length}</i></span></div><div class="browser-tab \${currentAdminTab === 'fav' ? 'active' : ''}" onclick="switchAdminList('fav')"><span class="browser-tab-text">收藏 <i class="opacity-40 text-[9px] font-normal italic">\${libState.favorites.length}</i></span></div>\`;
-            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')"><span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-normal italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
+            let html = \`<div class="browser-tab \${currentAdminTab === 'all' ? 'active' : ''}" onclick="switchAdminList('all')"><span class="browser-tab-text">全库 <i class="opacity-40 text-[9px] font-black italic">\${libState.songs.length}</i></span></div><div class="browser-tab \${currentAdminTab === 'fav' ? 'active' : ''}" onclick="switchAdminList('fav')"><span class="browser-tab-text">收藏 <i class="opacity-40 text-[9px] font-black italic">\${libState.favorites.length}</i></span></div>\`;
+            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')"><span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-black italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
+            html += \`<div class="browser-tab" onclick="addPlaylistPrompt()" style="min-width:40px;flex:none;"><span class="browser-tab-text" style="opacity:1;color:white;font-size:12px;">➕</span></div>\`;
             container.innerHTML = html;
         }
 
@@ -965,7 +969,7 @@ files['index.html'] = `<!DOCTYPE html>
         function openPlaylistSelector(fid) {
             document.getElementById('playlist-selector-list').innerHTML = libState.playlists.map(pl => {
                 const ex = pl.ids.includes(fid);
-                return \`<div onclick="addToPlaylist('\${pl.id}', '\${fid}')" class="p-4 bg-white/10 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/20 \${ex?'text-emerald-400 font-bold':''}">\${ex ? \`<span class="text-emerald-400">\${pl.name}</span>\` : \`<span class="text-white">\${pl.name}</span>\`} \${ex ? '<span class="text-[10px] text-emerald-400">已添加</span>' : '<span class="text-white font-bold">➕</span>'}</div>\`;
+                return \`<div onclick="addToPlaylist('\${pl.id}', '\${fid}')" class="p-4 bg-white/10 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/20 \${ex?'text-emerald-400 font-bold':''}">\${ex ? \`<span class="text-emerald-400">\${pl.name}</span>\` : \`<span class="text-white">\text{pl.name}</span>\`} \${ex ? '<span class="text-[10px] text-emerald-400">已添加</span>' : '<span class="text-white font-bold">➕</span>'}</div>\`;
             }).join('');
             document.getElementById('playlist-selector-modal').classList.remove('hidden'); document.getElementById('playlist-selector-modal').classList.add('flex');
         }
@@ -1030,7 +1034,7 @@ files['index.html'] = `<!DOCTYPE html>
             const d = document.getElementById('m-drawer'), o = document.getElementById('m-overlay');
             if(s) { 
                 const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p,i)=>({id:i.toString(),name:p.name}))];
-                document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\${c.name}</div>\`).join('');
+                document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\text{c.name}</div>\`).join('');
                 d.classList.add('active'); o.style.display = 'block'; 
             } else { d.classList.remove('active'); o.style.display = 'none'; }
         }
@@ -1050,7 +1054,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (9.2.3 D1 无损旗舰版)---');
+    console.log('\n---正在同步至 GitHub (9.2.4 D1 无损旗舰版)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1058,6 +1062,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.2.3 构建成功。已修复音量记忆、列表定位并固定设置页色彩。');
+        console.log('\n✅ Sarah MUSIC 9.2.4 构建成功。已支持FLAC、优化按钮交互及加粗计数显示。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
