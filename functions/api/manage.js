@@ -34,6 +34,14 @@ export async function onRequest(context) {
           .bind(playlist_id, fid, ids.length - idx)
       );
       await env.DB.batch(statements);
+    } else if (action === 'update_playlist_order') {
+      // 自动补全排序字段，确保 feature 可用
+      await env.DB.prepare("ALTER TABLE playlists ADD COLUMN created_at INTEGER DEFAULT 0").run().catch(()=>{});
+      const { ids } = data;
+      const statements = ids.map((pid, idx) => 
+        env.DB.prepare("UPDATE playlists SET created_at = ? WHERE id = ?").bind(idx, pid)
+      );
+      await env.DB.batch(statements);
     } else if (action === 'get_logs') {
       const logs = await env.DB.prepare("SELECT * FROM upload_logs ORDER BY timestamp DESC LIMIT 50").all();
       return new Response(JSON.stringify({ success: true, logs: logs.results || [] }));
