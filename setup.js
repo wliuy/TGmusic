@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.3.8
+ * Sarah MUSIC 旗舰全功能重构版 9.3.9
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.3.8 (修复切表切歌故障，解决设置页点击冲突，根治插值乱码)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.3.9 (实现无缝切表定位，修复设置页点击冲突，根治插值乱码)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -196,7 +196,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v938';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v939';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -458,10 +458,10 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.3.8</p>
+            <p class="brand-sub">Premium Music Hub | v9.3.9</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 .73-2.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                 </div>
             </div>
         </header>
@@ -544,7 +544,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.3.8</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.3.9</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -766,7 +766,7 @@ files['index.html'] = `<!DOCTYPE html>
         function refreshMeta() { if (!ap || !ap.list.audios.length) return; refreshUIMetaByAudio(ap.list.audios[ap.list.index]); }
         
         function updateHighlights(cid) {
-            document.querySelectorAll('.song-item').forEach(el => { const isActive = el.dataset.id === cid; el.classList.toggle('active', isActive); if(isActive) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+            document.querySelectorAll('.song-item').forEach(el => { const isActive = el.dataset.id === cid; el.classList.toggle('active', isActive); });
             const isFav = libState.favorites.includes(cid);
             ['fav-trigger', 'm-fav-trigger'].forEach(id => {
                 const el = document.getElementById(id); if(!el) return;
@@ -793,7 +793,17 @@ files['index.html'] = `<!DOCTYPE html>
             const html = listData.map(s => \`<div data-id="\${s.file_id}" onclick="handleTrackSwitch(-1, '\${s.file_id}')" class="song-item group \${s.file_id === currentId ? 'active' : ''}"><img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm"><div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div></div>\`).join('') || '<div class="py-20 text-center opacity-20 font-black text-white/40">列表暂无旋律</div>';
             document.getElementById('list-view').innerHTML = html;
             document.getElementById('m-list-view').innerHTML = html;
-            if (currentId) updateHighlights(currentId);
+            
+            if (currentId && ids.includes(currentId)) {
+                updateHighlights(currentId);
+                const target = document.querySelector(\`#list-view .song-item[data-id="\${currentId}"]\`);
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const mTarget = document.querySelector(\`#m-list-view .song-item[data-id="\${currentId}"]\`);
+                if (mTarget) mTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                document.getElementById('list-view').scrollTop = 0;
+                document.getElementById('m-list-view').scrollTop = 0;
+            }
         }
 
         async function handleTrackSwitch(idx, fid) {
@@ -905,8 +915,10 @@ files['index.html'] = `<!DOCTYPE html>
                 const newIdx = trackList.findIndex(a => a.url.includes('file_id=' + currentFileId));
                 if (newIdx !== -1) {
                     ap.list.index = newIdx;
-                    ap.seek(curTime);
-                    if (!wasPaused) ap.play();
+                    setTimeout(() => {
+                        ap.seek(curTime);
+                        if (!wasPaused) ap.play();
+                    }, 50);
                 }
             }
             updateBackground(false); 
