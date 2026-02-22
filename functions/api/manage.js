@@ -27,7 +27,7 @@ export async function onRequest(context) {
       const { playlist_id, ids } = data;
       const statements = ids.map((fid, idx) => 
         env.DB.prepare("INSERT INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES (?1, ?2, ?3) ON CONFLICT(playlist_id, file_id) DO UPDATE SET sort_order = ?3")
-          .bind(playlist_id, fid, idx)
+          .bind(playlist_id, fid, ids.length - idx)
       );
       await env.DB.batch(statements);
     } else if (action === 'get_logs') {
