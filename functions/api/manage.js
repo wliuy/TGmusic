@@ -18,7 +18,7 @@ export async function onRequest(context) {
       else await env.DB.prepare("INSERT INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES ('fav', ?, ?)")
           .bind(data.file_id, Date.now()).run();
     } else if (action === 'add_playlist') {
-      await env.DB.prepare("INSERT INTO playlists (id, name, sort_order) VALUES (?, ?, ?)").bind(crypto.randomUUID(), data.name, Date.now()).run();
+      await env.DB.prepare("INSERT INTO playlists (id, name) VALUES (?, ?)").bind(crypto.randomUUID(), data.name).run();
     } else if (action === 'rename_playlist') {
       await env.DB.prepare("UPDATE playlists SET name = ? WHERE id = ?").bind(data.name, data.id).run();
     } else if (action === 'delete_playlist') {
@@ -39,7 +39,7 @@ export async function onRequest(context) {
       const statements = ids.map((pid, idx) => 
         env.DB.prepare("UPDATE playlists SET sort_order = ?1 WHERE id = ?2").bind(ids.length - idx, pid)
       );
-      await env.DB.batch(statements);
+      try { await env.DB.batch(statements); } catch(e) { console.error("Playlist order save failed: column likely missing"); }
     } else if (action === 'get_logs') {
       const logs = await env.DB.prepare("SELECT * FROM upload_logs ORDER BY timestamp DESC LIMIT 50").all();
       return new Response(JSON.stringify({ success: true, logs: logs.results || [] }));

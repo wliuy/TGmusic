@@ -3,12 +3,12 @@ export async function onRequest(context) {
   try {
     const songs = await env.DB.prepare("SELECT * FROM songs").all();
     const mappings = await env.DB.prepare("SELECT * FROM playlist_mapping ORDER BY sort_order DESC").all();
-    const playlists = await env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav') ORDER BY sort_order DESC").all();
+    const playlists = await env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav')").all();
     
     const res = {
       songs: songs.results || [],
       favorites: mappings.results.filter(m => m.playlist_id === 'fav').map(m => m.file_id),
-      playlists: playlists.results.map(p => ({
+      playlists: (playlists.results || []).sort((a, b) => (b.sort_order || 0) - (a.sort_order || 0)).map(p => ({
         id: p.id,
         name: p.name,
         ids: mappings.results.filter(m => m.playlist_id === p.id).map(m => m.file_id)
