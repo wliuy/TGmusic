@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.3.1
+ * Sarah MUSIC 旗舰全功能重构版 9.3.2
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.3.1 (彻底清除源码杂质，修复播放失效与UI乱码，更正背景键名)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.3.2 (优化手机端布局，缩减设置页空白，支持歌单标签排序)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -45,7 +45,7 @@ files['functions/api/songs.js'] = `export async function onRequest(context) {
   try {
     const songs = await env.DB.prepare("SELECT * FROM songs").all();
     const mappings = await env.DB.prepare("SELECT * FROM playlist_mapping ORDER BY sort_order DESC").all();
-    const playlists = await env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav')").all();
+    const playlists = await env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav') ORDER BY created_at ASC").all();
     
     const res = {
       songs: songs.results || [],
@@ -84,7 +84,7 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
       else await env.DB.prepare("INSERT INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES ('fav', ?, ?)")
           .bind(data.file_id, Date.now()).run();
     } else if (action === 'add_playlist') {
-      await env.DB.prepare("INSERT INTO playlists (id, name) VALUES (?, ?)").bind(crypto.randomUUID(), data.name).run();
+      await env.DB.prepare("INSERT INTO playlists (id, name, created_at) VALUES (?, ?, ?)").bind(crypto.randomUUID(), data.name, Date.now()).run();
     } else if (action === 'rename_playlist') {
       await env.DB.prepare("UPDATE playlists SET name = ? WHERE id = ?").bind(data.name, data.id).run();
     } else if (action === 'delete_playlist') {
@@ -100,6 +100,12 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
           .bind(playlist_id, fid, ids.length - idx)
       );
       await env.DB.batch(statements);
+    } else if (action === 'update_playlist_order') {
+      const { ids } = data;
+      const statements = ids.map((pid, idx) => 
+        env.DB.prepare("UPDATE playlists SET created_at = ? WHERE id = ?").bind(idx, pid)
+      );
+      await env.DB.batch(statements);
     } else if (action === 'get_logs') {
       const logs = await env.DB.prepare("SELECT * FROM upload_logs ORDER BY timestamp DESC LIMIT 50").all();
       return new Response(JSON.stringify({ success: true, logs: logs.results || [] }));
@@ -110,7 +116,7 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
   } catch (err) { return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500 }); }
 }`;
 
-// --- API: 上传中心 (同步 D1 + 封面 URL 化) ---
+// --- API: 上传中心 ---
 files['functions/api/upload.js'] = `export async function onRequest(context) {
   const { request, env } = context;
   const BOT_TOKEN = env.TG_Bot_Token;
@@ -127,7 +133,6 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
     filename = audioFile.name || "Unknown";
     const meta = JSON.parse(formData.get('meta') || '{}');
     
-    // 步骤 1: 处理封面上传 (若有)
     let finalCoverUrl = "";
     if (coverFile) {
       const imgFormData = new FormData();
@@ -142,7 +147,6 @@ files['functions/api/upload.js'] = `export async function onRequest(context) {
       }
     }
 
-    // 步骤 2: 上传音频
     const tgFormData = new FormData();
     tgFormData.append('chat_id', CHAT_ID);
     tgFormData.append('audio', audioFile);
@@ -189,7 +193,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v931';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v932';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -325,24 +329,24 @@ files['index.html'] = `<!DOCTYPE html>
         .m-pl-card-name { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-align: center; white-space: nowrap; }
 
         .m-list-search-wrap { padding: 12px 20px 10px 20px; flex-shrink: 0; display: flex; align-items: center; position: relative; }
-        .m-list-search-box { width: 100%; height: 46px; background: rgba(255,255,255,0.08); border: 1.5 solid rgba(255,255,255,0.15); border-radius: 16px; padding: 0 45px 0 20px; color: white; font-size: 14px; font-weight: 700; outline: none; }
-        .m-clear-search { position: absolute; right: 35px; color: white; opacity: 0.5; cursor: pointer; }
+        .m-list-search-box { width: 100%; height: 36px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(16, 185, 129, 0.3); border-radius: 14px; padding: 0 40px 0 15px; color: #10b981; font-size: 13px; font-weight: 700; outline: none; }
+        .m-clear-search { position: absolute; right: 32px; color: #10b981; opacity: 0.7; cursor: pointer; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(20px); z-index: 2000; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
         .sarah-dialog-overlay.active { display: flex !important; }
         
         #admin-box { width: 92%; max-width: 900px; height: 85vh; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(60px); border-radius: 28px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.3); outline: none !important; }
-        .admin-header { padding: 10px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 70px; }
+        .admin-header { padding: 8px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 55px; }
         .admin-action-bar { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-        .admin-btn-icon { width: 46px; height: 46px; display: grid; place-items: center; background: rgba(255,255,255,0.2); border-radius: 16px; border: 1.5px solid rgba(255,255,255,0.3); transition: 0.3s; cursor: pointer; color: white; backdrop-filter: brightness(1.2); }
+        .admin-btn-icon { width: 42px; height: 42px; display: grid; place-items: center; background: rgba(255,255,255,0.2); border-radius: 14px; border: 1.5px solid rgba(255,255,255,0.3); transition: 0.3s; cursor: pointer; color: white; backdrop-filter: brightness(1.2); }
         .admin-btn-icon:hover { background: rgba(255,255,255,0.4); transform: scale(1.05); }
         .admin-btn-icon:active { transform: scale(0.95); }
 
         #admin-header-center { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 0 20px; }
-        .admin-console-box { background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; width: auto; max-width: 100%; }
+        .admin-console-box { background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; width: auto; max-width: 100%; margin-bottom: 15px; }
 
-        .admin-content { flex: 1; overflow-y: auto; padding: 20px; }
+        .admin-content { flex: 1; overflow-y: auto; padding: 10px 20px; }
         
         .admin-tabs-nav { display: flex; align-items: flex-end; gap: 4px; overflow-x: auto; margin-bottom: 15px; padding: 0 5px; }
         .admin-tabs-nav::-webkit-scrollbar { display: none; }
@@ -352,6 +356,7 @@ files['index.html'] = `<!DOCTYPE html>
             display: flex; align-items: center; justify-content: center; cursor: pointer;
             border: 1px solid rgba(255, 255, 255, 0.1); border-bottom: none;
             transition: all 0.2s; position: relative; flex-shrink: 0;
+            -webkit-user-select: none; user-select: none; touch-action: pan-x;
         }
         .browser-tab.active { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.2); z-index: 10; }
         .browser-tab.active .browser-tab-text { opacity: 1; color: #10b981; }
@@ -388,7 +393,7 @@ files['index.html'] = `<!DOCTYPE html>
         .admin-action-btn:hover { background: var(--dynamic-accent); transform: scale(1.05); }
         .admin-action-btn.delete:hover { background: #ef4444; }
 
-        .upload-preview-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255,255,255,0.1); animation: slideIn 0.3s ease-out; }
+        .upload-preview-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); animation: slideIn 0.3s ease-out; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .preview-main-row { display: flex; align-items: center; gap: 12px; width: 100%; }
         .preview-prog-container { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 10px; overflow: hidden; }
@@ -407,9 +412,9 @@ files['index.html'] = `<!DOCTYPE html>
         .upload-hint span { font-size: 11px; font-weight: 900; color: white; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
 
         @media (max-width: 768px) { 
-            #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
-            .admin-header { padding: 12px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 60px; }
-            #admin-header-center { flex: none; width: auto; padding: 0; }
+            #admin-box { width: 92% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
+            .admin-header { padding: 10px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 50px; }
+            #admin-header-center { flex: none; width: auto; padding: 0; order: 2; }
             .browser-tab { min-width: 60px; max-width: 100px; padding: 0 8px; }
         }
 
@@ -448,7 +453,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.3.1</p>
+            <p class="brand-sub">Premium Music Hub | v9.3.2</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -529,25 +534,12 @@ files['index.html'] = `<!DOCTYPE html>
     </div>
 
     <div id="m-overlay" onclick="toggleMobileDrawer(false); toggleAdmin(false)"></div>
-    <div id="m-drawer" class="m-drawer">
-        <div id="m-pl-cards" class="no-scrollbar"></div>
-        <div class="m-list-search-wrap">
-            <input type="text" id="m-list-search" class="m-list-search-box" placeholder="搜索列表内旋律..." oninput="handleSearch()">
-            <div onclick="clearSearch('m-list-search')" class="m-clear-search"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4"><path d="M6 18L18 6M6 6l12 12"></path></svg></div>
-        </div>
-        <div id="m-list-view" class="flex-1 overflow-y-auto custom-scroll text-white px-4 pb-10"></div>
-    </div>
-
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.3.1</span>
-                </div>
-                <div id="admin-header-center">
-                    <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
-                    <div id="upload-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><input type="file" id="f-in" multiple onchange="previewTag(this)" style="display:none"><label for="f-in" class="upload-card"><div class="upload-hint"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span id="file-count-tip">点击/拖拽同步</span></div></label><button onclick="switchAdminList('logs')" class="bg-white/15 text-white px-5 py-2.5 rounded-xl font-black text-[11px] hover:bg-white/20 transition-all">上传日志</button></div></div>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.3.2</span>
                 </div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
@@ -556,6 +548,10 @@ files['index.html'] = `<!DOCTYPE html>
                 </div>
             </div>
             <div class="admin-content custom-scroll">
+                <div id="admin-header-center" class="w-full">
+                    <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
+                    <div id="upload-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><input type="file" id="f-in" multiple onchange="previewTag(this)" style="display:none"><label for="f-in" class="upload-card"><div class="upload-hint"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span id="file-count-tip">点击/拖拽同步</span></div></label><button onclick="switchAdminList('logs')" class="bg-white/15 text-white px-5 py-2.5 rounded-xl font-black text-[11px] hover:bg-white/20 transition-all">上传日志</button></div></div>
+                </div>
                 <div id="upload-preview-list" class="space-y-2 mb-6"></div>
                 <div class="flex items-center mb-4"><div id="admin-playlist-tabs" class="admin-tabs-nav flex-1"></div></div>
                 <div id="admin-song-list" class="space-y-2 mb-8 relative min-h-[100px]"></div>
@@ -570,6 +566,7 @@ files['index.html'] = `<!DOCTYPE html>
         let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
         let currentThemeIdx = -1, sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false;
         let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
+        let currentDraggedTab = null, tabDragPlaceholder = null, tabTouchOffsetX = 0;
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
         let globalUploadQueue = [], uploadActiveWorkers = 0;
         const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
@@ -583,7 +580,6 @@ files['index.html'] = `<!DOCTYPE html>
             { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' }, { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
         ];
 
-        // 原子化指令下发 D1
         async function dbOp(action, data = {}) {
             try {
                 const res = await fetch('/api/manage', { method: 'POST', body: JSON.stringify({ action, data }) });
@@ -599,7 +595,7 @@ files['index.html'] = `<!DOCTYPE html>
                     reg.addEventListener('updatefound', () => {
                         const newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) { /* 取消强制刷新 */ }
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) { }
                         });
                     });
                 }).catch(() => {});
@@ -898,9 +894,42 @@ files['index.html'] = `<!DOCTYPE html>
         function renderAdminPlaylistTabs() {
             const container = document.getElementById('admin-playlist-tabs'); if(!container) return;
             let html = \`<div class="browser-tab \${currentAdminTab === 'all' ? 'active' : ''}" onclick="switchAdminList('all')"><span class="browser-tab-text">全库 <i class="opacity-40 text-[9px] font-black italic">\${libState.songs.length}</i></span></div><div class="browser-tab \${currentAdminTab === 'fav' ? 'active' : ''}" onclick="switchAdminList('fav')"><span class="browser-tab-text">收藏 <i class="opacity-40 text-[9px] font-black italic">\${libState.favorites.length}</i></span></div>\`;
-            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')"><span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-black italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
+            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" data-plid="\${pl.id}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')" onmousedown="handleAdminTabDragStart(event, \${i}, false)" ontouchstart="handleAdminTabDragStart(event, \${i}, true)"><span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-black italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
             html += \`<div class="browser-tab" onclick="addPlaylistPrompt()" style="min-width:40px;flex:none;"><span class="browser-tab-text" style="opacity:1;color:white;font-size:14px;font-weight:bold;">+</span></div>\`;
             container.innerHTML = html;
+        }
+
+        function handleAdminTabDragStart(e, idx, isTouch) {
+            if (e.target.closest('.browser-tab-close')) return;
+            const targetEl = e.currentTarget; let lastX = isTouch ? e.touches[0].clientX : e.clientX;
+            const initDrag = (cX) => {
+                if (currentDraggedTab) return; currentDraggedTab = targetEl; const rect = currentDraggedTab.getBoundingClientRect();
+                tabTouchOffsetX = cX - rect.left; tabDragPlaceholder = document.createElement('div'); tabDragPlaceholder.className = 'browser-tab'; tabDragPlaceholder.style.width = rect.width + 'px'; tabDragPlaceholder.style.opacity = '0';
+                currentDraggedTab.parentNode.insertBefore(tabDragPlaceholder, currentDraggedTab);
+                const ghost = currentDraggedTab.cloneNode(true); ghost.style.position = 'fixed'; ghost.style.pointerEvents = 'none'; ghost.style.zIndex = '10000'; ghost.style.width = rect.width + 'px'; ghost.style.left = (cX - tabTouchOffsetX) + 'px'; ghost.style.top = rect.top + 'px'; ghost.style.background = 'rgba(0,0,0,0.5)'; ghost.style.borderRadius = '10px'; document.body.appendChild(ghost);
+                currentDraggedTab.style.display = 'none';
+                const move = (me) => {
+                    const mX = me.touches ? me.touches[0].clientX : me.clientX; ghost.style.left = (mX - tabTouchOffsetX) + 'px';
+                    const hov = document.elementFromPoint(mX, rect.top + 10)?.closest('.browser-tab');
+                    if (hov && hov !== currentDraggedTab && hov !== tabDragPlaceholder && hov.dataset.plid) {
+                        const r = hov.getBoundingClientRect(); if (mX < r.left + r.width / 2) hov.parentNode.insertBefore(tabDragPlaceholder, hov); else hov.parentNode.insertBefore(tabDragPlaceholder, hov.nextSibling);
+                    }
+                };
+                const end = async () => {
+                    window.removeEventListener(isTouch ? 'touchmove' : 'mousemove', move); window.removeEventListener(isTouch ? 'touchend' : 'mouseup', end);
+                    if (tabDragPlaceholder) { tabDragPlaceholder.parentNode.insertBefore(currentDraggedTab, tabDragPlaceholder); tabDragPlaceholder.remove(); }
+                    if (ghost) ghost.remove(); currentDraggedTab.style.display = 'flex';
+                    const nIds = Array.from(document.querySelectorAll('.admin-tabs-nav .browser-tab')).map(t => t.dataset.plid).filter(Boolean);
+                    await dbOp('update_playlist_order', { ids: nIds }); silentRefresh();
+                    currentDraggedTab = null;
+                };
+                window.addEventListener(isTouch ? 'touchmove' : 'mousemove', move); window.addEventListener(isTouch ? 'touchend' : 'mouseup', end);
+            };
+            if (isTouch) {
+                if(longPressTimer) clearTimeout(longPressTimer); longPressTimer = setTimeout(() => { initDrag(lastX); }, 500);
+                targetEl.addEventListener('touchmove', (te) => { if (Math.abs(te.touches[0].clientX - lastX) > 10) clearTimeout(longPressTimer); }, { once: true });
+                targetEl.addEventListener('touchend', () => clearTimeout(longPressTimer), { once: true });
+            } else initDrag(e.clientX);
         }
 
         async function renderUploadLogs() {
@@ -931,7 +960,6 @@ files['index.html'] = `<!DOCTYPE html>
             container.innerHTML = list.map((s, i) => \`<div class="admin-song-row" id="admin-row-\${i}" data-fileid="\${s.file_id}" onmousedown="handleAdminDragStart(event, \${i}, false)" ontouchstart="handleAdminDragStart(event, \${i}, true)"><div class="admin-song-info"><input class="admin-song-input admin-song-title-input" value="\${s.title}" readonly onchange="updateSongInfo('\${s.file_id}', 'title', this.value)"><input class="admin-song-input admin-song-artist-input" value="\${s.artist}" readonly onchange="updateSongInfo('\${s.file_id}', 'artist', this.value)"></div><div class="admin-action-group"><div class="admin-action-btn" onclick="openPlaylistSelector('\${s.file_id}')"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 4v16m8-8H4"></path></svg></div><div class="admin-action-btn delete" onclick="deleteSong('\${s.file_id}')"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></div><div class="admin-action-btn" onclick="toggleEditMode(\${i})"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div></div></div>\`).join('') || '<div class="py-10 text-center text-white/20 text-xs">暂无歌曲</div>';
         }
 
-        // 旗舰级稳拽排序逻辑 (100% 还原协议要求)
         function handleAdminDragStart(e, idx, isTouch) {
             if ((e.target.tagName === 'INPUT' && !e.target.readOnly) || e.target.closest('.admin-action-btn')) return;
             const targetEl = e.currentTarget; if (targetEl.classList.contains('editing')) return;
@@ -959,8 +987,8 @@ files['index.html'] = `<!DOCTYPE html>
                 window.addEventListener(isTouch ? 'touchmove' : 'mousemove', move, { passive: false }); window.addEventListener(isTouch ? 'touchend' : 'mouseup', end);
             };
             if (isTouch) {
-                if(longPressTimer) clearTimeout(longPressTimer); longPressTimer = setTimeout(() => { if (navigator.vibrate) navigator.vibrate(50); initDrag(lastX, lastY); }, 500);
-                targetEl.addEventListener('touchmove', (te) => { lastX = te.touches[0].clientX; lastY = te.touches[0].clientY; if (Math.abs(lastY - initialTouchY) > 10) clearTimeout(longPressTimer); }, { passive: true });
+                if(longPressTimer) clearTimeout(longPressTimer); longPressTimer = setTimeout(() => { initDrag(lastX, lastY); }, 500);
+                targetEl.addEventListener('touchmove', (te) => { lastX = te.touches[0].clientX; lastY = te.touches[0].clientY; if (Math.abs(lastY - lastY) > 10) clearTimeout(longPressTimer); }, { passive: true });
                 targetEl.addEventListener('touchend', () => clearTimeout(longPressTimer), { once: true });
             } else initDrag(e.clientX, e.clientY);
         }
@@ -971,17 +999,12 @@ files['index.html'] = `<!DOCTYPE html>
             const inputs = row.querySelectorAll('.admin-song-input');
             const isEditing = row.classList.contains('editing');
             const fid = row.dataset.fileid;
-
             if (isEditing) {
-                row.classList.remove('editing');
-                inputs.forEach(i => i.readOnly = true);
+                row.classList.remove('editing'); inputs.forEach(i => i.readOnly = true);
                 btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
-                updateSongInfo(fid, 'title', inputs[0].value);
-                updateSongInfo(fid, 'artist', inputs[1].value);
+                updateSongInfo(fid, 'title', inputs[0].value); updateSongInfo(fid, 'artist', inputs[1].value);
             } else {
-                row.classList.add('editing');
-                inputs.forEach(i => i.readOnly = false);
-                inputs[0].focus();
+                row.classList.add('editing'); inputs.forEach(i => i.readOnly = false); inputs[0].focus();
                 btn.innerHTML = '<span class="text-xs font-bold">✔</span>';
             }
         }
@@ -1008,18 +1031,17 @@ files['index.html'] = `<!DOCTYPE html>
         function deletePlaylist(idx) { showSarahDialog("删除", "确定删除此列表吗？", false, null, async (y) => { if(y) { await dbOp('delete_playlist', { id: libState.playlists[idx].id }); silentRefresh(); } }); }
 
         function previewTag(inp) {
-            const files = Array.from(inp.files); document.getElementById('file-count-tip').innerText = \`已选 \${files.length} 首\`;
+            const batchFiles = Array.from(inp.files); document.getElementById('file-count-tip').innerText = \`已选 \${batchFiles.length} 首\`;
             const container = document.getElementById('upload-preview-list');
-            
-            files.forEach((f, i) => {
+            batchFiles.forEach((f, i) => {
                 const pId = "up-p-" + Date.now() + i;
                 container.innerHTML += \`<div class="upload-preview-item" id="\${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">\${f.name}</span><div id="\${pId}-s" class="preview-status-dot"></div></div><div class="preview-prog-container" id="\${pId}-w"><div class="preview-prog-fill" id="\${pId}-f"></div></div></div>\`;
                 jsmediatags.read(f, { onSuccess: (t) => {
                     const { title, artist, picture, lyrics } = t.tags; let blob = null;
                     if (picture) { const { data, format } = picture; blob = new Blob([new Uint8Array(data)], { type: format }); }
                     tempMetaMap.set(f.name, { title: title || f.name.replace(/\\.[^/.]+$/, ""), artist: artist || "未知", coverBlob: blob, lrc: lyrics?.lyrics || "" });
-                    if(i === files.length - 1) setTimeout(() => handleUp(files), 500);
-                }, onError: () => { if(i === files.length - 1) setTimeout(() => handleUp(files), 500); }});
+                    if(i === batchFiles.length - 1) setTimeout(() => handleUp(batchFiles), 500);
+                }, onError: () => { if(i === batchFiles.length - 1) setTimeout(() => handleUp(batchFiles), 500); }});
             });
         }
 
@@ -1027,53 +1049,39 @@ files['index.html'] = `<!DOCTYPE html>
             if(!batchFiles.length) return;
             const btn = document.querySelector("#upload-area button"); if(btn) btn.disabled = true;
             const targetPid = (currentAdminTab !== 'all' && currentAdminTab !== 'fav' && currentAdminTab !== 'logs') ? libState.playlists[parseInt(currentAdminTab)].id : null;
-            
             Array.from(batchFiles).forEach((f, i) => {
                 const listItems = document.querySelectorAll(".upload-preview-item");
                 const pId = listItems[listItems.length - batchFiles.length + i].id;
                 globalUploadQueue.push({ f, pId, targetPid });
             });
-
             const worker = async () => {
                 while(globalUploadQueue.length > 0) {
-                    const item = globalUploadQueue.shift();
-                    if (!item) break;
+                    const item = globalUploadQueue.shift(); if (!item) break;
                     const sDot = document.getElementById(item.pId + "-s"), pWrap = document.getElementById(item.pId + "-w"), pFill = document.getElementById(item.pId + "-f");
-                    
                     if(sDot) sDot.className = "preview-status-dot uploading";
                     const meta = tempMetaMap.get(item.f.name) || { title: item.f.name };
                     const fd = new FormData(); fd.append('file', item.f); fd.append('meta', JSON.stringify(meta));
                     if (meta.coverBlob) fd.append('cover', meta.coverBlob, 'cover.jpg');
                     if (item.targetPid) fd.append('target_playlist', item.targetPid);
-                    
                     const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload');
                     xhr.upload.onprogress = e => { if(e.lengthComputable && pFill) pFill.style.width = (e.loaded/e.total*100) + '%'; };
                     await new Promise(r => {
-                        xhr.onload = () => { 
-                            const res = JSON.parse(xhr.responseText || '{}');
-                            if(xhr.status === 200 && res.success) { if(sDot) sDot.className = "preview-status-dot success"; }
-                            else { if(sDot) sDot.className = "preview-status-dot error"; }
-                            r(); 
-                        };
+                        xhr.onload = () => { if(xhr.status === 200) { if(sDot) sDot.className = "preview-status-dot success"; } else { if(sDot) sDot.className = "preview-status-dot error"; } r(); };
                         xhr.onerror = () => { if(sDot) sDot.className = "preview-status-dot error"; r(); };
                         xhr.send(fd);
                     });
                 }
             };
-
             const startWorkers = () => {
-                const workersToStart = Math.min(3 - uploadActiveWorkers, globalUploadQueue.length);
-                for(let j=0; j<workersToStart; j++) {
+                const ws = Math.min(3 - uploadActiveWorkers, globalUploadQueue.length);
+                for(let j=0; j<ws; j++) {
                     uploadActiveWorkers++;
                     worker().then(() => {
                         uploadActiveWorkers--;
                         if (uploadActiveWorkers === 0 && globalUploadQueue.length === 0) {
                             if(btn) btn.disabled = false; silentRefresh();
-                            if(currentAdminTab === 'logs') renderUploadLogs();
                             setTimeout(() => { const list = document.getElementById('upload-preview-list'); if(list) list.innerHTML = ""; }, 10000);
-                        } else if (globalUploadQueue.length > 0) {
-                            startWorkers();
-                        }
+                        } else if (globalUploadQueue.length > 0) { startWorkers(); }
                     });
                 }
             };
@@ -1104,7 +1112,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (9.3.1 D1 无损旗舰版)---');
+    console.log('\n---正在同步至 GitHub (9.3.2 D1 无损旗舰版)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1112,6 +1120,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.3.1 构建成功。已修复播放失效故障，清除源码杂质。');
+        console.log('\n✅ Sarah MUSIC 9.3.2 构建成功。已缩减留白并支持歌单标签排序。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }

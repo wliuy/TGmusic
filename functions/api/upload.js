@@ -14,7 +14,6 @@ export async function onRequest(context) {
     filename = audioFile.name || "Unknown";
     const meta = JSON.parse(formData.get('meta') || '{}');
     
-    // 步骤 1: 处理封面上传 (若有)
     let finalCoverUrl = "";
     if (coverFile) {
       const imgFormData = new FormData();
@@ -29,7 +28,6 @@ export async function onRequest(context) {
       }
     }
 
-    // 步骤 2: 上传音频
     const tgFormData = new FormData();
     tgFormData.append('chat_id', CHAT_ID);
     tgFormData.append('audio', audioFile);
