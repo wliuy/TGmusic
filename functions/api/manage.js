@@ -18,12 +18,13 @@ export async function onRequest(context) {
       else await env.DB.prepare("INSERT INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES ('fav', ?, ?)")
           .bind(data.file_id, Date.now()).run();
     } else if (action === 'add_playlist') {
-      await env.DB.prepare("INSERT INTO playlists (id, name) VALUES (?, ?)").bind(crypto.randomUUID(), data.name).run();
+      await env.DB.prepare("INSERT INTO playlists (id, name, sort_order) VALUES (?, ?, ?)")
+          .bind(crypto.randomUUID(), data.name, Date.now()).run();
     } else if (action === 'rename_playlist') {
       await env.DB.prepare("UPDATE playlists SET name = ? WHERE id = ?").bind(data.name, data.id).run();
     } else if (action === 'delete_playlist') {
       await env.DB.prepare("DELETE FROM playlists WHERE id = ?").bind(data.id).run();
-      await env.DB.prepare("DELETE FROM playlist_mapping WHERE file_id = ?").bind(data.id).run();
+      await env.DB.prepare("DELETE FROM playlist_mapping WHERE playlist_id = ?").bind(data.id).run();
     } else if (action === 'add_to_playlist') {
       await env.DB.prepare("INSERT OR IGNORE INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES (?, ?, ?)")
         .bind(data.playlist_id, data.file_id, Date.now()).run();
@@ -35,11 +36,9 @@ export async function onRequest(context) {
       );
       await env.DB.batch(statements);
     } else if (action === 'update_playlist_order') {
-      // 自动补全排序字段，确保 feature 可用
-      await env.DB.prepare("ALTER TABLE playlists ADD COLUMN created_at INTEGER DEFAULT 0").run().catch(()=>{});
       const { ids } = data;
       const statements = ids.map((pid, idx) => 
-        env.DB.prepare("UPDATE playlists SET created_at = ? WHERE id = ?").bind(idx, pid)
+        env.DB.prepare("UPDATE playlists SET sort_order = ?1 WHERE id = ?2").bind(idx, pid)
       );
       await env.DB.batch(statements);
     } else if (action === 'get_logs') {
