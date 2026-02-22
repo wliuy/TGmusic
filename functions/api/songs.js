@@ -3,7 +3,7 @@ export async function onRequest(context) {
   try {
     const songs = await env.DB.prepare("SELECT * FROM songs").all();
     const mappings = await env.DB.prepare("SELECT * FROM playlist_mapping ORDER BY sort_order DESC").all();
-    const playlists = await env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav')").all();
+    const playlists = await env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav') ORDER BY sort_order DESC").all();
     
     const res = {
       songs: songs.results || [],

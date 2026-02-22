@@ -18,7 +18,7 @@ export async function onRequest(context) {
       else await env.DB.prepare("INSERT INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES ('fav', ?, ?)")
           .bind(data.file_id, Date.now()).run();
     } else if (action === 'add_playlist') {
-      await env.DB.prepare("INSERT INTO playlists (id, name) VALUES (?, ?)").bind(crypto.randomUUID(), data.name).run();
+      await env.DB.prepare("INSERT INTO playlists (id, name, sort_order) VALUES (?, ?, ?)").bind(crypto.randomUUID(), data.name, Date.now()).run();
     } else if (action === 'rename_playlist') {
       await env.DB.prepare("UPDATE playlists SET name = ? WHERE id = ?").bind(data.name, data.id).run();
     } else if (action === 'delete_playlist') {
@@ -32,6 +32,12 @@ export async function onRequest(context) {
       const statements = ids.map((fid, idx) => 
         env.DB.prepare("INSERT INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES (?1, ?2, ?3) ON CONFLICT(playlist_id, file_id) DO UPDATE SET sort_order = ?3")
           .bind(playlist_id, fid, ids.length - idx)
+      );
+      await env.DB.batch(statements);
+    } else if (action === 'update_playlist_order') {
+      const { ids } = data;
+      const statements = ids.map((pid, idx) => 
+        env.DB.prepare("UPDATE playlists SET sort_order = ?1 WHERE id = ?2").bind(ids.length - idx, pid)
       );
       await env.DB.batch(statements);
     } else if (action === 'get_logs') {
