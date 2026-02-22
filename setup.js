@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.3.3
+ * Sarah MUSIC 旗舰全功能重构版 9.3.4
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.3.3 (修复数据加载崩溃，移除版本字样，恢复插值语法)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.3.4 (优化设置布局，取消手机歌单排序防止误触，精细化移动端搜索)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -196,7 +196,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v933';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v934';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -332,15 +332,15 @@ files['index.html'] = `<!DOCTYPE html>
         .m-pl-card-name { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-align: center; white-space: nowrap; }
 
         .m-list-search-wrap { padding: 12px 20px 10px 20px; flex-shrink: 0; display: flex; align-items: center; position: relative; }
-        .m-list-search-box { width: 100%; height: 36px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(16, 185, 129, 0.3); border-radius: 14px; padding: 0 40px 0 15px; color: #10b981; font-size: 13px; font-weight: 700; outline: none; }
-        .m-clear-search { position: absolute; right: 32px; color: #10b981; opacity: 0.7; cursor: pointer; }
+        .m-list-search-box { width: 100%; height: 34px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(16, 185, 129, 0.4); border-radius: 12px; padding: 0 35px 0 12px; color: #10b981; font-size: 12px; font-weight: 700; outline: none; transition: 0.3s; }
+        .m-clear-search { position: absolute; right: 32px; color: #10b981; opacity: 0.6; cursor: pointer; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(20px); z-index: 2000; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
         .sarah-dialog-overlay.active { display: flex !important; }
         
         #admin-box { width: 92%; max-width: 900px; height: 85vh; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(60px); border-radius: 28px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.3); outline: none !important; }
-        .admin-header { padding: 8px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 55px; }
+        .admin-header { padding: 12px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 55px; }
         .admin-action-bar { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
         .admin-btn-icon { width: 42px; height: 42px; display: grid; place-items: center; background: rgba(255,255,255,0.2); border-radius: 14px; border: 1.5px solid rgba(255,255,255,0.3); transition: 0.3s; cursor: pointer; color: white; backdrop-filter: brightness(1.2); }
         .admin-btn-icon:hover { background: rgba(255,255,255,0.4); transform: scale(1.05); }
@@ -349,7 +349,7 @@ files['index.html'] = `<!DOCTYPE html>
         #admin-header-center { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 0 20px; }
         .admin-console-box { background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; width: auto; max-width: 100%; margin-bottom: 15px; }
 
-        .admin-content { flex: 1; overflow-y: auto; padding: 10px 20px; }
+        .admin-content { flex: 1; overflow-y: auto; padding: 5px 20px; }
         
         .admin-tabs-nav { display: flex; align-items: flex-end; gap: 4px; overflow-x: auto; margin-bottom: 15px; padding: 0 5px; }
         .admin-tabs-nav::-webkit-scrollbar { display: none; }
@@ -416,8 +416,10 @@ files['index.html'] = `<!DOCTYPE html>
 
         @media (max-width: 768px) { 
             #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
-            .admin-header { padding: 10px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 50px; }
-            #admin-header-center { flex: none; width: auto; padding: 0; order: 2; }
+            .admin-header { padding: 10px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 50px; flex-wrap: wrap; }
+            #admin-header-center { width: 100%; padding: 0; order: 10; flex: none; display: flex; justify-content: center; }
+            #admin-header-center .admin-console-box { margin-top: 10px; margin-bottom: 5px; }
+            .admin-action-bar { order: 2; }
             .browser-tab { min-width: 60px; max-width: 100px; padding: 0 8px; }
         }
 
@@ -456,7 +458,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.3.3</p>
+            <p class="brand-sub">Premium Music Hub | v9.3.4</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -537,21 +539,16 @@ files['index.html'] = `<!DOCTYPE html>
     </div>
 
     <div id="m-overlay" onclick="toggleMobileDrawer(false); toggleAdmin(false)"></div>
-    <div id="m-drawer" class="m-drawer">
-        <div id="m-pl-cards" class="no-scrollbar"></div>
-        <div class="m-list-search-wrap">
-            <input type="text" id="m-list-search" class="m-list-search-box" placeholder="搜索列表内旋律..." oninput="handleSearch()">
-            <div onclick="clearSearch('m-list-search')" class="m-clear-search"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4"><path d="M6 18L18 6M6 6l12 12"></path></svg></div>
-        </div>
-        <div id="m-list-view" class="flex-1 overflow-y-auto custom-scroll text-white px-4 pb-10"></div>
-    </div>
-
     <div id="admin-panel" class="modal">
         <div id="admin-box">
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.3.3</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.3.4</span>
+                </div>
+                <div id="admin-header-center">
+                    <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
+                    <div id="upload-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><input type="file" id="f-in" multiple onchange="previewTag(this)" style="display:none"><label for="f-in" class="upload-card"><div class="upload-hint"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span id="file-count-tip">点击/拖拽同步</span></div></label><button onclick="switchAdminList('logs')" class="bg-white/15 text-white px-5 py-2.5 rounded-xl font-black text-[11px] hover:bg-white/20 transition-all">上传日志</button></div></div>
                 </div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
@@ -560,10 +557,6 @@ files['index.html'] = `<!DOCTYPE html>
                 </div>
             </div>
             <div class="admin-content custom-scroll">
-                <div id="admin-header-center" class="w-full">
-                    <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
-                    <div id="upload-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><input type="file" id="f-in" multiple onchange="previewTag(this)" style="display:none"><label for="f-in" class="upload-card"><div class="upload-hint"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span id="file-count-tip">点击/拖拽同步</span></div></label><button onclick="switchAdminList('logs')" class="bg-white/15 text-white px-5 py-2.5 rounded-xl font-black text-[11px] hover:bg-white/20 transition-all">上传日志</button></div></div>
-                </div>
                 <div id="upload-preview-list" class="space-y-2 mb-6"></div>
                 <div class="flex items-center mb-4"><div id="admin-playlist-tabs" class="admin-tabs-nav flex-1"></div></div>
                 <div id="admin-song-list" class="space-y-2 mb-8 relative min-h-[100px]"></div>
@@ -882,7 +875,7 @@ files['index.html'] = `<!DOCTYPE html>
         
         async function handleLikeToggle() { 
             const cur = ap.list.audios[ap.list.index]; if(!cur) return; 
-            const fileId = new URL(cur.url, window.location.origin).searchParams.get('file_id');
+            const fileId = new URLSearchParams(cur.url.split('?')[1]).get('file_id');
             if (libState.favorites.includes(fileId)) libState.favorites = libState.favorites.filter(id => id !== fileId);
             else libState.favorites.push(fileId);
             updateHighlights(fileId);
@@ -906,42 +899,39 @@ files['index.html'] = `<!DOCTYPE html>
         function renderAdminPlaylistTabs() {
             const container = document.getElementById('admin-playlist-tabs'); if(!container) return;
             let html = \`<div class="browser-tab \${currentAdminTab === 'all' ? 'active' : ''}" onclick="switchAdminList('all')"><span class="browser-tab-text">全库 <i class="opacity-40 text-[9px] font-black italic">\${libState.songs.length}</i></span></div><div class="browser-tab \${currentAdminTab === 'fav' ? 'active' : ''}" onclick="switchAdminList('fav')"><span class="browser-tab-text">收藏 <i class="opacity-40 text-[9px] font-black italic">\${libState.favorites.length}</i></span></div>\`;
-            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" data-plid="\${pl.id}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')" onmousedown="handleAdminTabDragStart(event, \${i}, false)" ontouchstart="handleAdminTabDragStart(event, \${i}, true)"><span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-black italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
+            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" data-plid="\${pl.id}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')" onmousedown="handleAdminTabDragStart(event, \${i}, false)"><span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-black italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
             html += \`<div class="browser-tab" onclick="addPlaylistPrompt()" style="min-width:40px;flex:none;"><span class="browser-tab-text" style="opacity:1;color:white;font-size:14px;font-weight:bold;">+</span></div>\`;
             container.innerHTML = html;
         }
 
         function handleAdminTabDragStart(e, idx, isTouch) {
-            if (e.target.closest('.browser-tab-close')) return;
-            const targetEl = e.currentTarget; let lastX = isTouch ? e.touches[0].clientX : e.clientX;
+            if (isTouch || e.target.closest('.browser-tab-close')) return;
+            const targetEl = e.currentTarget; let lastX = e.clientX;
             const initDrag = (cX) => {
                 if (currentDraggedTab) return; currentDraggedTab = targetEl; const rect = currentDraggedTab.getBoundingClientRect();
                 tabTouchOffsetX = cX - rect.left; tabDragPlaceholder = document.createElement('div'); tabDragPlaceholder.className = 'browser-tab'; tabDragPlaceholder.style.width = rect.width + 'px'; tabDragPlaceholder.style.opacity = '0';
                 currentDraggedTab.parentNode.insertBefore(tabDragPlaceholder, currentDraggedTab);
-                const ghost = currentDraggedTab.cloneNode(true); ghost.style.position = 'fixed'; ghost.style.pointerEvents = 'none'; ghost.style.zIndex = '10000'; ghost.style.width = rect.width + 'px'; ghost.style.left = (cX - tabTouchOffsetX) + 'px'; ghost.style.top = rect.top + 'px'; ghost.style.background = 'rgba(0,0,0,0.5)'; ghost.style.borderRadius = '10px'; document.body.appendChild(ghost);
+                const ghost = currentDraggedTab.cloneNode(true); ghost.style.position = 'fixed'; ghost.style.pointerEvents = 'none'; ghost.style.zIndex = '10000'; ghost.style.width = rect.width + 'px'; ghost.style.left = (cX - tabTouchOffsetX) + 'px'; ghost.style.top = rect.top + 'px'; ghost.style.background = 'rgba(0,0,0,0.5)'; ghost.style.borderRadius = '10px'; ghost.id = "ghost-tab"; document.body.appendChild(ghost);
                 currentDraggedTab.style.display = 'none';
                 const move = (me) => {
-                    const mX = me.touches ? me.touches[0].clientX : me.clientX; ghost.style.left = (mX - tabTouchOffsetX) + 'px';
+                    const mX = me.clientX; ghost.style.left = (mX - tabTouchOffsetX) + 'px';
                     const hov = document.elementFromPoint(mX, rect.top + 10)?.closest('.browser-tab');
                     if (hov && hov !== currentDraggedTab && hov !== tabDragPlaceholder && hov.dataset.plid) {
                         const r = hov.getBoundingClientRect(); if (mX < r.left + r.width / 2) hov.parentNode.insertBefore(tabDragPlaceholder, hov); else hov.parentNode.insertBefore(tabDragPlaceholder, hov.nextSibling);
                     }
                 };
                 const end = async () => {
-                    window.removeEventListener(isTouch ? 'touchmove' : 'mousemove', move); window.removeEventListener(isTouch ? 'touchend' : 'mouseup', end);
+                    window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end);
                     if (tabDragPlaceholder) { tabDragPlaceholder.parentNode.insertBefore(currentDraggedTab, tabDragPlaceholder); tabDragPlaceholder.remove(); }
-                    if (ghost) ghost.remove(); currentDraggedTab.style.display = 'flex';
+                    const g = document.getElementById("ghost-tab"); if (g) g.remove(); 
+                    currentDraggedTab.style.display = 'flex';
                     const nIds = Array.from(document.querySelectorAll('.admin-tabs-nav .browser-tab')).map(t => t.dataset.plid).filter(Boolean);
                     await dbOp('update_playlist_order', { ids: nIds }); silentRefresh();
                     currentDraggedTab = null;
                 };
-                window.addEventListener(isTouch ? 'touchmove' : 'mousemove', move); window.addEventListener(isTouch ? 'touchend' : 'mouseup', end);
+                window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
             };
-            if (isTouch) {
-                if(longPressTimer) clearTimeout(longPressTimer); longPressTimer = setTimeout(() => { initDrag(lastX); }, 500);
-                targetEl.addEventListener('touchmove', (te) => { if (Math.abs(te.touches[0].clientX - lastX) > 10) clearTimeout(longPressTimer); }, { once: true });
-                targetEl.addEventListener('touchend', () => clearTimeout(longPressTimer), { once: true });
-            } else initDrag(e.clientX);
+            initDrag(e.clientX);
         }
 
         async function renderUploadLogs() {
@@ -980,7 +970,7 @@ files['index.html'] = `<!DOCTYPE html>
                 if (currentDraggedEl) return; currentDraggedEl = targetEl; const rect = currentDraggedEl.getBoundingClientRect();
                 touchOffsetTop = cY - rect.top; dragPlaceholder = document.createElement('div'); dragPlaceholder.className = 'admin-song-placeholder';
                 currentDraggedEl.parentNode.insertBefore(dragPlaceholder, currentDraggedEl);
-                const ghost = currentDraggedEl.cloneNode(true); ghost.classList.add('is-dragging'); ghost.style.width = rect.width + 'px'; ghost.style.left = rect.left + 'px'; ghost.style.top = (cY - touchOffsetTop) + 'px'; document.body.appendChild(ghost);
+                const ghost = currentDraggedEl.cloneNode(true); ghost.classList.add('is-dragging'); ghost.style.width = rect.width + 'px'; ghost.style.left = rect.left + 'px'; ghost.style.top = (cY - touchOffsetTop) + 'px'; ghost.id = "ghost-song"; document.body.appendChild(ghost);
                 currentDraggedEl.classList.add('is-hidden');
                 const move = (me) => {
                     if (me.cancelable) me.preventDefault(); const mY = me.touches ? me.touches[0].clientY : me.clientY; const mX = me.touches ? me.touches[0].clientX : me.clientX;
@@ -990,7 +980,8 @@ files['index.html'] = `<!DOCTYPE html>
                 const end = async () => {
                     window.removeEventListener(isTouch ? 'touchmove' : 'mousemove', move); window.removeEventListener(isTouch ? 'touchend' : 'mouseup', end);
                     if (dragPlaceholder) { dragPlaceholder.parentNode.insertBefore(currentDraggedEl, dragPlaceholder); dragPlaceholder.remove(); }
-                    if (ghost) ghost.remove(); currentDraggedEl.classList.remove('is-hidden');
+                    const g = document.getElementById("ghost-song"); if (g) g.remove(); 
+                    currentDraggedEl.classList.remove('is-hidden');
                     const nIds = Array.from(document.querySelectorAll('#admin-song-list .admin-song-row')).map(r => r.dataset.fileid);
                     const pid = currentAdminTab === 'all' ? 'all' : (currentAdminTab === 'fav' ? 'fav' : libState.playlists[parseInt(currentAdminTab)].id);
                     await dbOp('update_order', { playlist_id: pid, ids: nIds }); silentRefresh();
@@ -1124,7 +1115,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (9.3.3)---');
+    console.log('\n---正在同步至 GitHub (9.3.4)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1132,6 +1123,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.3.3 构建成功。已修复数据加载崩溃并优化界面留白。');
+        console.log('\n✅ Sarah MUSIC 9.3.4 构建成功。已优化交互体验并修复拖拽残留。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
