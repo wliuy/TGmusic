@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.0.9
+ * Sarah MUSIC 旗舰全功能重构版 9.1.0
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.0.9 (D1 无损重构，修复 Node 构建转义报错)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.1.0 (管理端导航隔离，上传自动同步与日志入口迁移)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -175,7 +175,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v909';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v910';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -435,7 +435,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.0.9</p>
+            <p class="brand-sub">Premium Music Hub | v9.1.0</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -491,7 +491,7 @@ files['index.html'] = `<!DOCTYPE html>
         <header class="m-header">
             <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-transparent"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4.2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div>
             <h1 class="text-xl font-black text-white">Sarah</h1>
-            <div onclick="toggleAdmin(true)" class="btn-round !bg-transparent"><svg class="w-7 h-7" fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div onclick="toggleAdmin(true)" class="btn-round !bg-transparent"><svg class="w-7 h-7" fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></div>
         </header>
         <main class="m-main">
             <div class="m-disc-container" id="m-disc-wrapper" onclick="handlePlayToggle()"><div class="m-disc-shadow-layer"></div><div class="m-disc-clipping" id="m-clipping-node"><div class="cover-placeholder !opacity-100" id="m-logo-box"></div><img id="m-ui-cover" src="" style="display:none;width:100%;height:100%;object-fit:cover"></div></div>
@@ -530,11 +530,11 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.0.9</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.1.0</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
-                    <div id="upload-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><input type="file" id="f-in" multiple onchange="previewTag(this)" style="display:none"><label for="f-in" class="upload-card"><div class="upload-hint"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span id="file-count-tip">点击/拖拽同步</span></div></label><button id="auto-sync-trigger" onclick="handleUp()" class="bg-white/15 text-white px-5 py-2.5 rounded-xl font-black text-[11px] hover:bg-white/20 transition-all">开始同步</button></div></div>
+                    <div id="upload-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><input type="file" id="f-in" multiple onchange="previewTag(this)" style="display:none"><label for="f-in" class="upload-card"><div class="upload-hint"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span id="file-count-tip">点击/拖拽同步</span></div></label><button onclick="switchAdminList('logs')" class="bg-white/15 text-white px-5 py-2.5 rounded-xl font-black text-[11px] hover:bg-white/20 transition-all">上传日志</button></div></div>
                 </div>
                 <div class="admin-action-bar">
                     <button onclick="toggleSleepArea()" class="admin-btn-icon"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></button>
@@ -554,7 +554,7 @@ files['index.html'] = `<!DOCTYPE html>
     <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
     <script>
         let ap = null, db = [], lrcLines = [], currentTab = 'all', tempMetaMap = new Map();
-        let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false;
+        let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
         let currentThemeIdx = -1, sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false;
         let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
@@ -808,8 +808,9 @@ files['index.html'] = `<!DOCTYPE html>
             await dbOp('toggle_fav', { file_id: fid }); init(); 
         }
 
-        function switchList(t) { currentTab = t; updateBackground(false); renderAllLists(); if(document.getElementById('admin-panel').classList.contains('active')) { if(t === 'logs') renderUploadLogs(); else renderAdminSongList(); renderAdminPlaylistTabs(); } }
-        function toggleAdmin(s) { document.getElementById('admin-panel').classList.toggle('active', s); if(s) { renderAdminPlaylistTabs(); renderAdminSongList(); } }
+        function switchList(t) { currentTab = t; updateBackground(false); renderAllLists(); }
+        function switchAdminList(t) { currentAdminTab = t; renderAdminPlaylistTabs(); renderAdminSongList(); }
+        function toggleAdmin(s) { document.getElementById('admin-panel').classList.toggle('active', s); if(s) { currentAdminTab = currentTab; renderAdminPlaylistTabs(); renderAdminSongList(); } }
         function toggleUploadArea() { document.getElementById('sleep-area').classList.add('hidden'); document.getElementById('upload-area').classList.toggle('hidden'); }
         function toggleSleepArea() { document.getElementById('upload-area').classList.add('hidden'); document.getElementById('sleep-area').classList.toggle('hidden'); }
 
@@ -823,9 +824,8 @@ files['index.html'] = `<!DOCTYPE html>
 
         function renderAdminPlaylistTabs() {
             const container = document.getElementById('admin-playlist-tabs'); if(!container) return;
-            let html = \`<div class="browser-tab \${currentTab === 'all' ? 'active' : ''}" onclick="switchList('all')"><span class="browser-tab-text">全库</span></div><div class="browser-tab \${currentTab === 'fav' ? 'active' : ''}" onclick="switchList('fav')"><span class="browser-tab-text">收藏</span></div>\`;
-            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentTab === i.toString() ? 'active' : ''}" onclick="switchList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')"><span class="browser-tab-text">\${pl.name}</span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
-            html += \`<div class="browser-tab \${currentTab === 'logs' ? 'active' : ''} !bg-black/20" onclick="switchList('logs')"><span class="browser-tab-text">日志</span></div>\`;
+            let html = \`<div class="browser-tab \${currentAdminTab === 'all' ? 'active' : ''}" onclick="switchAdminList('all')"><span class="browser-tab-text">全库</span></div><div class="browser-tab \${currentAdminTab === 'fav' ? 'active' : ''}" onclick="switchAdminList('fav')"><span class="browser-tab-text">收藏</span></div>\`;
+            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')"><span class="browser-tab-text">\${pl.name}</span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
             container.innerHTML = html;
         }
 
@@ -849,10 +849,10 @@ files['index.html'] = `<!DOCTYPE html>
         function renderAdminSongList() {
             const container = document.getElementById('admin-song-list');
             let ids = [];
-            if(currentTab === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
-            else if(currentTab === 'fav') ids = libState.favorites;
-            else if(currentTab === 'logs') { renderUploadLogs(); return; }
-            else ids = libState.playlists[parseInt(currentTab)]?.ids || [];
+            if(currentAdminTab === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
+            else if(currentAdminTab === 'fav') ids = libState.favorites;
+            else if(currentAdminTab === 'logs') { renderUploadLogs(); return; }
+            else ids = libState.playlists[parseInt(currentAdminTab)]?.ids || [];
             const list = ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
             container.innerHTML = list.map((s, i) => \`<div class="admin-song-row" id="admin-row-\${i}" data-fileid="\${s.file_id}" onmousedown="handleAdminDragStart(event, \${i}, false)" ontouchstart="handleAdminDragStart(event, \${i}, true)"><div class="admin-song-info"><input class="admin-song-input admin-song-title-input" value="\${s.title}" readonly onchange="updateSongInfo('\${s.file_id}', 'title', this.value)"><input class="admin-song-input admin-song-artist-input" value="\${s.artist}" readonly onchange="updateSongInfo('\${s.file_id}', 'artist', this.value)"></div><div class="admin-action-group"><div class="admin-action-btn" onclick="openPlaylistSelector('\${s.file_id}')"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 4v16m8-8H4"></path></svg></div><div class="admin-action-btn delete" onclick="deleteSong('\${s.file_id}')"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></div><div class="admin-action-btn" onclick="toggleEditMode(\${i})"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div></div></div>\`).join('') || '<div class="py-10 text-center text-white/20 text-xs">暂无歌曲</div>';
         }
@@ -877,7 +877,7 @@ files['index.html'] = `<!DOCTYPE html>
                     if (dragPlaceholder) { dragPlaceholder.parentNode.insertBefore(currentDraggedEl, dragPlaceholder); dragPlaceholder.remove(); }
                     if (ghost) ghost.remove(); currentDraggedEl.classList.remove('is-hidden');
                     const nIds = Array.from(document.querySelectorAll('#admin-song-list .admin-song-row')).map(r => r.dataset.fileid);
-                    const pid = currentTab === 'all' ? 'all' : (currentTab === 'fav' ? 'fav' : libState.playlists[parseInt(currentTab)].id);
+                    const pid = currentAdminTab === 'all' ? 'all' : (currentAdminTab === 'fav' ? 'fav' : libState.playlists[parseInt(currentAdminTab)].id);
                     await dbOp('update_order', { playlist_id: pid, ids: nIds }); init();
                     currentDraggedEl = null; dragPlaceholder = null;
                 };
@@ -918,6 +918,7 @@ files['index.html'] = `<!DOCTYPE html>
         function previewTag(inp) {
             const files = Array.from(inp.files); document.getElementById('file-count-tip').innerText = \`已选 \${files.length} 首\`;
             const container = document.getElementById('upload-preview-list'); container.innerHTML = "";
+            let processed = 0;
             files.forEach((f, i) => {
                 const pId = "up-p-" + i;
                 container.innerHTML += \`<div class="upload-preview-item" id="\${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">\${f.name}</span><div id="\${pId}-s" class="preview-status-dot"></div></div><div class="preview-prog-container" id="\${pId}-w"><div class="preview-prog-fill" id="\${pId}-f"></div></div></div>\`;
@@ -925,46 +926,47 @@ files['index.html'] = `<!DOCTYPE html>
                     const { title, artist, picture, lyrics } = t.tags; let blob = null;
                     if (picture) { const { data, format } = picture; blob = new Blob([new Uint8Array(data)], { type: format }); }
                     tempMetaMap.set(f.name, { title: title || f.name.replace(/\\.[^/.]+$/, ""), artist: artist || "未知", coverBlob: blob, lrc: lyrics?.lyrics || "" });
-                }});
+                    processed++; if(processed === files.length) setTimeout(handleUp, 500);
+                }, onError: () => { processed++; if(processed === files.length) setTimeout(handleUp, 500); }});
             });
         }
 
         async function handleUp() {
             const files = Array.from(document.getElementById('f-in').files); if(!files.length) return;
-            const btn = document.getElementById('auto-sync-trigger'); btn.disabled = true;
+            const btn = document.querySelector("#upload-area button"); if(btn) btn.disabled = true;
             let queue = files.map((f, i) => ({ f, i }));
             const worker = async () => {
                 while(queue.length > 0) {
                     const it = queue.shift(); if(!it) break;
                     const sDot = document.getElementById("up-p-"+it.i+"-s"), pWrap = document.getElementById("up-p-"+it.i+"-w"), pFill = document.getElementById("up-p-"+it.i+"-f");
-                    sDot.className = "preview-status-dot uploading"; pWrap.style.display = "block";
+                    if(sDot) sDot.className = "preview-status-dot uploading"; if(pWrap) pWrap.style.display = "block";
                     const meta = tempMetaMap.get(it.f.name) || { title: it.f.name };
                     const fd = new FormData(); fd.append('file', it.f); fd.append('meta', JSON.stringify(meta));
                     if (meta.coverBlob) fd.append('cover', meta.coverBlob, 'cover.jpg');
                     const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload');
-                    xhr.upload.onprogress = e => { if(e.lengthComputable) pFill.style.width = (e.loaded/e.total*100) + '%'; };
+                    xhr.upload.onprogress = e => { if(e.lengthComputable && pFill) pFill.style.width = (e.loaded/e.total*100) + '%'; };
                     await new Promise(r => {
                         xhr.onload = () => { 
                             const res = JSON.parse(xhr.responseText || '{}');
-                            if(xhr.status === 200 && res.success) sDot.className = "preview-status-dot success"; 
-                            else { sDot.className = "preview-status-dot error"; console.error("Upload Fail:", res.error); }
+                            if(xhr.status === 200 && res.success) { if(sDot) sDot.className = "preview-status-dot success"; }
+                            else { if(sDot) sDot.className = "preview-status-dot error"; console.error("Upload Fail:", res.error); }
                             r(); 
                         };
-                        xhr.onerror = () => { sDot.className = "preview-status-dot error"; r(); };
+                        xhr.onerror = () => { if(sDot) sDot.className = "preview-status-dot error"; r(); };
                         xhr.send(fd);
                     });
                 }
             };
             await Promise.all([worker(), worker(), worker()]);
-            showMsg("✅ 同步流程结束"); btn.disabled = false; init();
-            if(currentTab === 'logs') renderUploadLogs();
-            setTimeout(() => document.getElementById('upload-preview-list').innerHTML = "", 5000);
+            showMsg("✅ 同步流程结束"); if(btn) btn.disabled = false; init();
+            if(currentAdminTab === 'logs') renderUploadLogs();
+            setTimeout(() => { const list = document.getElementById('upload-preview-list'); if(list) list.innerHTML = ""; }, 5000);
         }
 
         function toggleMobileDrawer(s) {
             const d = document.getElementById('m-drawer'), o = document.getElementById('m-overlay');
             if(s) { 
-                const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p,i)=>({id:i.toString(),name:p.name})), {id:'logs',name:'日志'}];
+                const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p,i)=>({id:i.toString(),name:p.name}))];
                 document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\${c.name}</div>\`).join('');
                 d.classList.add('active'); o.style.display = 'block'; 
             } else { d.classList.remove('active'); o.style.display = 'none'; }
@@ -985,7 +987,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (9.0.9 D1 无损旗舰版)---');
+    console.log('\n---正在同步至 GitHub (9.1.0 D1 无损旗舰版)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -993,6 +995,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.0.9 构建成功。已修复 Node 构建时的 SyntaxError 转义问题。');
+        console.log('\n✅ Sarah MUSIC 9.1.0 构建成功。已实现管理端导航隔离与自动同步逻辑。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
