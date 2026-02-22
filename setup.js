@@ -3,14 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 9.1.9
+ * Sarah MUSIC 旗舰全功能重构版 9.2.0
  * 1. 无损重构：全量继承 8.9.9 的视觉厚度与交互算法，拒绝任何代码简化。
  * 2. D1 深度集成：使用 Cloudflare D1 关系型数据库，完美支撑千级歌曲管理。
  * 3. 独立排序：实现全库、收藏、自定义列表的排序位物理隔离。
  * 4. 协议合规：遵循《无损重构协议》，保持单文件构建及完整硬编码结构。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 9.1.9 (分发界面UI精修，取消进入页面自动刷新)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 9.2.0 (修复随机播放与切歌列表遵循，增加歌单歌曲计数)';
 const files = {};
 
 // --- API: 流媒体传输 (保持高效代理) ---
@@ -185,7 +185,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v919';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v920';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -445,7 +445,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v9.1.9</p>
+            <p class="brand-sub">Premium Music Hub | v9.2.0</p>
             <div class="settings-corner">
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer" id="pc-settings-trigger">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -540,7 +540,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.1.9</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v9.2.0</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -721,7 +721,7 @@ files['index.html'] = `<!DOCTYPE html>
             const renderL = (id) => {
                 const el = document.getElementById(id); if(!el) return;
                 if (!lrcLines.length) { el.innerHTML = '<div class="lrc-line active !opacity-30">暂无歌词</div>'; el.classList.add('justify-center'); }
-                else { el.classList.remove('justify-center'); el.innerHTML = '<div style="height:65px;flex-shrink:0;"></div>' + lrcLines.map((l, i) => \`<div class="lrc-line" id="\${id}-lrc-\${i}" onclick="ap.seek(\${l.t})">\${l.text}</div>\`).join('') + '<div style="height:65px;flex-shrink:0;"></div>'; }
+                else { el.classList.remove('justify-center'); el.innerHTML = '<div style="height:65px;flex-shrink:0;"></div>' + lrcLines.map((l, i) => \`<div class="lrc-line" id="\${id}-lrc-\${i}" onclick="ap.seek(\ selection-tag>\${l.t})">\${l.text}</div>\`).join('') + '<div style="height:65px;flex-shrink:0;"></div>'; }
             };
             renderL('lrc-view'); renderL('m-lrc-flow');
             updateHighlights(song.file_id);
@@ -794,8 +794,26 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function handlePlayToggle() { if (!ap) return; if (ap.paused) ap.play(); else ap.pause(); }
-        function handlePrev() { handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length); }
-        function handleNext() { handleTrackSwitch((ap.list.index + 1) % ap.list.audios.length); }
+        function handlePrev() {
+            let ids = currentTab === 'all' ? (libState.all_order.length ? libState.all_order : db.map(s => s.file_id)) : (currentTab === 'fav' ? libState.favorites : (libState.playlists[parseInt(currentTab)]?.ids || []));
+            const cur = ap.list.audios[ap.list.index]; if(!cur) return;
+            const fid = new URLSearchParams(cur.url.split('?')[1]).get('file_id');
+            const idx = ids.indexOf(fid); if(idx === -1) { handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length); return; }
+            handleTrackSwitch(-1, ids[(idx - 1 + ids.length) % ids.length]);
+        }
+        function handleNext() {
+            let ids = currentTab === 'all' ? (libState.all_order.length ? libState.all_order : db.map(s => s.file_id)) : (currentTab === 'fav' ? libState.favorites : (libState.playlists[parseInt(currentTab)]?.ids || []));
+            const cur = ap.list.audios[ap.list.index]; if(!cur) return;
+            const fid = new URLSearchParams(cur.url.split('?')[1]).get('file_id');
+            const idx = ids.indexOf(fid);
+            if (modes[modeIdx] === 'random' && ids.length > 1) {
+                const others = ids.filter(i => i !== fid);
+                handleTrackSwitch(-1, others[Math.floor(Math.random() * others.length)]);
+            } else {
+                if(idx === -1) { handleTrackSwitch((ap.list.index + 1) % ap.list.audios.length); return; }
+                handleTrackSwitch(-1, ids[(idx + 1) % ids.length]);
+            }
+        }
 
         function handleMouseSeekStart(e) { isScrubbing = true; handleMouseSeekMove(e); window.addEventListener('mousemove', handleMouseSeekMove); window.addEventListener('mouseup', handleMouseSeekEnd); }
         function handleMouseSeekMove(e) { if (!isScrubbing) return; const rect = document.getElementById('pc-scrubber').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)); document.getElementById('prog-bar').style.width = (p * 100) + '%'; document.getElementById('cur-time').innerText = fmtTime(p * (ap.audio.duration || 0)); }
@@ -857,7 +875,7 @@ files['index.html'] = `<!DOCTYPE html>
         function renderAdminPlaylistTabs() {
             const container = document.getElementById('admin-playlist-tabs'); if(!container) return;
             let html = \`<div class="browser-tab \${currentAdminTab === 'all' ? 'active' : ''}" onclick="switchAdminList('all')"><span class="browser-tab-text">全库</span></div><div class="browser-tab \${currentAdminTab === 'fav' ? 'active' : ''}" onclick="switchAdminList('fav')"><span class="browser-tab-text">收藏</span></div>\`;
-            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')"><span class="browser-tab-text">\${pl.name}</span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
+            libState.playlists.forEach((pl, i) => { html += \`<div class="browser-tab \${currentAdminTab === i.toString() ? 'active' : ''}" onclick="switchAdminList('\${i}')" ondblclick="renamePlaylistPrompt('\${i}')"><span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-normal italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; });
             container.innerHTML = html;
         }
 
@@ -1022,7 +1040,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (9.1.9 D1 无损旗舰版)---');
+    console.log('\n---正在同步至 GitHub (9.2.0 D1 无损旗舰版)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1030,6 +1048,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 9.1.9 构建成功。已精简分发UI并取消首屏强制刷新逻辑。');
+        console.log('\n✅ Sarah MUSIC 9.2.0 构建成功。已修复切歌/随机逻辑并增加歌单计数。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
