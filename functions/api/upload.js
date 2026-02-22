@@ -10,6 +10,7 @@ export async function onRequest(context) {
     const formData = await request.formData();
     const audioFile = formData.get('file');
     const coverFile = formData.get('cover');
+    const targetPlaylist = formData.get('target_playlist');
     filename = audioFile.name || "Unknown";
     const meta = JSON.parse(formData.get('meta') || '{}');
     
@@ -47,6 +48,11 @@ export async function onRequest(context) {
     
     await env.DB.prepare("INSERT INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES ('all', ?, ?)")
       .bind(fid, Date.now()).run();
+
+    if (targetPlaylist) {
+      await env.DB.prepare("INSERT OR IGNORE INTO playlist_mapping (playlist_id, file_id, sort_order) VALUES (?, ?, ?)")
+        .bind(targetPlaylist, fid, Date.now()).run();
+    }
 
     await env.DB.prepare("INSERT INTO upload_logs (filename, status, reason) VALUES (?, 'SUCCESS', 'OK')").bind(filename).run();
     return new Response(JSON.stringify({ success: true, file_id: fid }));
