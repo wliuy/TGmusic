@@ -3,7 +3,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.0
+ * Sarah MUSIC 旗舰全功能重构版 10.1.1
  * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
  * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
  * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
@@ -11,7 +11,7 @@ const { execSync } = require('child_process');
  * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.0 (根治设置按钮模糊重影 & 全面版本升级)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.1 (弃用复杂齿轮图标 & 重构高精度调音台设置图标)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放稳定) ---
@@ -202,7 +202,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1010';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1011';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -516,12 +516,12 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.0</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.1</p>
             <div class="settings-corner">
-                <!-- 设置按钮高精度渲染修复 -->
+                <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
-                    <svg class="w-6 h-6 flex-shrink-0" style="shape-rendering: geometricPrecision;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 .73-2.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+                    <svg class="w-6 h-6 flex-shrink-0" style="shape-rendering: crispEdges;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>
                     </svg>
                 </div>
             </div>
@@ -579,9 +579,9 @@ files['index.html'] = `<!DOCTYPE html>
             <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-transparent"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4.2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div>
             <h1 class="text-xl font-black text-white">Sarah</h1>
             <div onclick="toggleAdmin(true)" class="btn-round !bg-transparent flex items-center justify-center p-0">
-                <!-- 设置按钮高精度像素归一修复 -->
-                <svg class="w-6 h-6 flex-shrink-0" style="shape-rendering: geometricPrecision;" fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 .73-2.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+                <!-- 移动端图标同步重构：Sliders 图标 -->
+                <svg class="w-6 h-6 flex-shrink-0" style="shape-rendering: crispEdges;" fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>
                 </svg>
             </div>
         </header>
@@ -627,7 +627,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.0</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.1</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -941,7 +941,7 @@ files['index.html'] = `<!DOCTYPE html>
                 const img = document.getElementById(imgId); const logo = document.getElementById(logoId);
                 if(!img || !logo) return;
                 if(song.cover) { 
-                    // 核心修复：防止视觉假死。图片后台载入，不强制先隐藏 img。
+                    // 核心修复：防止视觉假死问题
                     const n = new Image(); n.src = song.cover; 
                     n.onload = () => { img.src = song.cover; img.style.display = 'block'; logo.style.setProperty('display', 'none', 'important'); }; 
                 }
@@ -952,7 +952,7 @@ files['index.html'] = `<!DOCTYPE html>
             ['ui-artist', 'm-ui-artist'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.artist; });
             
             if (!song.lrc) {
-               // 核心优化：异步拉取歌词，不阻塞主 UI 逻辑。
+               // 核心优化：异步拉取歌词
                dbOp('get_lrc', { file_id: song.file_id }).then(res => {
                    if (res.success) {
                        song.lrc = res.lrc;
@@ -1068,7 +1068,7 @@ files['index.html'] = `<!DOCTYPE html>
                 if (foundIdx !== -1) targetIdx = foundIdx; 
             }
             
-            // 安全指令：确保索引有效后同步执行播放动作
+            // 安全指令：确保起播即刻触发
             if (targetIdx !== -1 && ap.list.audios[targetIdx]) {
                 globalPlayingId = fid;
                 try {
@@ -1182,7 +1182,7 @@ files['index.html'] = `<!DOCTYPE html>
             renderAllLists();
             const container = document.getElementById(window.innerWidth <= 768 ? 'm-list-view' : 'list-view');
             if (container) container.scrollTop = 0;
-            // 仅更新预览反馈，不触发重度背景动画
+            // 仅更新预览反馈
             updateBackground(false); 
             setTimeout(() => { isPlaylistSwitching = false; }, 200); 
         }
@@ -1430,7 +1430,7 @@ files['index.html'] = `<!DOCTYPE html>
             const container = document.getElementById('upload-preview-list');
             files.forEach((f, i) => {
                 const pId = "up-p-" + Date.now() + i;
-                container.innerHTML += \`<div class="upload-preview-item" id="\${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">\text{\${f.name}}</span><div id="\${pId}-s" class="preview-status-dot"></div></div><div class="preview-prog-container" id="\${pId}-w"><div class="preview-prog-fill" id="\${pId}-f"></div></div></div>\`.replace('text{\${f.name}}', f.name);
+                container.innerHTML += \`<div class="upload-preview-item" id="\${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">\${f.name}</span><div id="\${pId}-s" class="preview-status-dot"></div></div><div class="preview-prog-container" id="\${pId}-w"><div class="preview-prog-fill" id="\${pId}-f"></div></div></div>\`;
                 jsmediatags.read(f, { onSuccess: (t) => {
                     const { title, artist, picture, lyrics } = t.tags; let blob = null;
                     if (picture) { const { data, format } = picture; blob = new Blob([new Uint8Array(data)], { type: format }); }
@@ -1519,7 +1519,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.0 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.1 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1527,6 +1527,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.0 构建成功。设置按钮已实现像素级对齐，图标不再模糊。');
+        console.log('\n✅ Sarah MUSIC 10.1.1 构建成功。已替换为像素级高清配置图标，视觉重影问题已根治。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
