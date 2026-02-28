@@ -12,7 +12,7 @@
     <title>Sarah</title>
     <link rel="icon" type="image/png" sizes="192x192" href="https://tc.yang.pp.ua/file/logo/sarah-y.png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css">
+    <link rel="stylesheet" href="/assets/APlayer.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;500;700;900&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -307,7 +307,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.0</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.1</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -418,7 +418,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.0</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.1</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -439,7 +439,7 @@
     </div>
 
     <div id="ap-hidden" style="display:none"></div>
-    <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+    <script src="/assets/APlayer.min.js"></script>
     <script>
         let ap = null, db = [], lrcLines = [], currentTab = 'fav', tempMetaMap = new Map(), globalPlayingId = null;
         let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
@@ -488,6 +488,19 @@
                if(el) el.style.display = id === 'main-ui' ? 'flex' : (window.innerWidth <= 768 ? 'flex' : 'none');
             });
 
+            // 极致秒开：优先从本地 IndexedDB 读取数据
+            const idbReq = indexedDB.open("SarahDB", 1);
+            idbReq.onupgradeneeded = (e) => e.target.result.createObjectStore("meta");
+            idbReq.onsuccess = (e) => {
+              const idb = e.target.result;
+              idb.transaction("meta").objectStore("meta").get("libState").onsuccess = (ev) => {
+                if(ev.target.result) {
+                  libState = ev.target.result; db = libState.songs;
+                  buildIndexMap(); renderCustomTabs(); setupPlayer(); renderAllLists();
+                }
+              };
+            };
+
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js').then(reg => {
                     reg.addEventListener('updatefound', () => {
@@ -506,6 +519,10 @@
                 setupPlayer(); 
                 renderAllLists(); 
                 updateUIModes(); updateVolUI(lastVolume); 
+                // 同步本地数据库
+                const idbSync = indexedDB.open("SarahDB", 1);
+                idbSync.onsuccess = (e) => e.target.result.transaction("meta", "readwrite").objectStore("meta").put(libState, "libState");
+                
                 window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
                 
                 // 移动端返回键优化：注入初始伪路由
@@ -849,8 +866,10 @@
             const html = visibleData.map((s, idx) => {
                 const isActive = (s.file_id === currentSelectedId);
                 const isFavorited = libState.favorites.includes(s.file_id);
+                // 微缩图策略：列表页封面增加 thumb=1 标志
+                const thumbCover = s.cover ? s.cover + (s.cover.includes('?') ? '&' : '?') + 'thumb=1' : DEFAULT_LOGO;
                 return `<div data-id="${s.file_id}" onclick="handleTrackSwitch(-1, '${s.file_id}')" class="song-item group ${isActive ? 'active' : ''}">
-                    <img src="${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
+                    <img src="${thumbCover}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
                     <div class="flex-1 truncate"><div class="song-title-text truncate">${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">${s.artist}</div></div>
                     <div class="song-actions">
                         <div class="action-btn ${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('${s.file_id}')" title="收藏">

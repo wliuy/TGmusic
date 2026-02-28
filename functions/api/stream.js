@@ -1,21 +1,30 @@
-let urlCache = new Map();
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const fileId = url.searchParams.get('file_id');
+  const isThumb = url.searchParams.get('thumb') === '1';
   const BOT_TOKEN = env.TG_Bot_Token;
   if (!fileId || !BOT_TOKEN) return new Response("Params error", { status: 400 });
   try {
-    let cacheItem = urlCache.get(fileId);
+    const cacheKey = isThumb ? "thumb_" + fileId : fileId;
+    const cached = await env.DB.prepare("SELECT url, expiry FROM link_cache WHERE id = ?").bind(cacheKey).first();
     let downloadUrl = "";
-    if (cacheItem && Date.now() < cacheItem.expiry) {
-      downloadUrl = cacheItem.url;
+    if (cached && Date.now() < cached.expiry) {
+      downloadUrl = cached.url;
     } else {
       const getFileUrl = "https://api.telegram.org/bot" + BOT_TOKEN + "/getFile?file_id=" + fileId;
       const fileInfo = await (await fetch(getFileUrl)).json();
       if (!fileInfo.ok) return new Response("TG API Fault", { status: 400 });
-      downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + fileInfo.result.file_path;
-      urlCache.set(fileId, { url: downloadUrl, expiry: Date.now() + 1800000 });
+      if (isThumb && fileInfo.result.photo) {
+        const photos = fileInfo.result.photo;
+        const thumbFid = photos[0].file_id; 
+        const thumbInfo = await (await fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/getFile?file_id=" + thumbFid)).json();
+        downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + thumbInfo.result.file_path;
+      } else {
+        downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + fileInfo.result.file_path;
+      }
+      await env.DB.prepare("INSERT INTO link_cache (id, url, expiry) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET url=?2, expiry=?3")
+        .bind(cacheKey, downloadUrl, Date.now() + 3600000).run();
     }
     const range = request.headers.get('Range');
     const fileRes = await fetch(downloadUrl, { headers: range ? { 'Range': range } : {} });
