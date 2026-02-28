@@ -3,7 +3,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.2.0
+ * Sarah MUSIC 旗舰全功能重构版 10.1.7
  * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
  * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
  * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
@@ -11,7 +11,7 @@ const { execSync } = require('child_process');
  * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.2.0 (适配 iPad 桌面布局 & 触控设备按钮常显)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.7 (增加列表条目鼠标悬浮视觉反馈)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
@@ -202,7 +202,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1020';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1017';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -267,7 +267,6 @@ files['index.html'] = `<!DOCTYPE html>
         .song-artist-text { font-size: 11px !important; opacity: 0.5; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .song-actions { position: absolute; right: 12px; display: flex; gap: 8px; opacity: 0; transition: 0.2s; pointer-events: auto; }
         .song-item:hover .song-actions { opacity: 1; }
-        @media (pointer: coarse) { .song-item .song-actions { opacity: 1 !important; pointer-events: auto !important; } }
         .action-btn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: rgba(255,255,255,0.15); color: inherit; transition: 0.2s; }
         .action-btn:hover { background: var(--dynamic-accent); color: white !important; transform: scale(1.1); }
         .action-btn.is-fav { color: #ef4444 !important; }
@@ -378,14 +377,16 @@ files['index.html'] = `<!DOCTYPE html>
         
         #admin-box { width: 92%; max-width: 900px; height: 85vh; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(60px); border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 50px 100px rgba(0, 0, 0, 0.3); outline: none !important; }
         .admin-header { padding: 10px 25px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 70px; }
+        .admin-header-center { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 0 20px; flex-shrink: 0; }
+        .admin-console-box { background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 20px; width: auto; max-width: 100%; }
+
         .admin-action-bar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-        
         .admin-btn-icon { width: 38px; height: 38px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.1); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.15); transition: 0.25s; cursor: pointer; color: white; backdrop-filter: brightness(1.1); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); padding: 0 !important; }
         .admin-btn-icon:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.3); transform: scale(1.05); }
         .admin-btn-icon:active { transform: scale(0.92); }
         .admin-btn-icon svg { width: 18px; height: 18px; display: block; margin: auto; }
 
-        @media (max-width: 639px) { 
+        @media (max-width: 768px) { 
             .admin-btn-icon:hover { transform: none !important; } 
             /* 物理级根治点3：移动端操作按钮常显，防止位移误触 */
             .song-item .song-actions { opacity: 1 !important; pointer-events: auto !important; }
@@ -416,7 +417,7 @@ files['index.html'] = `<!DOCTYPE html>
         .browser-tab-arrow span { color: white; font-size: 10px; font-weight: 900; cursor: pointer; padding: 2px 8px; background: #10b981; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px; backdrop-filter: blur(10px); line-height: 1.1; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
         .browser-tab-arrow span:hover { background: #059669; transform: scale(1.1); }
         
-        @media (max-width: 639px) { .browser-tab-arrow { display: none !important; } }
+        @media (max-width: 768px) { .browser-tab-arrow { display: none !important; } }
 
         .browser-tab-add { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.08); color: white; cursor: pointer; flex: none; flex-shrink: 0; margin-left: 10px; transition: 0.2s; aspect-ratio: 1/1; overflow: hidden; }
         .browser-tab-add:hover { background: rgba(255, 255, 255, 0.15); transform: scale(1.1); }
@@ -452,7 +453,7 @@ files['index.html'] = `<!DOCTYPE html>
         .admin-action-btn.delete:hover { background: #ef4444; }
         .admin-action-btn svg { width: 16px; height: 16px; }
 
-        @media (max-width: 639px) { .admin-action-btn:hover { transform: none !important; } }
+        @media (max-width: 768px) { .admin-action-btn:hover { transform: none !important; } }
 
         .upload-preview-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); animation: slideIn 0.3s ease-out; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -472,7 +473,7 @@ files['index.html'] = `<!DOCTYPE html>
         .upload-hint svg { opacity: 0.85; color: #10b981; width: 28px; height: 28px; }
         .upload-hint span { font-size: 11px; font-weight: 900; color: white; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
 
-        @media (max-width: 639px) { 
+        @media (max-width: 768px) { 
             #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
             .admin-header { padding: 12px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 60px; flex-wrap: wrap; }
             #admin-header-center { flex: none; width: 100%; order: 10; padding: 10px 0; }
@@ -484,7 +485,7 @@ files['index.html'] = `<!DOCTYPE html>
         .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
 
-        @media (max-width: 639px) { .desktop-container { display: none; } .mobile-player-container { display: flex; } }
+        @media (max-width: 768px) { .desktop-container { display: none; } .mobile-player-container { display: flex; } }
     </style>
 </head>
 <body>
@@ -518,7 +519,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.0</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.7</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -629,7 +630,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.0</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.7</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -655,7 +656,7 @@ files['index.html'] = `<!DOCTYPE html>
         let ap = null, db = [], lrcLines = [], currentTab = 'fav', tempMetaMap = new Map(), globalPlayingId = null;
         let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
         let currentThemeIdx = -1, sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false;
-        let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
+        let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
         let globalUploadQueue = [], uploadActiveWorkers = 0, preloadedFids = new Set();
         let renderCount = 20, pageSize = 20, isPlaylistSwitching = false, globalActiveListId = 'fav';
@@ -695,7 +696,7 @@ files['index.html'] = `<!DOCTYPE html>
             updateBackground(true);
             ['main-ui', 'm-player'].forEach(id => {
                const el = document.getElementById(id);
-               if(el) el.style.display = id === 'main-ui' ? 'flex' : (window.innerWidth <= 639 ? 'flex' : 'none');
+               if(el) el.style.display = id === 'main-ui' ? 'flex' : (window.innerWidth <= 768 ? 'flex' : 'none');
             });
 
             if ('serviceWorker' in navigator) {
@@ -712,10 +713,10 @@ files['index.html'] = `<!DOCTYPE html>
                 const res = await fetch('/api/songs'); const raw = await res.json();
                 if (raw.error) { console.error("D1 Loader Error"); return; }
                 libState = raw; db = libState.songs;
-                buildIndexMap(); renderCustomTabs(); 
-                setupPlayer(); 
-                renderAllLists(); 
-                updateUIModes(); updateVolUI(lastVolume); 
+                buildIndexMap(); renderCustomTabs(); 
+                setupPlayer(); 
+                renderAllLists(); 
+                updateUIModes(); updateVolUI(lastVolume); 
                 window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
                 
                 // 移动端返回键优化：注入初始伪路由
@@ -732,12 +733,12 @@ files['index.html'] = `<!DOCTYPE html>
                     if (drawer && drawer.classList.contains('active')) { toggleMobileDrawer(false, true); return; }
                 };
 
-                if (libState.favorites.length > 0) { 
-                    const f = libState.favorites[0]; 
-                    globalActiveListId = 'fav'; 
+                if (libState.favorites.length > 0) { 
+                    const f = libState.favorites[0]; 
+                    globalActiveListId = 'fav'; 
                     currentTab = 'fav';
-                    refreshUIMetaAt(dbIndexMap.get(f)); 
-                    updateHighlights(f, true); 
+                    refreshUIMetaAt(dbIndexMap.get(f)); 
+                    updateHighlights(f, true); 
                 }
                 else if (libState.all_order.length > 0) refreshUIMetaAt(dbIndexMap.get(libState.all_order[0]));
                 else if (db.length > 0) refreshUIMetaAt(0);
@@ -756,7 +757,7 @@ files['index.html'] = `<!DOCTYPE html>
             buildIndexMap();
             if(ap) {
               let ids = [];
-              const sourceId = globalActiveListId; 
+              const sourceId = globalActiveListId; 
               if(sourceId === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
               else if(sourceId === 'fav') ids = libState.favorites;
               else ids = libState.playlists.find(p => p.id === sourceId)?.ids || [];
@@ -791,10 +792,10 @@ files['index.html'] = `<!DOCTYPE html>
               const s = db[dbIndexMap.get(id)];
               if (!s) return null;
               const isFlac = (s.title && s.title.toLowerCase().includes('.flac')) || (s.lrc && s.lrc.includes('flac'));
-              return { 
-                name: s.title, artist: s.artist, 
-                cover: s.cover || DEFAULT_LOGO, 
-                url: '/api/stream?file_id=' + s.file_id, 
+              return { 
+                name: s.title, artist: s.artist, 
+                cover: s.cover || DEFAULT_LOGO, 
+                url: '/api/stream?file_id=' + s.file_id, 
                 lrc: s.lrc || '[00:00.00]暂无歌词',
                 type: isFlac ? 'flac' : 'normal'
               };
@@ -828,10 +829,10 @@ files['index.html'] = `<!DOCTYPE html>
                 }
             });
 
-            ap.on('play', () => { 
-                const s = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>'; 
-                document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
-                document.getElementById('m-disc-wrapper').classList.add('playing'); 
+            ap.on('play', () => { 
+                const s = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>'; 
+                document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
+                document.getElementById('m-disc-wrapper').classList.add('playing'); 
                 
                 const cur = ap.list.audios[ap.list.index];
                 if (cur) {
@@ -847,22 +848,30 @@ files['index.html'] = `<!DOCTYPE html>
                     }
                     updateHighlights(fid, false);
                 }
-                updateMediaSession(); 
+                updateMediaSession(); 
             });
 
-            ap.on('pause', () => { 
-                const s = '<path d="M8 5v14l11-7z"></path>'; 
-                document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
-                document.getElementById('m-disc-wrapper').classList.remove('playing'); 
+            ap.on('pause', () => { 
+                const s = '<path d="M8 5v14l11-7z"></path>'; 
+                document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
+                document.getElementById('m-disc-wrapper').classList.remove('playing'); 
                 updateMediaSession();
             });
 
-            ap.on('timeupdate', () => { 
+            ap.on('timeupdate', () => { 
                 if (isScrubbing) return;
                 const cur = ap.audio.currentTime, dur = ap.audio.duration || 0, p = (cur / (dur || 1) * 100) + '%';
                 ['prog-bar', 'm-prog-bar'].forEach(id => { const el = document.getElementById(id); if(el) el.style.width = p; });
                 ['cur-time', 'm-cur-time'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = fmtTime(cur); });
                 ['total-time', 'm-total-time'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = fmtTime(dur); });
+                
+                // 根本解决：主动心跳采样。弥补自动连播时浏览器 progress 事件触发频率不稳定的缺陷。
+                if (dur > 0 && ap.audio.buffered.length > 0) {
+                    const bEnd = ap.audio.buffered.end(ap.audio.buffered.length - 1);
+                    const bP = (bEnd / dur * 100) + "%";
+                    ['prog-buffer', 'm-prog-buffer'].forEach(id => { const el = document.getElementById(id); if(el) el.style.width = bP; });
+                }
+
                 syncLyrics(cur);
 
                 // 物理移除移动端预载限制，解决息屏后连播中断
@@ -880,7 +889,7 @@ files['index.html'] = `<!DOCTYPE html>
                 }
             });
 
-            ap.on('listswitch', (data) => { 
+            ap.on('listswitch', (data) => { 
                 if (isPlaylistSwitching) return;
                 const targetIdx = data.index !== undefined ? data.index : ap.list.index;
                 const audio = ap.list.audios[targetIdx];
@@ -898,11 +907,11 @@ files['index.html'] = `<!DOCTYPE html>
             });
         }
 
-        function updateMediaSession() { 
-            const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return; 
-            const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'); 
+        function updateMediaSession() { 
+            const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return; 
+            const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'); 
             const song = db[dbIndexMap.get(fileId)] || { title: currentAudio.name, artist: currentAudio.artist, cover: currentAudio.cover };
-            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'Sarah Music', artwork: [{ src: song.cover || DEFAULT_LOGO, sizes: '512x512', type: 'image/png' }] }); 
+            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'Sarah Music', artwork: [{ src: song.cover || DEFAULT_LOGO, sizes: '512x512', type: 'image/png' }] }); 
             navigator.mediaSession.playbackState = ap.paused ? 'paused' : 'playing';
             navigator.mediaSession.setActionHandler('play', () => handlePlayToggle());
             navigator.mediaSession.setActionHandler('pause', () => handlePlayToggle());
@@ -911,13 +920,13 @@ files['index.html'] = `<!DOCTYPE html>
             navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.seekTime) ap.seek(details.seekTime); });
         }
 
-        function updateBackground(isForceRandom = false) { 
-            const isMob = window.innerWidth <= 639; 
-            if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; } 
+        function updateBackground(isForceRandom = false) { 
+            const isMob = window.innerWidth <= 768; 
+            if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; } 
             const theme = solaraTheme[currentThemeIdx]; const finalBg = isMob ? '#4d7c5f' : theme.bg;
             
             // 物理染色：同步状态栏与 meta theme-color
-            const metaTheme = document.querySelector('meta[name="theme-color"]'); 
+            const metaTheme = document.querySelector('meta[name="theme-color"]'); 
             if(metaTheme) metaTheme.setAttribute('content', finalBg);
             document.body.style.backgroundColor = finalBg;
             
@@ -936,7 +945,7 @@ files['index.html'] = `<!DOCTYPE html>
             document.documentElement.style.setProperty('--dynamic-accent', isMob ? '#ffffff' : theme.accent);
             const listTabs = document.querySelectorAll('#tabs-scroll div, .m-pl-card');
             listTabs.forEach(el => {
-                const tabId = el.getAttribute('id') || ''; 
+                const tabId = el.getAttribute('id') || ''; 
                 const isActive = (tabId === 'tab-play' && currentTab === 'all') || (tabId === 'tab-fav' && currentTab === 'fav') || (tabId === 'tab-pl-' + currentTab) || (el.dataset.id === currentTab);
                 el.classList.toggle('active', isActive);
                 if (!el.classList.contains('m-pl-card')) { el.style.background = isActive ? theme.accent : 'transparent'; el.style.color = isActive ? 'white' : theme.accent; el.style.opacity = isActive ? '1' : '0.75'; }
@@ -957,18 +966,18 @@ files['index.html'] = `<!DOCTYPE html>
         async function refreshUIMetaAt(idx) {
             const song = db[idx]; if (!song) return;
             globalPlayingId = song.file_id;
-            if (lastActiveFileId !== song.file_id) { 
-                const clipping = document.getElementById('m-clipping-node'); 
-                if (clipping) { clipping.style.animation = 'none'; void clipping.offsetWidth; clipping.style.animation = ''; } 
-                lastActiveFileId = song.file_id; 
+            if (lastActiveFileId !== song.file_id) { 
+                const clipping = document.getElementById('m-clipping-node'); 
+                if (clipping) { clipping.style.animation = 'none'; void clipping.offsetWidth; clipping.style.animation = ''; } 
+                lastActiveFileId = song.file_id; 
             }
             const upUI = (imgId, logoId) => {
                 const img = document.getElementById(imgId); const logo = document.getElementById(logoId);
                 if(!img || !logo) return;
-                if(song.cover) { 
+                if(song.cover) { 
                     // 核心修复：防止视觉假死问题
-                    const n = new Image(); n.src = song.cover; 
-                    n.onload = () => { img.src = song.cover; img.style.display = 'block'; logo.style.setProperty('display', 'none', 'important'); }; 
+                    const n = new Image(); n.src = song.cover; 
+                    n.onload = () => { img.src = song.cover; img.style.display = 'block'; logo.style.setProperty('display', 'none', 'important'); }; 
                 }
                 else { img.style.display = 'none'; logo.style.setProperty('display', 'flex', 'important'); }
             };
@@ -986,7 +995,7 @@ files['index.html'] = `<!DOCTYPE html>
                });
             } else processLrc(song.lrc);
 
-            updateHighlights(song.file_id, false); 
+            updateHighlights(song.file_id, false); 
         }
 
         function processLrc(rawLrc) {
@@ -1029,9 +1038,9 @@ files['index.html'] = `<!DOCTYPE html>
             });
         }
 
-        function renderCustomTabs() { 
+        function renderCustomTabs() { 
             // 物理修复：移除 10.1.3 LaTeX 乱码残留包装
-            document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); 
+            document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); 
         }
         
         function renderAllLists() {
@@ -1040,7 +1049,7 @@ files['index.html'] = `<!DOCTYPE html>
             else if(currentTab === 'fav') ids = libState.favorites;
             else ids = libState.playlists.find(p => p.id === currentTab)?.ids || [];
             
-            const isMob = window.innerWidth <= 639;
+            const isMob = window.innerWidth <= 768;
             const q = document.getElementById(isMob ? 'm-list-search' : 'search-input').value.toLowerCase();
             let listData = ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
             if (q) listData = listData.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
@@ -1085,13 +1094,13 @@ files['index.html'] = `<!DOCTYPE html>
             isPlaylistSwitching = true;
             if (fid && globalActiveListId !== currentTab) {
                 globalActiveListId = currentTab;
-                setupPlayer(); 
+                setupPlayer(); 
             }
             
             let targetIdx = idx;
-            if (fid) { 
-                const foundIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fid)); 
-                if (foundIdx !== -1) targetIdx = foundIdx; 
+            if (fid) { 
+                const foundIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fid)); 
+                if (foundIdx !== -1) targetIdx = foundIdx; 
             }
             
             // 安全指令：确保索引有效后同步执行播放动作
@@ -1103,7 +1112,7 @@ files['index.html'] = `<!DOCTYPE html>
                     if(el) el.style.width = "0%";
                 });
                 try {
-                    ap.list.switch(targetIdx); 
+                    ap.list.switch(targetIdx); 
                     ap.play();
                     const dbIdx = dbIndexMap.get(fid);
                     if(dbIdx !== undefined) refreshUIMetaAt(dbIdx);
@@ -1156,24 +1165,24 @@ files['index.html'] = `<!DOCTYPE html>
         function handleSearch() { renderCount = pageSize; renderAllLists(); }
         function clearSearch(id) { document.getElementById(id).value = ""; renderCount = pageSize; renderAllLists(); }
         
-        function setSleep(mins) { 
-            if(sleepTimerInt) clearInterval(sleepTimerInt); 
-            const statusEl = document.getElementById('sleep-status'); 
-            if(mins === 0) { sleepEndTime = null; statusEl.innerText = ""; } 
-            else { 
-                sleepEndTime = Date.now() + mins * 60000; 
-                sleepTimerInt = setInterval(() => { 
-                    const diff = sleepEndTime - Date.now(); 
-                    if(diff <= 0) { ap.pause(); clearInterval(sleepTimerInt); sleepEndTime = null; statusEl.innerText = ""; } 
-                    else { statusEl.innerText = fmtTime(Math.floor(diff/1000)); } 
-                }, 1000); 
-            } 
+        function setSleep(mins) { 
+            if(sleepTimerInt) clearInterval(sleepTimerInt); 
+            const statusEl = document.getElementById('sleep-status'); 
+            if(mins === 0) { sleepEndTime = null; statusEl.innerText = ""; } 
+            else { 
+                sleepEndTime = Date.now() + mins * 60000; 
+                sleepTimerInt = setInterval(() => { 
+                    const diff = sleepEndTime - Date.now(); 
+                    if(diff <= 0) { ap.pause(); clearInterval(sleepTimerInt); sleepEndTime = null; statusEl.innerText = ""; } 
+                    else { statusEl.innerText = fmtTime(Math.floor(diff/1000)); } 
+                }, 1000); 
+            } 
         }
 
         function fmtTime(s) { if (isNaN(s) || s < 0) return "00:00"; const m = Math.floor(s/60), sec = Math.floor(s%60); return (m<10?"0"+m:m)+":"+(sec<10?"0"+sec:sec); }
         
-        async function handleLikeToggle() { 
-            const cur = ap.list.audios[ap.list.index]; if(!cur) return; 
+        async function handleLikeToggle() { 
+            const cur = ap.list.audios[ap.list.index]; if(!cur) return; 
             const fileId = new URL(cur.url, window.location.origin).searchParams.get('file_id');
             await toggleLikeById(fileId);
         }
@@ -1185,88 +1194,88 @@ files['index.html'] = `<!DOCTYPE html>
             
             document.querySelectorAll(\`.song-item[data-id="\${fid}"]\`).forEach(el => {
                 const btn = el.querySelector('.action-btn:first-child');
-                if(btn) { 
-                    btn.classList.toggle('is-fav', isAdding); 
-                    btn.querySelector('svg').setAttribute('fill', isAdding ? 'currentColor' : 'none'); 
+                if(btn) { 
+                    btn.classList.toggle('is-fav', isAdding); 
+                    btn.querySelector('svg').setAttribute('fill', isAdding ? 'currentColor' : 'none'); 
                 }
             });
             updateHighlights(fid, false);
-            await dbOp('toggle_fav', { file_id: fid }); 
-            silentRefresh(); 
+            await dbOp('toggle_fav', { file_id: fid }); 
+            silentRefresh(); 
         }
 
         async function deleteSongById(fid) {
             const pid = currentTab;
-            showSarahDialog("删除确认", \`确定将此旋律从\${pid === 'all' ? '全库永久抹去' : '当前歌单移除'}吗？\`, false, null, async (y) => { 
-                if(y) { 
-                    await dbOp('delete_song', { file_id: fid, playlist_id: pid }); 
+            showSarahDialog("删除确认", \`确定将此旋律从\${pid === 'all' ? '全库永久抹去' : '当前歌单移除'}吗？\`, false, null, async (y) => { 
+                if(y) { 
+                    await dbOp('delete_song', { file_id: fid, playlist_id: pid }); 
                     await silentRefresh();
                     renderAllLists();
-                } 
-            }); 
+                } 
+            }); 
         }
 
-        function switchList(t) { 
-            isPlaylistSwitching = true; 
-            currentTab = t; 
-            renderCount = pageSize; 
+        function switchList(t) { 
+            isPlaylistSwitching = true; 
+            currentTab = t; 
+            renderCount = pageSize; 
             renderAllLists();
-            const container = document.getElementById(window.innerWidth <= 639 ? 'm-list-view' : 'list-view');
+            const container = document.getElementById(window.innerWidth <= 768 ? 'm-list-view' : 'list-view');
             if (container) container.scrollTop = 0;
-            updateBackground(false); 
+            updateBackground(false); 
             // 返回键支持：注入 UI 路由状态
             history.pushState({stage:'drawer'}, '');
-            setTimeout(() => { isPlaylistSwitching = false; }, 200); 
+            setTimeout(() => { isPlaylistSwitching = false; }, 200); 
         }
 
         function switchAdminList(t) { currentAdminTab = t; renderAdminPlaylistTabs(); renderAdminSongList(); }
-        function toggleAdmin(s, fromPop = false) { 
-            document.getElementById('admin-panel').classList.toggle('active', s); 
-            if(s) { 
-                currentAdminTab = currentTab; 
-                renderAdminPlaylistTabs(); 
-                renderAdminSongList(); 
+        function toggleAdmin(s, fromPop = false) { 
+            document.getElementById('admin-panel').classList.toggle('active', s); 
+            if(s) { 
+                currentAdminTab = currentTab; 
+                renderAdminPlaylistTabs(); 
+                renderAdminSongList(); 
                 if(!fromPop) history.pushState({stage:'admin'}, '');
-            } 
+            } 
         }
         function toggleUploadArea() { document.getElementById('sleep-area').classList.add('hidden'); document.getElementById('upload-area').classList.toggle('hidden'); }
         function toggleSleepArea() { document.getElementById('upload-area').classList.add('hidden'); document.getElementById('sleep-area').classList.toggle('hidden'); }
 
-        function showSarahDialog(title, msg, isInput, def, cb) { 
-            const ov = document.getElementById('sarah-dialog'); 
+        function showSarahDialog(title, msg, isInput, def, cb) { 
+            const ov = document.getElementById('sarah-dialog'); 
             const box = ov.querySelector('.sarah-dialog-box');
-            document.getElementById('dialog-title').innerText = title; 
+            document.getElementById('dialog-title').innerText = title; 
             const msgEl = document.getElementById('dialog-msg');
             const inputWrap = document.getElementById('dialog-input-wrap');
             const inp = document.getElementById('dialog-input');
 
-            if(isInput) { 
-                msgEl.style.display = 'none'; 
-                msgEl.innerHTML = ""; 
-                inputWrap.classList.remove('hidden'); 
-                inp.value = def || ""; 
+            if(isInput) { 
+                msgEl.style.display = 'none'; 
+                msgEl.innerHTML = ""; 
+                inputWrap.classList.remove('hidden'); 
+                inp.value = def || ""; 
                 inp.placeholder = msg.replace('：', '') || "请输入...";
                 setTimeout(() => inp.focus(), 100);
-            } else { 
+            } else { 
                 msgEl.style.display = 'block';
                 msgEl.innerText = msg;
-                inputWrap.classList.add('hidden'); 
+                inputWrap.classList.add('hidden'); 
             }
 
-            document.getElementById('dialog-confirm').onclick = () => { 
-                ov.classList.remove('active'); 
+            document.getElementById('dialog-confirm').onclick = () => { 
+                ov.classList.remove('active'); 
                 box.style.transform = 'scale(0.95)';
                 setTimeout(() => { ov.classList.add('hidden'); ov.style.display = 'none'; }, 200);
-                cb(isInput ? inp.value : true); 
-            }; 
+                cb(isInput ? inp.value : true); 
+            }; 
             ov.style.display = 'flex';
-            ov.classList.remove('hidden'); 
+            ov.classList.remove('hidden'); 
             setTimeout(() => { ov.classList.add('active'); box.style.transform = 'scale(1)'; box.style.opacity = '1'; box.style.pointerEvents = 'auto'; }, 10);
         }
-        function closeSarahDialog() { 
-            const ov = document.getElementById('sarah-dialog'); 
+        function closeSarahDialog() { 
+            const ov = document.getElementById('sarah-dialog'); 
             const box = ov.querySelector('.sarah-dialog-box');
-            ov.classList.remove('active'); 
+            ov.classList.remove('active'); 
             box.style.transform = 'scale(0.95)';
             box.style.opacity = '0';
             box.style.pointerEvents = 'none';
@@ -1275,12 +1284,12 @@ files['index.html'] = `<!DOCTYPE html>
 
         function renderAdminPlaylistTabs() {
             const container = document.getElementById('admin-playlist-tabs'); if(!container) return;
-            const isPC = window.innerWidth > 639;
+            const isPC = window.innerWidth > 768;
             let html = \`<div class="browser-tab \${currentAdminTab === 'all' ? 'active' : ''}" onclick="switchAdminList('all')"><span class="browser-tab-text">全库 <i class="opacity-40 text-[9px] font-black italic">\${libState.songs.length}</i></span></div><div class="browser-tab \${currentAdminTab === 'fav' ? 'active' : ''}" onclick="switchAdminList('fav')"><span class="browser-tab-text">收藏 <i class="opacity-40 text-[9px] font-black italic">\${libState.favorites.length}</i></span></div>\`;
-            libState.playlists.forEach((pl, i) => { 
+            libState.playlists.forEach((pl, i) => { 
                 const hasLeft = i > 0; const hasRight = i < libState.playlists.length - 1;
                 const arrowHtml = isPC ? \`<div class="browser-tab-arrow">\${hasLeft ? '<span onclick="event.stopPropagation(); movePlaylist(' + i + ', -1)">←</span>' : ''}\${hasRight ? '<span onclick="event.stopPropagation(); movePlaylist(' + i + ', 1)">→</span>' : ''}</div>\` : '';
-                html += \`<div class="browser-tab \${currentAdminTab === pl.id ? 'active' : ''}" data-plid="\${pl.id}" onclick="switchAdminList('\${pl.id}')" onmousedown="\${isPC ? 'handleAdminPlaylistDragStart(event, '+i+')' : ''}" ondblclick="renamePlaylistPrompt('\${i}')">\${arrowHtml}<span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-black italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; 
+                html += \`<div class="browser-tab \${currentAdminTab === pl.id ? 'active' : ''}" data-plid="\${pl.id}" onclick="switchAdminList('\${pl.id}')" onmousedown="\${isPC ? 'handleAdminPlaylistDragStart(event, '+i+')' : ''}" ondblclick="renamePlaylistPrompt('\${i}')">\${arrowHtml}<span class="browser-tab-text">\${pl.name} <i class="opacity-40 text-[9px] font-black italic">\${pl.ids.length}</i></span><div class="browser-tab-close" onclick="event.stopPropagation(); deletePlaylist('\${i}')"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"></path></svg></div></div>\`; 
             });
             html += \`<div class="browser-tab" onclick="addPlaylistPrompt()" style="min-width:40px;flex:none;"><span class="browser-tab-text" style="opacity:1;color:white;font-size:14px;font-weight:bold;">+</span></div>\`;
             container.innerHTML = html;
@@ -1351,7 +1360,7 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         async function movePlaylist(idx, dir) {
-            if (window.innerWidth <= 639) return; 
+            if (window.innerWidth <= 768) return; 
             const nIdx = idx + dir; if(nIdx < 0 || nIdx >= libState.playlists.length) return;
             const temp = libState.playlists[idx]; libState.playlists[idx] = libState.playlists[nIdx]; libState.playlists[nIdx] = temp;
             renderAdminPlaylistTabs(); renderCustomTabs(); updateBackground(false);
@@ -1360,7 +1369,7 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function handleAdminPlaylistDragStart(e, idx) {
-            if (window.innerWidth <= 639 || e.target.closest('.browser-tab-close') || e.target.closest('.browser-tab-arrow')) return;
+            if (window.innerWidth <= 768 || e.target.closest('.browser-tab-close') || e.target.closest('.browser-tab-arrow')) return;
             const targetEl = e.currentTarget; let isMoved = false;
             const startX = e.clientX, startY = e.clientY;
             const initDrag = (cX, cY) => {
@@ -1432,7 +1441,7 @@ files['index.html'] = `<!DOCTYPE html>
         
         function deleteSong(fid) {
             const pid = currentTab;
-            showSarahDialog("删除确认", \`确定将此旋律从\${pid === 'all' ? '全库永久抹去' : '当前歌单移除'}吗？\`, false, null, async (y) => { if(y) { await dbOp('delete_song', { file_id: fid, playlist_id: pid }); silentRefresh(); } }); 
+            showSarahDialog("删除确认", \`确定将此旋律从\${pid === 'all' ? '全库永久抹去' : '当前歌单移除'}吗？\`, false, null, async (y) => { if(y) { await dbOp('delete_song', { file_id: fid, playlist_id: pid }); silentRefresh(); } }); 
         }
 
         function openPlaylistSelector(fid) {
@@ -1443,7 +1452,7 @@ files['index.html'] = `<!DOCTYPE html>
             document.getElementById('playlist-selector-modal').classList.remove('hidden'); document.getElementById('playlist-selector-modal').classList.add('flex');
         }
         function closePlaylistSelector() { document.getElementById('playlist-selector-modal').classList.add('hidden'); }
-        async function addToPlaylist(pid, fid) { 
+        async function addToPlaylist(pid, fid) { 
             const pl = libState.playlists.find(p => p.id === pid);
             if(pl && !pl.ids.includes(fid)) {
                 pl.ids.push(fid);
@@ -1501,11 +1510,11 @@ files['index.html'] = `<!DOCTYPE html>
                     const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload');
                     xhr.upload.onprogress = e => { if(e.lengthComputable && pFill) pFill.style.width = (e.loaded/e.total*100) + '%'; };
                     await new Promise(r => {
-                        xhr.onload = () => { 
+                        xhr.onload = () => { 
                             const res = JSON.parse(xhr.responseText || '{}');
                             if(xhr.status === 200 && res.success) { if(sDot) sDot.className = "preview-status-dot success"; }
                             else { if(sDot) sDot.className = "preview-status-dot error"; }
-                            r(); 
+                            r(); 
                         };
                         xhr.onerror = () => { if(sDot) sDot.className = "preview-status-dot error"; r(); };
                         xhr.send(fd);
@@ -1519,7 +1528,7 @@ files['index.html'] = `<!DOCTYPE html>
                     worker().then(() => {
                         uploadActiveWorkers--;
                         if (uploadActiveWorkers === 0 && globalUploadQueue.length === 0) {
-                            if(btn) btn.disabled = false; 
+                            if(btn) btn.disabled = false; 
                             silentRefresh();
                             if(currentAdminTab === 'logs') renderUploadLogs();
                             setTimeout(() => { const list = document.getElementById('upload-preview-list'); if(list) list.innerHTML = ""; }, 10000);
@@ -1534,15 +1543,15 @@ files['index.html'] = `<!DOCTYPE html>
 
         function toggleMobileDrawer(s, fromPop = false) {
             const d = document.getElementById('m-drawer'), o = document.getElementById('m-overlay');
-            if(s) { 
+            if(s) { 
                 if (!libState.playlists) return;
                 const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p)=>({id:p.id,name:p.name}))];
                 document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div data-id="\${c.id}" onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\${c.name}</div>\`).join('');
-                d.classList.add('active'); o.style.display = 'block'; 
+                d.classList.add('active'); o.style.display = 'block'; 
                 renderAllLists();
                 if(!fromPop) history.pushState({stage:'drawer'}, '');
-            } else { 
-                d.classList.remove('active'); o.style.display = 'none'; 
+            } else { 
+                d.classList.remove('active'); o.style.display = 'none'; 
             }
         }
 
@@ -1561,7 +1570,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.2.0 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.7 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1569,6 +1578,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.2.0 构建成功。已针对 iPad 适配桌面布局，触控设备操作按钮已设为常显。');
+        console.log('\n✅ Sarah MUSIC 10.1.7 构建成功。列表条目悬浮视觉反馈已生效，物理保真度 100%。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
