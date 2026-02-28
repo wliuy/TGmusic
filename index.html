@@ -102,21 +102,23 @@
         .cover-img { width: 100%; height: 100%; object-fit: cover; transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10; position: absolute; inset: 0; }
         .cover-placeholder { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; background: var(--logo-url); background-size: cover; background-position: center; }
 
-        .mobile-player-container { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px; background: var(--m-green); }
+        .mobile-player-container { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px; background: #222; }
+        #m-bg-fluid { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: center; filter: blur(80px) brightness(0.6); transform: scale(1.2); transition: background-image 1.2s ease-in-out; }
         .m-header { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: transparent; border: 0; }
         .m-header .btn-round { background: transparent !important; border: 0 !important; box-shadow: none !important; width: 44px; height: 44px; color: white !important; z-index: 210; }
 
         .m-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; width: 100%; padding: 45px 0 0 0; }
-        .m-controls-capsule { background: transparent; border: 0; padding: 0 15px 45px 15px; width: 100%; flex-shrink: 0; }
+        .m-controls-capsule { background: rgba(0,0,0,0.15) !important; border: 0; padding: 0 15px 45px 15px; width: 100%; flex-shrink: 0; -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); border-top: 1px solid rgba(255,255,255,0.05); }
         #m-scrubber-wrap { position: relative; height: 32px; display: flex; align-items: center; cursor: pointer; touch-action: none; margin-bottom: -4px; z-index: 10; }
         #m-scrubber-wrap .rail { width: 100%; height: 4px; border-radius: 10px; }
 
         @keyframes disc-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .m-disc-container { width: 72vw; max-width: 280px; aspect-ratio: 1/1; position: relative; flex-shrink: 0; background: transparent !important; border-radius: 50% !important; isolation: isolate; margin: 0px 0; }
         .m-disc-shadow-layer { position: absolute; inset: -45px; border-radius: 50%; background: radial-gradient(circle at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.15) 45%, transparent 72%); z-index: 0; pointer-events: none; }
-        .m-disc-clipping { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50% !important; overflow: hidden !important; border: 6px solid rgba(255,255,255,0.12); clip-path: circle(50% at 50% 50%); -webkit-mask-image: -webkit-radial-gradient(white, black); z-index: 5; animation: disc-rotate 25s linear infinite; animation-play-state: paused; }
+        .m-disc-clipping { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50% !important; overflow: hidden !important; border: 6px solid rgba(255,255,255,0.15); clip-path: circle(50% at 50% 50%); -webkit-mask-image: -webkit-radial-gradient(white, black); z-index: 5; animation: disc-rotate 25s linear infinite; animation-play-state: paused; background: #000; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.5); }
+        .m-disc-clipping::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: repeating-radial-gradient(circle at center, transparent 0, transparent 4px, rgba(255,255,255,0.03) 5px, transparent 6px); pointer-events: none; z-index: 10; }
         .m-disc-container.playing .m-disc-clipping { animation-play-state: running; }
-        .m-disc-clipping img { width: 100%; height: 100%; object-fit: cover; border-radius: 50% !important; }
+        .m-disc-clipping img { width: 100%; height: 100%; object-fit: cover; border-radius: 50% !important; opacity: 0.9; }
 
         .m-lyrics-panel { flex: 1; width: 100%; height: auto !important; position: relative; display: flex; flex-direction: column; align-items: center; overflow-y: auto; scroll-behavior: smooth; mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%); pointer-events: none; background: transparent !important; margin-bottom: 0px; margin-top: 10px; }
         .m-lyrics-panel::-webkit-scrollbar { display: none; }
@@ -132,11 +134,11 @@
         .m-time-text { font-size: 10px; font-weight: 900; opacity: 0.5; color: white; }
         
         .m-btn-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding-top: 15px; }
-        .m-btn-row .btn-round { width: 50px; height: 50px; background: white !important; color: var(--m-green) !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); border: 0 !important; display: grid; place-items: center; flex-shrink: 0; }
+        .m-btn-row .btn-round { width: 50px; height: 50px; background: white !important; color: #333 !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); border: 0 !important; display: grid; place-items: center; flex-shrink: 0; }
         .m-btn-row .btn-main { width: 68px !important; height: 68px !important; }
 
         #m-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999; display: none; }
-        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: #4d7c5f; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
+        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: rgba(255,255,255,0.1) !important; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
         .m-drawer.active { bottom: 0; }
         
         #m-pl-cards { display: flex; gap: 0px; overflow-x: auto; padding: 15px 20px 0 20px; flex-shrink: 0; border-bottom: 1.5px solid rgba(255, 255, 255, 0.1); }
@@ -265,7 +267,7 @@
         .upload-hint span { font-size: 11px; font-weight: 900; color: white; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
 
         @media (max-width: 768px) { 
-            #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
+            #admin-box { width: 90% !important; max-width: 440px; background: rgba(0,0,0,0.85) !important; border-radius: 30px; height: 85vh; -webkit-backdrop-filter: blur(50px); backdrop-filter: blur(50px); } 
             .admin-header { padding: 12px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 60px; flex-wrap: wrap; }
             #admin-header-center { flex: none; width: 100%; order: 10; padding: 10px 0; }
             .browser-tab { min-width: 60px; max-width: 100px; padding: 0 8px; cursor: pointer; }
@@ -310,7 +312,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.7</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.0</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -369,6 +371,7 @@
     </div>
 
     <div id="m-player" class="mobile-player-container">
+        <div id="m-bg-fluid"></div>
         <header class="m-header">
             <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-transparent"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4.2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div>
             <h1 class="text-xl font-black text-white">Sarah</h1>
@@ -397,10 +400,10 @@
                 </div>
                 <div class="m-btn-row">
                     <div id="m-mode-btn" onclick="toggleMode()" class="btn-round !bg-white !text-[#4d7c5f]"><svg id="m-mode-icon" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
-                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[#4d7c5f]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
-                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[#4d7c5f]"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
-                    <div onclick="handleNext()" class="btn-round !bg-white !text-[#4d7c5f]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
-                    <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-white !text-[#4d7c5f]"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4.2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></div>
+                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[#333]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
+                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[#333]"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
+                    <div onclick="handleNext()" class="btn-round !bg-white !text-[#333]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
+                    <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-white !text-[#333]"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4.2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></div>
                 </div>
             </div>
         </footer>
@@ -421,7 +424,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.7</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.0</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -714,15 +717,15 @@
         function updateBackground(isForceRandom = false) { 
             const isMob = window.innerWidth <= 768; 
             if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; } 
-            const theme = solaraTheme[currentThemeIdx]; const finalBg = isMob ? '#4d7c5f' : theme.bg;
+            const theme = solaraTheme[currentThemeIdx]; const finalBg = isMob ? 'transparent' : theme.bg;
             
             // 物理染色：同步状态栏与 meta theme-color
             const metaTheme = document.querySelector('meta[name="theme-color"]'); 
-            if(metaTheme) metaTheme.setAttribute('content', finalBg);
-            document.body.style.backgroundColor = finalBg;
+            if(metaTheme) metaTheme.setAttribute('content', isMob ? '#000000' : finalBg);
+            document.body.style.backgroundColor = isMob ? '#000000' : finalBg;
             
             const stage = document.getElementById('bg-stage'), overlay = document.getElementById('bg-overlay');
-            const newGrad = isMob ? '#4d7c5f' : `linear-gradient(135deg, ${theme.bg} 0%, ${theme.deep} 100%)`;
+            const newGrad = isMob ? '#000000' : `linear-gradient(135deg, ${theme.bg} 0%, ${theme.deep} 100%)`;
             
             if (isForceRandom) {
                 overlay.style.background = newGrad; overlay.style.opacity = '1';
@@ -747,7 +750,7 @@
                     el.style.cssText = "color:white !important; border: 1px solid rgba(255,255,255,0.25) !important; background: rgba(255,255,255,0.15) !important;";
                     return;
                 }
-                if(!el.classList.contains('!bg-white/10') && !el.parentElement.classList.contains('m-header') && !el.closest('#admin-panel')) { el.style.background = isMob ? '#ffffff' : theme.accent; el.style.color = isMob ? '#4d7c5f' : 'white'; }
+                if(!el.classList.contains('!bg-white/10') && !el.parentElement.classList.contains('m-header') && !el.closest('#admin-panel')) { el.style.background = isMob ? '#ffffff' : theme.accent; el.style.color = isMob ? '#333' : 'white'; }
             });
             renderAdminPlaylistTabs();
         }
@@ -776,6 +779,12 @@
             ['ui-title', 'm-ui-title'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.title; });
             ['ui-artist', 'm-ui-artist'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.artist; });
             
+            // 物理注入移动端沉浸式封面背景
+            if(window.innerWidth <= 768) {
+               const mBgFluid = document.getElementById('m-bg-fluid');
+               if(mBgFluid) mBgFluid.style.backgroundImage = song.cover ? `url('${song.cover}')` : 'none';
+            }
+
             if (!song.lrc) {
                // 核心优化：异步拉取歌词
                dbOp('get_lrc', { file_id: song.file_id }).then(res => {
