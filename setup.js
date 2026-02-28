@@ -5,13 +5,13 @@ const { execSync } = require('child_process');
 /**
  * Sarah MUSIC 旗舰全功能重构版 10.1.5
  * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
- * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
+ * 2. 带宽优化：移除移动端预载限制，允许 PWA 息屏状态下提前解析下一首，实现无限连播。
  * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
  * 4. 版本同步：全面对齐 HTML 文本与控制台日志的版本号标识。
  * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.5 (修复息屏连播限制 & 优化 PWA 后台握手策略)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.5 (移除指定棕色主题 & 扩展16组高级配色 & 修复息屏连播)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
@@ -661,13 +661,22 @@ files['index.html'] = `<!DOCTYPE html>
 
         const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
         const solaraTheme = [
-            { bg: '#c7f9cc', accent: '#2d6a4f', deep: '#1b4332' }, 
-            { bg: '#f4acb7', accent: '#9d0208', deep: '#641212' }, { bg: '#a2d2ff', accent: '#0077b6', deep: '#1e3a8a' }, 
-            { bg: '#ede0d4', accent: '#7f5539', deep: '#4b3832' }, { bg: '#cdb4db', accent: '#5e548e', deep: '#2e1065' }, 
-            { bg: '#ffc8dd', accent: '#ec407a', deep: '#f5b8cf' }, { bg: '#e9d8a6', accent: '#9b2226', deep: '#7b241c' }, 
-            { bg: '#f8fafc', accent: '#0ea5e9', deep: '#0c4a6e' }, { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' }, 
-            { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' }, { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' }, 
-            { bg: '#f1f5f9', accent: '#64748b', deep: '#0f172a' }
+            { bg: '#f0fdf4', accent: '#10b981', deep: '#064e3b' },
+            { bg: '#fff1f2', accent: '#fb7185', deep: '#881337' },
+            { bg: '#f0f9ff', accent: '#0ea5e9', deep: '#0c4a6e' },
+            { bg: '#faf5ff', accent: '#a855f7', deep: '#3b0764' },
+            { bg: '#fdf4ff', accent: '#d946ef', deep: '#701a75' },
+            { bg: '#fff7ed', accent: '#f97316', deep: '#7c2d12' },
+            { bg: '#f8fafc', accent: '#64748b', deep: '#0f172a' },
+            { bg: '#fdf2f8', accent: '#ec4899', deep: '#831843' },
+            { bg: '#f0fdfa', accent: '#14b8a6', deep: '#134e4a' },
+            { bg: '#fafaf9', accent: '#78716c', deep: '#292524' },
+            { bg: '#eef2ff', accent: '#6366f1', deep: '#1e1b4b' },
+            { bg: '#fffbeb', accent: '#d97706', deep: '#78350f' },
+            { bg: '#f7fee7', accent: '#65a30d', deep: '#1a2e05' },
+            { bg: '#020617', accent: '#38bdf8', deep: '#000000' },
+            { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' },
+            { bg: '#fff5f7', accent: '#f472b6', deep: '#831843' }
         ];
 
         async function dbOp(action, data = {}) {
@@ -854,7 +863,7 @@ files['index.html'] = `<!DOCTYPE html>
                 ['total-time', 'm-total-time'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = fmtTime(dur); });
                 syncLyrics(cur);
 
-                // 核心修复：放开预载限制，允许移动端/PWA 提前握手缓存下一首地址
+                // 物理移除移动端预载限制，解决息屏后连播中断
                 if (dur > 0 && cur / dur > 0.7 && ap.list.audios.length > 1) {
                     const nextIdx = (ap.list.index + 1) % ap.list.audios.length;
                     const nextAudio = ap.list.audios[nextIdx];
@@ -1019,7 +1028,7 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function renderCustomTabs() { 
-            // 核心修复：物理移除乱码 LaTeX 包装器 \text{}
+            // 物理修复：移除 10.1.3 LaTeX 乱码残留包装
             document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); 
         }
         
@@ -1526,7 +1535,7 @@ files['index.html'] = `<!DOCTYPE html>
             if(s) { 
                 if (!libState.playlists) return;
                 const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p)=>({id:p.id,name:p.name}))];
-                document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div data-id="\${c.id}" onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\text{\${c.name}}</div>\`.replace('text{\${c.name}}', c.name));
+                document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div data-id="\${c.id}" onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\${c.name}</div>\`).join('');
                 d.classList.add('active'); o.style.display = 'block'; 
                 renderAllLists();
                 if(!fromPop) history.pushState({stage:'drawer'}, '');
@@ -1558,6 +1567,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.5 构建成功。列表乱码已根治，息屏播放已优化。');
+        console.log('\n✅ Sarah MUSIC 10.1.5 构建成功。主题已更新至16组高级配色，息屏播放性能已解锁。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
