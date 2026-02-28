@@ -3,15 +3,15 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.7
- * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
- * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
- * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
- * 4. 版本同步：全面对齐 HTML 文本与控制台日志的版本号标识。
- * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
+ * Sarah MUSIC 旗舰全功能重构版 10.1.8
+ * 1. 极致秒开：引入 Cache API 离线化接口数据，实现进站即见列表，后台静默同步。
+ * 2. 视觉进化：手机端左上角新增深浅模式切换，支持高级黑与经典绿一键转换。
+ * 3. 性能优化：保留 768px 以下物理禁用后台预载机制，消除资源竞争。
+ * 4. 预览增强：保留预览操作对背景层的静默调用，歌单标签高亮即时跟随。
+ * 5. 格式保真：1:1 还原管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.7 (增加列表条目鼠标悬浮视觉反馈)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.8 (支持接口数据离线秒开 & 移动端高级深色模式)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
@@ -202,7 +202,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1017';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1018';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -345,7 +345,7 @@ files['index.html'] = `<!DOCTYPE html>
         .m-btn-row .btn-main { width: 68px !important; height: 68px !important; }
 
         #m-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999; display: none; }
-        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: #4d7c5f; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
+        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: var(--m-green); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
         .m-drawer.active { bottom: 0; }
         
         #m-pl-cards { display: flex; gap: 0px; overflow-x: auto; padding: 15px 20px 0 20px; flex-shrink: 0; border-bottom: 1.5px solid rgba(255, 255, 255, 0.1); }
@@ -519,7 +519,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.7</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.8</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -579,10 +579,14 @@ files['index.html'] = `<!DOCTYPE html>
 
     <div id="m-player" class="mobile-player-container">
         <header class="m-header">
-            <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-transparent"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4.2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div>
+            <!-- 模式切换按钮 (取代原搜索) -->
+            <div onclick="toggleTheme()" class="btn-round !bg-transparent">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 2v20"/><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"/>
+                </svg>
+            </div>
             <h1 class="text-xl font-black text-white">Sarah</h1>
             <div onclick="toggleAdmin(true)" class="btn-round !bg-transparent flex items-center justify-center p-0">
-                <!-- 移动端图标同步重构：Sliders 图标 -->
                 <svg class="w-6 h-6 flex-shrink-0" style="shape-rendering: crispEdges;" fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>
                 </svg>
@@ -599,7 +603,7 @@ files['index.html'] = `<!DOCTYPE html>
                     <div id="m-scrubber-wrap" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd(event)">
                         <div id="m-scrubber" class="rail !bg-white/10">
                             <div class="buffer-fill !bg-white/25" id="m-prog-buffer"></div>
-                            <div class="fill !bg-white" id="m-prog-bar"><div class="dot !right-[-8px] !w-[16px] !h-[16px] !border-[2px] !border-white !bg-[#4d7c5f]"></div></div>
+                            <div class="fill !bg-white" id="m-prog-bar"><div class="dot !right-[-8px] !w-[16px] !h-[16px] !border-[2px] !border-white"></div></div>
                         </div>
                     </div>
                     <div class="m-time-row"><span id="m-cur-time" class="m-time-text">00:00</span><span id="m-total-time" class="m-time-text">00:00</span></div>
@@ -630,7 +634,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.7</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.8</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -660,7 +664,7 @@ files['index.html'] = `<!DOCTYPE html>
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
         let globalUploadQueue = [], uploadActiveWorkers = 0, preloadedFids = new Set();
         let renderCount = 20, pageSize = 20, isPlaylistSwitching = false, globalActiveListId = 'fav';
-        let lastBackgroundUpdateId = null;
+        let lastBackgroundUpdateId = null, isDarkMode = false;
 
         const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
         const solaraTheme = [
@@ -710,12 +714,30 @@ files['index.html'] = `<!DOCTYPE html>
                 }).catch(() => {});
             }
             try {
+                // 秒开逻辑：优先从 Cache API 读取
+                const cache = await caches.open('api-cache');
+                const cachedRes = await cache.match('/api/songs');
+                if (cachedRes) {
+                    const cachedData = await cachedRes.json();
+                    libState = cachedData; db = libState.songs;
+                    buildIndexMap(); renderCustomTabs(); setupPlayer(); renderAllLists();
+                }
+
+                // 同步逻辑：后台拉取最新数据
                 const res = await fetch('/api/songs'); const raw = await res.json();
                 if (raw.error) { console.error("D1 Loader Error"); return; }
-                libState = raw; db = libState.songs;
-                buildIndexMap(); renderCustomTabs(); 
-                setupPlayer(); 
-                renderAllLists(); 
+                
+                // 更新缓存
+                cache.put('/api/songs', new Response(JSON.stringify(raw)));
+                
+                // 如果数据有变动则刷新内存
+                if (JSON.stringify(libState) !== JSON.stringify(raw)) {
+                    libState = raw; db = libState.songs;
+                    buildIndexMap(); renderCustomTabs(); 
+                    setupPlayer(); 
+                    renderAllLists();
+                }
+
                 updateUIModes(); updateVolUI(lastVolume); 
                 window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
                 
@@ -749,6 +771,11 @@ files['index.html'] = `<!DOCTYPE html>
           try {
             const res = await fetch('/api/songs'); const raw = await res.json();
             if (raw.error) return;
+            
+            // 同步更新秒开缓存
+            const cache = await caches.open('api-cache');
+            cache.put('/api/songs', new Response(JSON.stringify(raw)));
+
             let curFid = null;
             if(ap && ap.list.audios[ap.list.index]) {
                 curFid = new URL(ap.list.audios[ap.list.index].url, window.location.origin).searchParams.get('file_id');
@@ -923,7 +950,12 @@ files['index.html'] = `<!DOCTYPE html>
         function updateBackground(isForceRandom = false) { 
             const isMob = window.innerWidth <= 768; 
             if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; } 
-            const theme = solaraTheme[currentThemeIdx]; const finalBg = isMob ? '#4d7c5f' : theme.bg;
+            const theme = solaraTheme[currentThemeIdx]; 
+            
+            // 物理控制：根据深浅模式切换移动端基色
+            const currentMGreen = isMob && isDarkMode ? '#000000' : '#4d7c5f';
+            document.documentElement.style.setProperty('--m-green', currentMGreen);
+            const finalBg = isMob ? currentMGreen : theme.bg;
             
             // 物理染色：同步状态栏与 meta theme-color
             const metaTheme = document.querySelector('meta[name="theme-color"]'); 
@@ -931,7 +963,7 @@ files['index.html'] = `<!DOCTYPE html>
             document.body.style.backgroundColor = finalBg;
             
             const stage = document.getElementById('bg-stage'), overlay = document.getElementById('bg-overlay');
-            const newGrad = isMob ? '#4d7c5f' : \`linear-gradient(135deg, \${theme.bg} 0%, \${theme.deep} 100%)\`;
+            const newGrad = isMob ? currentMGreen : \`linear-gradient(135deg, \${theme.bg} 0%, \${theme.deep} 100%)\`;
             
             if (isForceRandom) {
                 overlay.style.background = newGrad; overlay.style.opacity = '1';
@@ -956,7 +988,10 @@ files['index.html'] = `<!DOCTYPE html>
                     el.style.cssText = "color:white !important; border: 1px solid rgba(255,255,255,0.25) !important; background: rgba(255,255,255,0.15) !important;";
                     return;
                 }
-                if(!el.classList.contains('!bg-white/10') && !el.parentElement.classList.contains('m-header') && !el.closest('#admin-panel')) { el.style.background = isMob ? '#ffffff' : theme.accent; el.style.color = isMob ? '#4d7c5f' : 'white'; }
+                if(!el.classList.contains('!bg-white/10') && !el.parentElement.classList.contains('m-header') && !el.closest('#admin-panel')) { 
+                    el.style.background = isMob ? '#ffffff' : theme.accent; 
+                    el.style.color = isMob ? (isDarkMode ? '#000000' : '#4d7c5f') : 'white'; 
+                }
             });
             renderAdminPlaylistTabs();
         }
@@ -1106,7 +1141,7 @@ files['index.html'] = `<!DOCTYPE html>
             // 安全指令：确保索引有效后同步执行播放动作
             if (targetIdx !== -1 && ap.list.audios[targetIdx]) {
                 globalPlayingId = fid;
-                // 物理重置进度：切歌瞬间强行归零播放条与缓存条，防止旧数据残留视觉。
+                // 物理重置进度：切歌瞬间强行归零播放条与缓存条，防止旧数据残留视觉.
                 ['prog-bar', 'm-prog-bar', 'prog-buffer', 'm-prog-buffer'].forEach(id => {
                     const el = document.getElementById(id);
                     if(el) el.style.width = "0%";
@@ -1213,6 +1248,11 @@ files['index.html'] = `<!DOCTYPE html>
                     renderAllLists();
                 } 
             }); 
+        }
+
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            updateBackground(false);
         }
 
         function switchList(t) { 
@@ -1570,7 +1610,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.7 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.8 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1578,6 +1618,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.7 构建成功。列表条目悬浮视觉反馈已生效，物理保真度 100%。');
+        console.log('\n✅ Sarah MUSIC 10.1.8 构建成功。接口数据秒开已生效，移动端深色模式切换已部署。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
