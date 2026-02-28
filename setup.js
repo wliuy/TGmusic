@@ -3,15 +3,15 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.2.4
- * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题.
- * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放.
- * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图.
- * 4. 版本同步：全面对齐 HTML 文本与控制台日志的版本号标识.
- * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致.
+ * Sarah MUSIC 旗舰全功能重构版 10.1.7
+ * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
+ * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
+ * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
+ * 4. 版本同步：全面对齐 HTML 文本与控制台日志的版本号标识。
+ * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.2.4 (适配纯黑深邃状态栏)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.7 (增加列表条目鼠标悬浮视觉反馈)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
@@ -202,7 +202,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1024';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1017';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -214,7 +214,7 @@ files['index.html'] = `<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#4d7c5f">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Sarah">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" sizes="192x192" href="https://tc.yang.pp.ua/file/logo/sarah-y.png">
@@ -311,24 +311,21 @@ files['index.html'] = `<!DOCTYPE html>
         .cover-img { width: 100%; height: 100%; object-fit: cover; transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10; position: absolute; inset: 0; }
         .cover-placeholder { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; background: var(--logo-url); background-size: cover; background-position: center; }
 
-        .mobile-player-container { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px; background: #222; }
-        #m-bg-fluid { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: center; filter: blur(80px) brightness(0.6); transform: scale(1.2); transition: background-image 1.2s ease-in-out; }
+        .mobile-player-container { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px; background: var(--m-green); }
         .m-header { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: transparent; border: 0; }
         .m-header .btn-round { background: transparent !important; border: 0 !important; box-shadow: none !important; width: 44px; height: 44px; color: white !important; z-index: 210; }
 
         .m-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; width: 100%; padding: 45px 0 0 0; }
-        .m-controls-capsule { background: transparent !important; border: 0; padding: 0 15px 45px 15px; width: 100%; flex-shrink: 0; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+        .m-controls-capsule { background: transparent; border: 0; padding: 0 15px 45px 15px; width: 100%; flex-shrink: 0; }
         #m-scrubber-wrap { position: relative; height: 32px; display: flex; align-items: center; cursor: pointer; touch-action: none; margin-bottom: -4px; z-index: 10; }
         #m-scrubber-wrap .rail { width: 100%; height: 4px; border-radius: 10px; }
-        #m-prog-bar .dot { background: var(--dynamic-accent) !important; border: 2px solid white; }
 
         @keyframes disc-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .m-disc-container { width: 72vw; max-width: 280px; aspect-ratio: 1/1; position: relative; flex-shrink: 0; background: transparent !important; border-radius: 50% !important; isolation: isolate; margin: 0px 0; }
         .m-disc-shadow-layer { position: absolute; inset: -45px; border-radius: 50%; background: radial-gradient(circle at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.15) 45%, transparent 72%); z-index: 0; pointer-events: none; }
-        .m-disc-clipping { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50% !important; overflow: hidden !important; border: 6px solid rgba(255,255,255,0.15); clip-path: circle(50% at 50% 50%); -webkit-mask-image: -webkit-radial-gradient(white, black); z-index: 5; animation: disc-rotate 25s linear infinite; animation-play-state: paused; background: #000; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.5); }
-        .m-disc-clipping::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: repeating-radial-gradient(circle at center, transparent 0, transparent 4px, rgba(255,255,255,0.03) 5px, transparent 6px); pointer-events: none; z-index: 10; }
+        .m-disc-clipping { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50% !important; overflow: hidden !important; border: 6px solid rgba(255,255,255,0.12); clip-path: circle(50% at 50% 50%); -webkit-mask-image: -webkit-radial-gradient(white, black); z-index: 5; animation: disc-rotate 25s linear infinite; animation-play-state: paused; }
         .m-disc-container.playing .m-disc-clipping { animation-play-state: running; }
-        .m-disc-clipping img { width: 100%; height: 100%; object-fit: cover; border-radius: 50% !important; opacity: 0.9; }
+        .m-disc-clipping img { width: 100%; height: 100%; object-fit: cover; border-radius: 50% !important; }
 
         .m-lyrics-panel { flex: 1; width: 100%; height: auto !important; position: relative; display: flex; flex-direction: column; align-items: center; overflow-y: auto; scroll-behavior: smooth; mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%); pointer-events: none; background: transparent !important; margin-bottom: 0px; margin-top: 10px; }
         .m-lyrics-panel::-webkit-scrollbar { display: none; }
@@ -343,12 +340,12 @@ files['index.html'] = `<!DOCTYPE html>
         .m-time-row { display: flex; justify-content: space-between; width: 100%; padding: 8px 2px 0 2px; margin-top: -4px; }
         .m-time-text { font-size: 10px; font-weight: 900; opacity: 0.5; color: white; }
         
-        .m-btn-row { display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(255,255,255,0.1); -webkit-backdrop-filter: blur(25px); backdrop-filter: blur(25px); border-radius: 24px; padding: 10px 20px; border: 1px solid rgba(255,255,255,0.1); margin-top: 12px; }
-        .m-btn-row .btn-round { width: 50px; height: 50px; background: white !important; color: var(--dynamic-accent) !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); border: 0 !important; display: grid; place-items: center; flex-shrink: 0; }
+        .m-btn-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding-top: 15px; }
+        .m-btn-row .btn-round { width: 50px; height: 50px; background: white !important; color: var(--m-green) !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); border: 0 !important; display: grid; place-items: center; flex-shrink: 0; }
         .m-btn-row .btn-main { width: 68px !important; height: 68px !important; }
 
         #m-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999; display: none; }
-        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: rgba(255,255,255,0.1) !important; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
+        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: #4d7c5f; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
         .m-drawer.active { bottom: 0; }
         
         #m-pl-cards { display: flex; gap: 0px; overflow-x: auto; padding: 15px 20px 0 20px; flex-shrink: 0; border-bottom: 1.5px solid rgba(255, 255, 255, 0.1); }
@@ -477,7 +474,7 @@ files['index.html'] = `<!DOCTYPE html>
         .upload-hint span { font-size: 11px; font-weight: 900; color: white; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
 
         @media (max-width: 768px) { 
-            #admin-box { width: 90% !important; max-width: 440px; background: rgba(0,0,0,0.85) !important; border-radius: 30px; height: 85vh; -webkit-backdrop-filter: blur(50px); backdrop-filter: blur(50px); } 
+            #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
             .admin-header { padding: 12px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 60px; flex-wrap: wrap; }
             #admin-header-center { flex: none; width: 100%; order: 10; padding: 10px 0; }
             .browser-tab { min-width: 60px; max-width: 100px; padding: 0 8px; cursor: pointer; }
@@ -522,7 +519,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.4</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.7</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -581,7 +578,6 @@ files['index.html'] = `<!DOCTYPE html>
     </div>
 
     <div id="m-player" class="mobile-player-container">
-        <div id="m-bg-fluid"></div>
         <header class="m-header">
             <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-transparent"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4.2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div>
             <h1 class="text-xl font-black text-white">Sarah</h1>
@@ -599,21 +595,21 @@ files['index.html'] = `<!DOCTYPE html>
         </main>
         <footer class="m-controls-capsule">
             <div class="m-controls">
-                <div class="w-full px-2">
+                <div class="w-full">
                     <div id="m-scrubber-wrap" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd(event)">
                         <div id="m-scrubber" class="rail !bg-white/10">
                             <div class="buffer-fill !bg-white/25" id="m-prog-buffer"></div>
-                            <div class="fill !bg-white" id="m-prog-bar"><div class="dot !right-[-8px] !w-[16px] !h-[16px] !border-[2px] !border-white"></div></div>
+                            <div class="fill !bg-white" id="m-prog-bar"><div class="dot !right-[-8px] !w-[16px] !h-[16px] !border-[2px] !border-white !bg-[#4d7c5f]"></div></div>
                         </div>
                     </div>
                     <div class="m-time-row"><span id="m-cur-time" class="m-time-text">00:00</span><span id="m-total-time" class="m-time-text">00:00</span></div>
                 </div>
                 <div class="m-btn-row">
-                    <div id="m-mode-btn" onclick="toggleMode()" class="btn-round !bg-white"><svg id="m-mode-icon" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
-                    <div onclick="handlePrev()" class="btn-round !bg-white"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
-                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
-                    <div onclick="handleNext()" class="btn-round !bg-white"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
-                    <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4.2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></div>
+                    <div id="m-mode-btn" onclick="toggleMode()" class="btn-round !bg-white !text-[#4d7c5f]"><svg id="m-mode-icon" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
+                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[#4d7c5f]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
+                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[#4d7c5f]"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
+                    <div onclick="handleNext()" class="btn-round !bg-white !text-[#4d7c5f]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
+                    <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-white !text-[#4d7c5f]"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4.2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></div>
                 </div>
             </div>
         </footer>
@@ -634,7 +630,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.4</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.7</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -927,15 +923,15 @@ files['index.html'] = `<!DOCTYPE html>
         function updateBackground(isForceRandom = false) { 
             const isMob = window.innerWidth <= 768; 
             if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; } 
-            const theme = solaraTheme[currentThemeIdx]; const finalBg = isMob ? 'transparent' : theme.bg;
+            const theme = solaraTheme[currentThemeIdx]; const finalBg = isMob ? '#4d7c5f' : theme.bg;
             
             // 物理染色：同步状态栏与 meta theme-color
             const metaTheme = document.querySelector('meta[name="theme-color"]'); 
-            if(metaTheme) metaTheme.setAttribute('content', isMob ? '#000000' : finalBg);
-            document.body.style.backgroundColor = isMob ? '#000000' : finalBg;
+            if(metaTheme) metaTheme.setAttribute('content', finalBg);
+            document.body.style.backgroundColor = finalBg;
             
             const stage = document.getElementById('bg-stage'), overlay = document.getElementById('bg-overlay');
-            const newGrad = isMob ? '#000000' : \`linear-gradient(135deg, \${theme.bg} 0%, \${theme.deep} 100%)\`;
+            const newGrad = isMob ? '#4d7c5f' : \`linear-gradient(135deg, \${theme.bg} 0%, \${theme.deep} 100%)\`;
             
             if (isForceRandom) {
                 overlay.style.background = newGrad; overlay.style.opacity = '1';
@@ -946,7 +942,7 @@ files['index.html'] = `<!DOCTYPE html>
 
             if(!isMob) { const mainUI = document.getElementById('main-ui'); if(mainUI) mainUI.style.background = \`linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%)\`; }
 
-            document.documentElement.style.setProperty('--dynamic-accent', isMob ? theme.accent : theme.accent);
+            document.documentElement.style.setProperty('--dynamic-accent', isMob ? '#ffffff' : theme.accent);
             const listTabs = document.querySelectorAll('#tabs-scroll div, .m-pl-card');
             listTabs.forEach(el => {
                 const tabId = el.getAttribute('id') || ''; 
@@ -960,7 +956,7 @@ files['index.html'] = `<!DOCTYPE html>
                     el.style.cssText = "color:white !important; border: 1px solid rgba(255,255,255,0.25) !important; background: rgba(255,255,255,0.15) !important;";
                     return;
                 }
-                if(!el.classList.contains('!bg-white/10') && !el.parentElement.classList.contains('m-header') && !el.closest('#admin-panel')) { el.style.background = isMob ? '#ffffff' : theme.accent; el.style.color = isMob ? theme.accent : 'white'; }
+                if(!el.classList.contains('!bg-white/10') && !el.parentElement.classList.contains('m-header') && !el.closest('#admin-panel')) { el.style.background = isMob ? '#ffffff' : theme.accent; el.style.color = isMob ? '#4d7c5f' : 'white'; }
             });
             renderAdminPlaylistTabs();
         }
@@ -989,12 +985,6 @@ files['index.html'] = `<!DOCTYPE html>
             ['ui-title', 'm-ui-title'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.title; });
             ['ui-artist', 'm-ui-artist'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.artist; });
             
-            // 物理注入移动端沉浸式封面背景
-            if(window.innerWidth <= 768) {
-               const mBgFluid = document.getElementById('m-bg-fluid');
-               if(mBgFluid) mBgFluid.style.backgroundImage = song.cover ? \`url('\${song.cover}')\` : 'none';
-            }
-
             if (!song.lrc) {
                // 核心优化：异步拉取歌词
                dbOp('get_lrc', { file_id: song.file_id }).then(res => {
@@ -1116,7 +1106,7 @@ files['index.html'] = `<!DOCTYPE html>
             // 安全指令：确保索引有效后同步执行播放动作
             if (targetIdx !== -1 && ap.list.audios[targetIdx]) {
                 globalPlayingId = fid;
-                // 物理重置进度：切歌瞬间强行归零播放条与缓存条，防止旧数据残留视觉.
+                // 物理重置进度：切歌瞬间强行归零播放条与缓存条，防止旧数据残留视觉。
                 ['prog-bar', 'm-prog-bar', 'prog-buffer', 'm-prog-buffer'].forEach(id => {
                     const el = document.getElementById(id);
                     if(el) el.style.width = "0%";
@@ -1580,7 +1570,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.2.4 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.7 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1588,6 +1578,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.2.4 构建成功。深邃纯黑状态栏完美适配。');
+        console.log('\n✅ Sarah MUSIC 10.1.7 构建成功。列表条目悬浮视觉反馈已生效，物理保真度 100%。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
