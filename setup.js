@@ -3,7 +3,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.4
+ * Sarah MUSIC 旗舰全功能重构版 10.1.5
  * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
  * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
  * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
@@ -11,10 +11,10 @@ const { execSync } = require('child_process');
  * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.4 (实现返回键后台播放逻辑 & 伪路由层级重构)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.5 (修复息屏连播限制 & 优化 PWA 后台握手策略)';
 const files = {};
 
-// --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放稳定) ---
+// --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
 files['functions/api/stream.js'] = `let urlCache = new Map();
 export async function onRequest(context) {
   const { request, env } = context;
@@ -202,7 +202,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1014';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1015';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -516,7 +516,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.4</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.5</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -627,7 +627,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.4</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.5</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -707,22 +707,18 @@ files['index.html'] = `<!DOCTYPE html>
                 updateUIModes(); updateVolUI(lastVolume); 
                 window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
                 
-                // 移动端返回键后台优化：建立伪路由层级，物理拦截 PWA 退出
+                // 移动端返回键优化：注入初始伪路由
                 history.replaceState({stage:'main'}, '');
-                history.pushState({stage:'base'}, ''); 
                 window.onpopstate = (e) => {
                     const drawer = document.getElementById('m-drawer');
                     const admin = document.getElementById('admin-panel');
                     const selector = document.getElementById('playlist-selector-modal');
                     const dialog = document.getElementById('sarah-dialog');
                     
-                    if (dialog && !dialog.classList.contains('hidden')) { closeSarahDialog(); }
-                    else if (selector && !selector.classList.contains('hidden')) { closePlaylistSelector(); }
-                    else if (admin && admin.classList.contains('active')) { toggleAdmin(false, true); }
-                    else if (drawer && drawer.classList.contains('active')) { toggleMobileDrawer(false, true); }
-                    
-                    // 核心纠偏：点击返回时物理补位，确保历史深度永不落空，使 PWA 维持在系统后台
-                    history.pushState({stage:'base'}, '');
+                    if (dialog && !dialog.classList.contains('hidden')) { closeSarahDialog(); return; }
+                    if (selector && !selector.classList.contains('hidden')) { closePlaylistSelector(); return; }
+                    if (admin && admin.classList.contains('active')) { toggleAdmin(false, true); return; }
+                    if (drawer && drawer.classList.contains('active')) { toggleMobileDrawer(false, true); return; }
                 };
 
                 if (libState.favorites.length > 0) { 
@@ -858,8 +854,8 @@ files['index.html'] = `<!DOCTYPE html>
                 ['total-time', 'm-total-time'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = fmtTime(dur); });
                 syncLyrics(cur);
 
-                // 带宽优化：移动端禁用起播抢占。
-                if (dur > 0 && cur / dur > 0.7 && window.innerWidth > 768 && ap.list.audios.length > 1) {
+                // 核心修复：放开预载限制，允许移动端/PWA 提前握手缓存下一首地址
+                if (dur > 0 && cur / dur > 0.7 && ap.list.audios.length > 1) {
                     const nextIdx = (ap.list.index + 1) % ap.list.audios.length;
                     const nextAudio = ap.list.audios[nextIdx];
                     const nextFid = new URLSearchParams(nextAudio.url.split('?')[1]).get('file_id');
@@ -988,7 +984,7 @@ files['index.html'] = `<!DOCTYPE html>
             const renderL = (id) => {
                 const el = document.getElementById(id); if(!el) return;
                 if (!lrcLines.length) { el.innerHTML = '<div class="lrc-line active !opacity-30">暂无歌词</div>'; el.classList.add('justify-center'); }
-                else { el.classList.remove('justify-center'); el.innerHTML = '<div style="height:65px;flex-shrink:0;"></div>' + lrcLines.map((l, i) => \`<div class="lrc-line" id="\${id}-lrc-\${i}" onclick="ap.seek(\${l.t})">\text{\${l.text}}</div>\`).join('') + '<div style="height:65px;flex-shrink:0;"></div>'; }
+                else { el.classList.remove('justify-center'); el.innerHTML = '<div style="height:65px;flex-shrink:0;"></div>' + lrcLines.map((l, i) => \`<div class="lrc-line" id="\${id}-lrc-\${i}" onclick="ap.seek(\${l.t})">\${l.text}</div>\`).join('') + '<div style="height:65px;flex-shrink:0;"></div>'; }
             };
             renderL('lrc-view'); renderL('m-lrc-flow');
         }
@@ -1023,7 +1019,7 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function renderCustomTabs() { 
-            // 核心修复：物理移除 10.1.3 残留的所有乱码字符转义
+            // 核心修复：物理移除乱码 LaTeX 包装器 \text{}
             document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); 
         }
         
@@ -1087,7 +1083,7 @@ files['index.html'] = `<!DOCTYPE html>
                 if (foundIdx !== -1) targetIdx = foundIdx; 
             }
             
-            // 安全指令：确保起播即刻触发
+            // 安全指令：确保索引有效后同步执行播放动作
             if (targetIdx !== -1 && ap.list.audios[targetIdx]) {
                 globalPlayingId = fid;
                 // 物理重置进度：切歌瞬间强行归零播放条与缓存条，防止旧数据残留视觉。
@@ -1207,7 +1203,7 @@ files['index.html'] = `<!DOCTYPE html>
             const container = document.getElementById(window.innerWidth <= 768 ? 'm-list-view' : 'list-view');
             if (container) container.scrollTop = 0;
             updateBackground(false); 
-            // 物理修复：推入虚拟路由，使 PWA 拦截返回键
+            // 返回键支持：注入 UI 路由状态
             history.pushState({stage:'drawer'}, '');
             setTimeout(() => { isPlaylistSwitching = false; }, 200); 
         }
@@ -1530,7 +1526,7 @@ files['index.html'] = `<!DOCTYPE html>
             if(s) { 
                 if (!libState.playlists) return;
                 const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p)=>({id:p.id,name:p.name}))];
-                document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div data-id="\${c.id}" onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\${c.name}</div>\`).join('');
+                document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div data-id="\${c.id}" onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\text{\${c.name}}</div>\`.replace('text{\${c.name}}', c.name));
                 d.classList.add('active'); o.style.display = 'block'; 
                 renderAllLists();
                 if(!fromPop) history.pushState({stage:'drawer'}, '');
@@ -1554,7 +1550,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.4 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.5 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1562,6 +1558,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.4 构建成功。列表乱码已清除，伪路由后台常驻逻辑已部署。');
+        console.log('\n✅ Sarah MUSIC 10.1.5 构建成功。列表乱码已根治，息屏播放已优化。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
