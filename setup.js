@@ -3,45 +3,36 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.2.1
+ * Sarah MUSIC 旗舰全功能重构版 10.1.5
  * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
- * 2. 极致性能：引入真正的虚拟化渲染技术（Virtual List），万级歌单滑动内存占用恒定，无卡顿感。
- * 3. 持久加速：利用 D1 持久化直链缓存与 SQL 聚合查询，物理压榨服务端响应耗时。
- * 4. 离线秒开：引入 IndexedDB 缓存歌曲元数据，实现第二次打开近乎 0ms 的瞬开体验。
- * 5. 封面优化：实施封面微缩图代理策略，列表滑动带宽降低 90%，杜绝解码发热。
+ * 2. 带宽优化：移除移动端预载限制，允许 PWA 息屏状态下提前解析下一首，实现无限连播。
+ * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
+ * 4. 版本同步：全面对齐 HTML 文本与控制台日志的版本号标识。
+ * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.2.1 (D1持久缓存 & SQL聚合 & IndexedDB离线秒开)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.5 (移除指定棕色主题 & 扩展16组高级配色 & 修复息屏连播)';
 const files = {};
 
-// --- API: 流媒体传输 (引入 D1 持久化缓存 & 微缩图逻辑) ---
-files['functions/api/stream.js'] = `export async function onRequest(context) {
+// --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
+files['functions/api/stream.js'] = `let urlCache = new Map();
+export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const fileId = url.searchParams.get('file_id');
-  const isThumb = url.searchParams.get('thumb') === '1';
   const BOT_TOKEN = env.TG_Bot_Token;
   if (!fileId || !BOT_TOKEN) return new Response("Params error", { status: 400 });
   try {
-    const cacheKey = isThumb ? "thumb_" + fileId : fileId;
-    const cached = await env.DB.prepare("SELECT url, expiry FROM link_cache WHERE id = ?").bind(cacheKey).first();
+    let cacheItem = urlCache.get(fileId);
     let downloadUrl = "";
-    if (cached && Date.now() < cached.expiry) {
-      downloadUrl = cached.url;
+    if (cacheItem && Date.now() < cacheItem.expiry) {
+      downloadUrl = cacheItem.url;
     } else {
       const getFileUrl = "https://api.telegram.org/bot" + BOT_TOKEN + "/getFile?file_id=" + fileId;
       const fileInfo = await (await fetch(getFileUrl)).json();
       if (!fileInfo.ok) return new Response("TG API Fault", { status: 400 });
-      if (isThumb && fileInfo.result.photo) {
-        const photos = fileInfo.result.photo;
-        const thumbFid = photos[0].file_id; 
-        const thumbInfo = await (await fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/getFile?file_id=" + thumbFid)).json();
-        downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + thumbInfo.result.file_path;
-      } else {
-        downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + fileInfo.result.file_path;
-      }
-      await env.DB.prepare("INSERT INTO link_cache (id, url, expiry) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET url=?2, expiry=?3")
-        .bind(cacheKey, downloadUrl, Date.now() + 3600000).run();
+      downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + fileInfo.result.file_path;
+      urlCache.set(fileId, { url: downloadUrl, expiry: Date.now() + 1800000 });
     }
     const range = request.headers.get('Range');
     const fileRes = await fetch(downloadUrl, { headers: range ? { 'Range': range } : {} });
@@ -55,28 +46,23 @@ files['functions/api/stream.js'] = `export async function onRequest(context) {
   } catch (err) { return new Response("Service Error", { status: 500 }); }
 }`;
 
-// --- API: 列表获取 (核心优化：SQL 聚合 JOIN) ---
+// --- API: 列表获取 (核心优化：移除 DDL 延迟) ---
 files['functions/api/songs.js'] = `export async function onRequest(context) {
   const { env } = context;
   try {
-    const data = await env.DB.prepare(\`
-      SELECT s.*, GROUP_CONCAT(m.playlist_id) as p_ids 
-      FROM songs s 
-      LEFT JOIN playlist_mapping m ON s.file_id = m.file_id 
-      GROUP BY s.file_id
-    \`).all();
+    const songs = await env.DB.prepare("SELECT file_id, title, artist, cover FROM songs").all();
+    const mappings = await env.DB.prepare("SELECT * FROM playlist_mapping ORDER BY sort_order DESC").all();
     const playlists = await env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav')").all();
     
-    const results = data.results || [];
     const res = {
-      songs: results,
-      favorites: results.filter(s => s.p_ids?.includes('fav')).map(s => s.file_id),
+      songs: songs.results || [],
+      favorites: mappings.results.filter(m => m.playlist_id === 'fav').map(m => m.file_id),
       playlists: (playlists.results || []).sort((a, b) => (Number(b.sort_order) || 0) - (Number(a.sort_order) || 0)).map(p => ({
         id: p.id,
         name: p.name,
-        ids: results.filter(s => s.p_ids?.includes(p.id)).map(s => s.file_id)
+        ids: mappings.results.filter(m => m.playlist_id === p.id).map(m => m.file_id)
       })),
-      all_order: results.filter(s => s.p_ids?.includes('all')).map(s => s.file_id)
+      all_order: mappings.results.filter(m => m.playlist_id === 'all').map(m => m.file_id)
     };
     return new Response(JSON.stringify(res), { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
   } catch (err) { 
@@ -93,7 +79,6 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT)").run();
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT, sort_order INTEGER)").run();
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS playlist_mapping (playlist_id TEXT, file_id TEXT, sort_order INTEGER, PRIMARY KEY(playlist_id, file_id))").run();
-    await env.DB.prepare("CREATE TABLE IF NOT EXISTS link_cache (id TEXT PRIMARY KEY, url TEXT, expiry INTEGER)").run();
 
     const { action, data } = await request.json();
     if (action === 'get_lrc') {
@@ -217,7 +202,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1021';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1015';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -236,7 +221,7 @@ files['index.html'] = `<!DOCTYPE html>
     <title>Sarah</title>
     <link rel="icon" type="image/png" sizes="192x192" href="https://tc.yang.pp.ua/file/logo/sarah-y.png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/assets/APlayer.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;500;700;900&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -275,7 +260,7 @@ files['index.html'] = `<!DOCTYPE html>
         .content-layout { flex: 1; display: grid; grid-template-columns: 0.65fr 1fr 1fr; gap: 24px; overflow: hidden; max-height: 55%; margin: 10px 0; }
         .panel-box { background: var(--inner-glass); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.2); display: flex; flex-direction: column; overflow: hidden; }
         
-        .song-item { padding: 12px 16px; margin: 3px 8px; border-radius: 10px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; position: relative; padding-right: 110px; height: 50px; }
+        .song-item { padding: 12px 16px; margin: 3px 8px; border-radius: 10px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; position: relative; padding-right: 110px; }
         .song-item.active { background: rgba(255, 255, 255, 0.3); color: var(--dynamic-accent); font-weight: 900; }
         .song-title-text { font-size: 13px !important; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .song-artist-text { font-size: 11px !important; opacity: 0.5; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -531,7 +516,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.1</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.5</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -642,7 +627,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.1</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.5</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -663,7 +648,7 @@ files['index.html'] = `<!DOCTYPE html>
     </div>
 
     <div id="ap-hidden" style="display:none"></div>
-    <script src="/assets/APlayer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
     <script>
         let ap = null, db = [], lrcLines = [], currentTab = 'fav', tempMetaMap = new Map(), globalPlayingId = null;
         let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
@@ -671,8 +656,7 @@ files['index.html'] = `<!DOCTYPE html>
         let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
         let globalUploadQueue = [], uploadActiveWorkers = 0, preloadedFids = new Set();
-        const ITEM_H = 62;
-        let isPlaylistSwitching = false, globalActiveListId = 'fav';
+        let renderCount = 20, pageSize = 20, isPlaylistSwitching = false, globalActiveListId = 'fav';
         let lastBackgroundUpdateId = null;
 
         const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
@@ -712,19 +696,6 @@ files['index.html'] = `<!DOCTYPE html>
                if(el) el.style.display = id === 'main-ui' ? 'flex' : (window.innerWidth <= 768 ? 'flex' : 'none');
             });
 
-            // 极致秒开：优先从本地 IndexedDB 读取数据
-            const idbReq = indexedDB.open("SarahDB", 1);
-            idbReq.onupgradeneeded = (e) => e.target.result.createObjectStore("meta");
-            idbReq.onsuccess = (e) => {
-              const idb = e.target.result;
-              idb.transaction("meta").objectStore("meta").get("libState").onsuccess = (ev) => {
-                if(ev.target.result) {
-                  libState = ev.target.result; db = libState.songs;
-                  buildIndexMap(); renderCustomTabs(); setupPlayer(); renderAllLists();
-                }
-              };
-            };
-
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js').then(reg => {
                     reg.addEventListener('updatefound', () => {
@@ -743,10 +714,6 @@ files['index.html'] = `<!DOCTYPE html>
                 setupPlayer(); 
                 renderAllLists(); 
                 updateUIModes(); updateVolUI(lastVolume); 
-                // 同步本地数据库
-                const idbSync = indexedDB.open("SarahDB", 1);
-                idbSync.onsuccess = (e) => e.target.result.transaction("meta", "readwrite").objectStore("meta").put(libState, "libState");
-                
                 window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
                 
                 // 移动端返回键优化：注入初始伪路由
@@ -1072,28 +1039,19 @@ files['index.html'] = `<!DOCTYPE html>
             else ids = libState.playlists.find(p => p.id === currentTab)?.ids || [];
             
             const isMob = window.innerWidth <= 768;
-            const container = document.getElementById(isMob ? 'm-list-view' : 'list-view');
-            if(!container) return;
-
             const q = document.getElementById(isMob ? 'm-list-search' : 'search-input').value.toLowerCase();
             let listData = ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
             if (q) listData = listData.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
 
-            const totalH = listData.length * ITEM_H;
-            const start = Math.max(0, Math.floor(container.scrollTop / ITEM_H) - 5);
-            const end = Math.min(listData.length, start + Math.ceil(container.clientHeight / ITEM_H) + 10);
-            
-            const visibleData = listData.slice(start, end);
+            const visibleData = listData.slice(0, renderCount);
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null;
             const currentSelectedId = currentAudio ? new URL(currentAudio.url, window.location.origin).searchParams.get('file_id') : null;
 
-            const html = visibleData.map((s, idx) => {
+            const html = visibleData.map(s => {
                 const isActive = (s.file_id === currentSelectedId);
                 const isFavorited = libState.favorites.includes(s.file_id);
-                // 微缩图策略：列表页封面增加 thumb=1 标志
-                const thumbCover = s.cover ? s.cover + (s.cover.includes('?') ? '&' : '?') + 'thumb=1' : DEFAULT_LOGO;
                 return \`<div data-id="\${s.file_id}" onclick="handleTrackSwitch(-1, '\${s.file_id}')" class="song-item group \${isActive ? 'active' : ''}">
-                    <img src="\${thumbCover}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
+                    <img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
                     <div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div>
                     <div class="song-actions">
                         <div class="action-btn \${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('\${s.file_id}')" title="收藏">
@@ -1109,12 +1067,15 @@ files['index.html'] = `<!DOCTYPE html>
                 </div>\`;
             }).join('') || '<div class="py-20 text-center opacity-20 font-black text-white/40">列表暂无旋律</div>';
             
-            container.innerHTML = \`<div style="height:\${start * ITEM_H}px;"></div>\` + html + \`<div style="height:\${Math.max(0, totalH - end * ITEM_H)}px;"></div>\`;
+            const container = document.getElementById(isMob ? 'm-list-view' : 'list-view');
+            if(container) container.innerHTML = html;
         }
 
         function handleScroll(el) {
-            // 物理性能优化：滚动实时采样渲染可见项
-            renderAllLists();
+            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 50) {
+                renderCount += pageSize;
+                renderAllLists();
+            }
         }
 
         async function handleTrackSwitch(idx, fid) {
@@ -1190,8 +1151,8 @@ files['index.html'] = `<!DOCTYPE html>
         function toggleMute() { if (isMuted) { ap.volume(lastVolume, true); updateVolUI(lastVolume); isMuted = false; } else { lastVolume = ap.audio.volume; ap.volume(0, true); updateVolUI(0); isMuted = true; } }
         function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>'); }
 
-        function handleSearch() { renderAllLists(); }
-        function clearSearch(id) { document.getElementById(id).value = ""; renderAllLists(); }
+        function handleSearch() { renderCount = pageSize; renderAllLists(); }
+        function clearSearch(id) { document.getElementById(id).value = ""; renderCount = pageSize; renderAllLists(); }
         
         function setSleep(mins) { 
             if(sleepTimerInt) clearInterval(sleepTimerInt); 
@@ -1246,6 +1207,7 @@ files['index.html'] = `<!DOCTYPE html>
         function switchList(t) { 
             isPlaylistSwitching = true; 
             currentTab = t; 
+            renderCount = pageSize; 
             renderAllLists();
             const container = document.getElementById(window.innerWidth <= 768 ? 'm-list-view' : 'list-view');
             if (container) container.scrollTop = 0;
@@ -1597,7 +1559,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.2.1 All-In-One Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.5 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1605,6 +1567,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.2.1 全血版构建成功。D1持久化缓存已开启，首屏IndexedDB秒开生效。');
+        console.log('\n✅ Sarah MUSIC 10.1.5 构建成功。主题已更新至16组高级配色，息屏播放性能已解锁。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
