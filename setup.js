@@ -3,7 +3,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.8
+ * Sarah MUSIC 旗舰全功能重构版 10.1.9
  * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
  * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
  * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
@@ -11,7 +11,7 @@ const { execSync } = require('child_process');
  * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.8 (引入虚拟化渲染技术解决长列表卡顿)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.9 (调整列表项间距恢复旗舰布局比例)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
@@ -202,7 +202,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1018';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1019';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -260,7 +260,7 @@ files['index.html'] = `<!DOCTYPE html>
         .content-layout { flex: 1; display: grid; grid-template-columns: 0.65fr 1fr 1fr; gap: 24px; overflow: hidden; max-height: 55%; margin: 10px 0; }
         .panel-box { background: var(--inner-glass); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.2); display: flex; flex-direction: column; overflow: hidden; }
         
-        .song-item { padding: 12px 16px; margin: 3px 8px; border-radius: 10px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; position: relative; padding-right: 110px; height: 50px; }
+        .song-item { padding: 16px 16px; margin: 3px 8px; border-radius: 10px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; position: relative; padding-right: 110px; }
         .song-item.active { background: rgba(255, 255, 255, 0.3); color: var(--dynamic-accent); font-weight: 900; }
         .song-item:hover:not(.active) { background: rgba(255, 255, 255, 0.15); }
         .song-title-text { font-size: 13px !important; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -519,7 +519,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.8</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.9</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -630,7 +630,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.8</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.9</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -659,7 +659,7 @@ files['index.html'] = `<!DOCTYPE html>
         let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
         let globalUploadQueue = [], uploadActiveWorkers = 0, preloadedFids = new Set();
-        const ITEM_H = 56;
+        const ITEM_H = 66;
         let isPlaylistSwitching = false, globalActiveListId = 'fav';
         let lastBackgroundUpdateId = null;
 
@@ -1574,7 +1574,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.8 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.9 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1582,6 +1582,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.8 构建成功。虚拟列表技术已部署，万级歌单滑动性能已达旗舰级。');
+        console.log('\n✅ Sarah MUSIC 10.1.9 构建成功。列表布局比例已通过 Padding 物理还原，虚拟列表逻辑同步对齐。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
