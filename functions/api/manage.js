@@ -3,7 +3,7 @@ export async function onRequest(context) {
   if (request.method !== 'POST') return new Response("Bad Method", { status: 405 });
   try {
     // 保障性建表逻辑：仅在管理操作时触发，不阻塞主列表加载
-    await env.DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT)").run();
+    await env.DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT)").run();
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT, sort_order INTEGER)").run();
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS playlist_mapping (playlist_id TEXT, file_id TEXT, sort_order INTEGER, PRIMARY KEY(playlist_id, file_id))").run();
 
