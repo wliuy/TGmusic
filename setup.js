@@ -3,15 +3,15 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.8
+ * Sarah MUSIC 旗舰全功能重构版 10.1.9
  * 1. 极致秒开：引入 Cache API 离线化接口数据，实现进站即见列表，后台静默同步。
- * 2. 视觉进化：手机端左上角新增深浅模式切换，支持高级黑与经典绿一键转换。
- * 3. 性能优化：保留 768px 以下物理禁用后台预载机制，消除资源竞争。
- * 4. 预览增强：保留预览操作对背景层的静默调用，歌单标签高亮即时跟随。
+ * 2. 深色模式：手机端左上角新增模式切换，支持高级黑（#000000）与经典绿一键转换。
+ * 3. 视觉精修：物理移除移动端顶栏残余线条，同步“设置”面板至当前主题模式。
+ * 4. 版本同步：全面对齐 HTML 文本与控制台日志的版本号标识。
  * 5. 格式保真：1:1 还原管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.8 (支持接口数据离线秒开 & 移动端高级深色模式)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.9 (支持数据离线秒开 & 移动端高级深色模式切换)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
@@ -202,7 +202,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1018';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1019';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -304,15 +304,15 @@ files['index.html'] = `<!DOCTYPE html>
 
         .cover-container { 
             width: 14rem; height: 14rem; border-radius: 1.5rem; overflow: hidden; margin-bottom: 2rem; 
-            box-shadow: 0 15px 45px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.2); 
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); 
             display: flex; align-items: center; justify-content: center; position: relative; 
-            background: rgba(255,255,255,0.08); backdrop-filter: blur(30px);
+            background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(30px);
         }
         .cover-img { width: 100%; height: 100%; object-fit: cover; transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10; position: absolute; inset: 0; }
         .cover-placeholder { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; background: var(--logo-url); background-size: cover; background-position: center; }
 
         .mobile-player-container { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px; background: var(--m-green); }
-        .m-header { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: transparent; border: 0; }
+        .m-header { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: transparent; border: none !important; box-shadow: none !important; }
         .m-header .btn-round { background: transparent !important; border: 0 !important; box-shadow: none !important; width: 44px; height: 44px; color: white !important; z-index: 210; }
 
         .m-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; width: 100%; padding: 45px 0 0 0; }
@@ -322,15 +322,15 @@ files['index.html'] = `<!DOCTYPE html>
 
         @keyframes disc-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .m-disc-container { width: 72vw; max-width: 280px; aspect-ratio: 1/1; position: relative; flex-shrink: 0; background: transparent !important; border-radius: 50% !important; isolation: isolate; margin: 0px 0; }
-        .m-disc-shadow-layer { position: absolute; inset: -45px; border-radius: 50%; background: radial-gradient(circle at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.15) 45%, transparent 72%); z-index: 0; pointer-events: none; }
-        .m-disc-clipping { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50% !important; overflow: hidden !important; border: 6px solid rgba(255,255,255,0.12); clip-path: circle(50% at 50% 50%); -webkit-mask-image: -webkit-radial-gradient(white, black); z-index: 5; animation: disc-rotate 25s linear infinite; animation-play-state: paused; }
+        .m-disc-shadow-layer { position: absolute; inset: -45px; border-radius: 50%; background: radial-gradient(circle at center, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.15) 45%, transparent 72%); z-index: 0; pointer-events: none; }
+        .m-disc-clipping { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50% !important; overflow: hidden !important; border: 6px solid rgba(255, 255, 255, 0.12); clip-path: circle(50% at 50% 50%); -webkit-mask-image: -webkit-radial-gradient(white, black); z-index: 5; animation: disc-rotate 25s linear infinite; animation-play-state: paused; }
         .m-disc-container.playing .m-disc-clipping { animation-play-state: running; }
         .m-disc-clipping img { width: 100%; height: 100%; object-fit: cover; border-radius: 50% !important; }
 
         .m-lyrics-panel { flex: 1; width: 100%; height: auto !important; position: relative; display: flex; flex-direction: column; align-items: center; overflow-y: auto; scroll-behavior: smooth; mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%); pointer-events: none; background: transparent !important; margin-bottom: 0px; margin-top: 10px; }
         .m-lyrics-panel::-webkit-scrollbar { display: none; }
         .m-lyrics-panel .lrc-line { background: transparent !important; text-align: center; color: white; opacity: 0.3; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); border: 0 !important; padding: 6px 10px; font-size: 14px; width: 90%; transform: scale(0.95); flex-shrink: 0; transform-origin: center; }
-        .m-lyrics-panel .lrc-line.active { display: block !important; font-size: 1.15rem; opacity: 1; font-weight: 900; transform: scale(1.08); color: white; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
+        .m-lyrics-panel .lrc-line.active { display: block !important; font-size: 1.15rem; opacity: 1; font-weight: 900; transform: scale(1.08); color: white; text-shadow: 0 0 20px rgba(255, 255, 255, 0.3); }
 
         .m-info-wrap { width: 100%; text-align: center; color: white; flex-shrink: 0; height: 60px; margin-top: 0; margin-bottom: 0; }
         .m-song-title { font-size: 1.25rem; font-weight: 900; letter-spacing: 0.05em; margin-bottom: 0px; }
@@ -345,7 +345,7 @@ files['index.html'] = `<!DOCTYPE html>
         .m-btn-row .btn-main { width: 68px !important; height: 68px !important; }
 
         #m-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999; display: none; }
-        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: var(--m-green); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
+        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: var(--m-green) !important; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
         .m-drawer.active { bottom: 0; }
         
         #m-pl-cards { display: flex; gap: 0px; overflow-x: auto; padding: 15px 20px 0 20px; flex-shrink: 0; border-bottom: 1.5px solid rgba(255, 255, 255, 0.1); }
@@ -387,94 +387,7 @@ files['index.html'] = `<!DOCTYPE html>
         .admin-btn-icon svg { width: 18px; height: 18px; display: block; margin: auto; }
 
         @media (max-width: 768px) { 
-            .admin-btn-icon:hover { transform: none !important; } 
-            /* 物理级根治点3：移动端操作按钮常显，防止位移误触 */
-            .song-item .song-actions { opacity: 1 !important; pointer-events: auto !important; }
-        }
-
-        #admin-header-center { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 0 20px; flex-shrink: 0; }
-        .admin-console-box { background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 20px; width: auto; max-width: 100%; }
-
-        .admin-content { flex: 1; overflow-y: auto; padding: 8px 20px; }
-        
-        .admin-tabs-nav { display: flex; align-items: flex-end; gap: 4px; overflow-x: auto; margin-bottom: 5px; padding: 0 5px; }
-        .admin-tabs-nav::-webkit-scrollbar { display: none; }
-        .browser-tab {
-            min-width: 70px; max-width: 140px; height: 36px; padding: 0 10px;
-            background: rgba(255, 255, 255, 0.05); border-radius: 10px 10px 0 0;
-            display: flex; align-items: center; justify-content: center; cursor: grab;
-            border: 1px solid rgba(255, 255, 255, 0.1); border-bottom: none;
-            transition: transform 0.2s, opacity 0.2s; position: relative; flex-shrink: 0;
-        }
-        .browser-tab.active { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.2); z-index: 10; }
-        .browser-tab.active .browser-tab-text { opacity: 1; color: #10b981; }
-        .browser-tab-text { font-size: 11px; font-weight: 900; color: white; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; pointer-events: none; }
-        .browser-tab-close { position: absolute; top: 1px; right: 1px; width: 14px; height: 14px; border-radius: 4px; display: grid; place-items: center; opacity: 0.8; transition: 0.2s; color: white; flex-shrink: 0; background: rgba(255, 255, 255, 0.08); }
-        .browser-tab-close:hover { opacity: 1 !important; background: rgba(255, 255, 255, 0.2); }
-        
-        .browser-tab-arrow { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; opacity: 0; transition: 0.3s; pointer-events: none; }
-        .browser-tab:hover .browser-tab-arrow { opacity: 1; pointer-events: auto; }
-        .browser-tab-arrow span { color: white; font-size: 10px; font-weight: 900; cursor: pointer; padding: 2px 8px; background: #10b981; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px; backdrop-filter: blur(10px); line-height: 1.1; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
-        .browser-tab-arrow span:hover { background: #059669; transform: scale(1.1); }
-        
-        @media (max-width: 768px) { .browser-tab-arrow { display: none !important; } }
-
-        .browser-tab-add { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.08); color: white; cursor: pointer; flex: none; flex-shrink: 0; margin-left: 10px; transition: 0.2s; aspect-ratio: 1/1; overflow: hidden; }
-        .browser-tab-add:hover { background: rgba(255, 255, 255, 0.15); transform: scale(1.1); }
-        .browser-tab.is-dragging { position: fixed !important; pointer-events: none !important; opacity: 0.8 !important; z-index: 10000 !important; background: rgba(255, 255, 255, 0.2) !important; border: 1px solid rgba(255, 255, 255, 0.3) !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important; transform: scale(1.05); }
-        .browser-tab.is-hidden { visibility: hidden !important; }
-
-        .admin-song-row {
-            display: flex; align-items: center; gap: 12px; padding: 12px 16px;
-            background: rgba(255, 255, 255, 0.05); border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 8px; transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); position: relative; will-change: transform;
-            cursor: grab;
-        }
-        .admin-song-row:hover { background: rgba(255, 255, 255, 0.1); }
-        .admin-song-row.editing { background: rgba(0, 0, 0, 0.3); border: 2px solid var(--dynamic-accent); cursor: default; transform: none !important; position: relative !important; z-index: 100; width: 100%; }
-        .admin-song-row.is-dragging { 
-            position: fixed !important; pointer-events: none !important; opacity: 0.85 !important; 
-            border: 2px solid var(--dynamic-accent) !important; background: rgba(0, 0, 0, 0.7) !important; 
-            z-index: 10000 !important; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6) !important; 
-            transition: none !important; transform: scale(1.03); 
-        }
-        .admin-song-placeholder { height: 64px; border: 2px dashed rgba(255, 255, 255, 0.25); border-radius: 14px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.03); transition: none; }
-        .admin-song-row.is-hidden { visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; overflow: hidden; }
-        .admin-song-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; pointer-events: none; }
-        .admin-song-input { background: transparent; border: none; outline: none; color: white; font-weight: 700; width: 100%; padding: 2px 6px; border-radius: 6px; transition: 0.2s; cursor: inherit; }
-        .admin-song-title-input { font-size: 14px; }
-        .admin-song-artist-input { font-size: 11px; opacity: 0.5; }
-        .admin-song-row.editing .admin-song-info { pointer-events: auto; }
-        .admin-song-row.editing .admin-song-input { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.2); cursor: text; }
-        
-        .admin-action-group { display: flex; align-items: center; gap: 6px; }
-        .admin-action-btn { width: 32px !important; height: 32px !important; border-radius: 10px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.1); color: white; transition: 0.2s; cursor: pointer; padding: 0 !important; }
-        .admin-action-btn:hover { background: var(--dynamic-accent); transform: scale(1.05); }
-        .admin-action-btn.delete:hover { background: #ef4444; }
-        .admin-action-btn svg { width: 16px; height: 16px; }
-
-        @media (max-width: 768px) { .admin-action-btn:hover { transform: none !important; } }
-
-        .upload-preview-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: rgba(255, 255, 255, 0.05); border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); animation: slideIn 0.3s ease-out; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .preview-main-row { display: flex; align-items: center; gap: 12px; width: 100%; }
-        .preview-prog-container { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 10px; overflow: hidden; }
-        .preview-prog-fill { height: 100%; background: #10b981; width: 0%; transition: width 0.2s ease; }
-        .preview-percent-text { font-size: 10px; font-weight: 900; color: #10b981; opacity: 0; transition: 0.3s; }
-        .preview-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; flex-shrink: 0; }
-        .preview-status-dot.uploading { background: #eab308; box-shadow: 0 0 10px #eab308; animation: pulse 1.5s infinite; }
-        .preview-status-dot.success { background: #10b981; }
-        .preview-status-dot.error { background: #ef4444; }
-        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
-
-        .upload-card { position: relative; padding: 12px 25px !important; background: rgba(255, 255, 255, 0.04); border: 2px dashed rgba(255, 255, 255, 0.2); border-radius: 18px; text-align: center; transition: 0.4s; cursor: pointer; overflow: hidden; display: flex; align-items: center; gap: 15px; }
-        .upload-card:hover { border-color: var(--dynamic-accent); background: rgba(255, 255, 255, 0.1); }
-        .upload-hint { display: flex; align-items: center; gap: 12px; cursor: pointer; width: 100%; }
-        .upload-hint svg { opacity: 0.85; color: #10b981; width: 28px; height: 28px; }
-        .upload-hint span { font-size: 11px; font-weight: 900; color: white; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
-
-        @media (max-width: 768px) { 
-            #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
+            #admin-box { width: 90% !important; max-width: 440px; background: var(--m-green) !important; border-radius: 30px; height: 85vh; } 
             .admin-header { padding: 12px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 60px; flex-wrap: wrap; }
             #admin-header-center { flex: none; width: 100%; order: 10; padding: 10px 0; }
             .browser-tab { min-width: 60px; max-width: 100px; padding: 0 8px; cursor: pointer; }
@@ -519,7 +432,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.8</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.9</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -579,7 +492,7 @@ files['index.html'] = `<!DOCTYPE html>
 
     <div id="m-player" class="mobile-player-container">
         <header class="m-header">
-            <!-- 模式切换按钮 (取代原搜索) -->
+            <!-- 模式切换按钮 -->
             <div onclick="toggleTheme()" class="btn-round !bg-transparent">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <circle cx="12" cy="12" r="10"/><path d="M12 2v20"/><path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor"/>
@@ -603,7 +516,7 @@ files['index.html'] = `<!DOCTYPE html>
                     <div id="m-scrubber-wrap" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd(event)">
                         <div id="m-scrubber" class="rail !bg-white/10">
                             <div class="buffer-fill !bg-white/25" id="m-prog-buffer"></div>
-                            <div class="fill !bg-white" id="m-prog-bar"><div class="dot !right-[-8px] !w-[16px] !h-[16px] !border-[2px] !border-white"></div></div>
+                            <div class="fill !bg-white" id="m-prog-bar"><div class="dot !right-[-8px] !w-[16px] !h-[16px] !border-[2px] !border-white !bg-[#4d7c5f]"></div></div>
                         </div>
                     </div>
                     <div class="m-time-row"><span id="m-cur-time" class="m-time-text">00:00</span><span id="m-total-time" class="m-time-text">00:00</span></div>
@@ -634,7 +547,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.8</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.9</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -696,7 +609,6 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         async function init() {
-            // 加速响应1：优先开启视觉背景
             updateBackground(true);
             ['main-ui', 'm-player'].forEach(id => {
                const el = document.getElementById(id);
@@ -714,7 +626,6 @@ files['index.html'] = `<!DOCTYPE html>
                 }).catch(() => {});
             }
             try {
-                // 秒开逻辑：优先从 Cache API 读取
                 const cache = await caches.open('api-cache');
                 const cachedRes = await cache.match('/api/songs');
                 if (cachedRes) {
@@ -722,39 +633,28 @@ files['index.html'] = `<!DOCTYPE html>
                     libState = cachedData; db = libState.songs;
                     buildIndexMap(); renderCustomTabs(); setupPlayer(); renderAllLists();
                 }
-
-                // 同步逻辑：后台拉取最新数据
                 const res = await fetch('/api/songs'); const raw = await res.json();
                 if (raw.error) { console.error("D1 Loader Error"); return; }
-                
-                // 更新缓存
                 cache.put('/api/songs', new Response(JSON.stringify(raw)));
-                
-                // 如果数据有变动则刷新内存
                 if (JSON.stringify(libState) !== JSON.stringify(raw)) {
                     libState = raw; db = libState.songs;
                     buildIndexMap(); renderCustomTabs(); 
                     setupPlayer(); 
                     renderAllLists();
                 }
-
                 updateUIModes(); updateVolUI(lastVolume); 
                 window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
-                
-                // 移动端返回键优化：注入初始伪路由
                 history.replaceState({stage:'main'}, '');
                 window.onpopstate = (e) => {
                     const drawer = document.getElementById('m-drawer');
                     const admin = document.getElementById('admin-panel');
                     const selector = document.getElementById('playlist-selector-modal');
                     const dialog = document.getElementById('sarah-dialog');
-                    
                     if (dialog && !dialog.classList.contains('hidden')) { closeSarahDialog(); return; }
                     if (selector && !selector.classList.contains('hidden')) { closePlaylistSelector(); return; }
                     if (admin && admin.classList.contains('active')) { toggleAdmin(false, true); return; }
                     if (drawer && drawer.classList.contains('active')) { toggleMobileDrawer(false, true); return; }
                 };
-
                 if (libState.favorites.length > 0) { 
                     const f = libState.favorites[0]; 
                     globalActiveListId = 'fav'; 
@@ -771,11 +671,8 @@ files['index.html'] = `<!DOCTYPE html>
           try {
             const res = await fetch('/api/songs'); const raw = await res.json();
             if (raw.error) return;
-            
-            // 同步更新秒开缓存
             const cache = await caches.open('api-cache');
             cache.put('/api/songs', new Response(JSON.stringify(raw)));
-
             let curFid = null;
             if(ap && ap.list.audios[ap.list.index]) {
                 curFid = new URL(ap.list.audios[ap.list.index].url, window.location.origin).searchParams.get('file_id');
@@ -788,12 +685,10 @@ files['index.html'] = `<!DOCTYPE html>
               if(sourceId === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
               else if(sourceId === 'fav') ids = libState.favorites;
               else ids = libState.playlists.find(p => p.id === sourceId)?.ids || [];
-
               const newList = ids.map(id => {
                 const s = db[dbIndexMap.get(id)];
                 return s ? { name: s.title, artist: s.artist, cover: s.cover || DEFAULT_LOGO, url: '/api/stream?file_id=' + s.file_id, lrc: s.lrc || '[00:00.00]暂无歌词' } : null;
               }).filter(Boolean);
-              
               ap.list.audios = newList;
               if (curFid) {
                   const newIndex = ids.indexOf(curFid);
@@ -814,7 +709,6 @@ files['index.html'] = `<!DOCTYPE html>
             if(sourceId === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
             else if(sourceId === 'fav') ids = libState.favorites;
             else ids = libState.playlists.find(p => p.id === currentTab)?.ids || [];
-            
             const trackList = ids.map(id => {
               const s = db[dbIndexMap.get(id)];
               if (!s) return null;
@@ -827,9 +721,7 @@ files['index.html'] = `<!DOCTYPE html>
                 type: isFlac ? 'flac' : 'normal'
               };
             }).filter(Boolean);
-
             if (ap) {
-                // 物理级优化：增量更新列表，而不是无脑 clear()
                 const currentTrackUrls = ap.list.audios.map(a => a.url);
                 const newTrackUrls = trackList.map(a => a.url);
                 if (JSON.stringify(currentTrackUrls) !== JSON.stringify(newTrackUrls)) {
@@ -838,9 +730,7 @@ files['index.html'] = `<!DOCTYPE html>
                 }
                 return;
             }
-
             ap = new APlayer({ container: document.getElementById('ap-hidden'), lrcType: 1, audio: trackList, volume: lastVolume || 0.7 });
-            
             ap.audio.addEventListener('progress', () => {
                 const audio = ap.audio;
                 if (audio.buffered.length > 0) {
@@ -855,12 +745,10 @@ files['index.html'] = `<!DOCTYPE html>
                     }
                 }
             });
-
             ap.on('play', () => { 
                 const s = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 document.getElementById('m-disc-wrapper').classList.add('playing'); 
-                
                 const cur = ap.list.audios[ap.list.index];
                 if (cur) {
                     const fid = new URL(cur.url, window.location.origin).searchParams.get('file_id');
@@ -870,38 +758,30 @@ files['index.html'] = `<!DOCTYPE html>
                     }
                     if (fid !== lastBackgroundUpdateId) {
                         lastBackgroundUpdateId = fid;
-                        // 性能权衡：切歌触发视觉更新
                         updateBackground(true);
                     }
                     updateHighlights(fid, false);
                 }
                 updateMediaSession(); 
             });
-
             ap.on('pause', () => { 
                 const s = '<path d="M8 5v14l11-7z"></path>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 document.getElementById('m-disc-wrapper').classList.remove('playing'); 
                 updateMediaSession();
             });
-
             ap.on('timeupdate', () => { 
                 if (isScrubbing) return;
                 const cur = ap.audio.currentTime, dur = ap.audio.duration || 0, p = (cur / (dur || 1) * 100) + '%';
                 ['prog-bar', 'm-prog-bar'].forEach(id => { const el = document.getElementById(id); if(el) el.style.width = p; });
                 ['cur-time', 'm-cur-time'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = fmtTime(cur); });
                 ['total-time', 'm-total-time'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = fmtTime(dur); });
-                
-                // 根本解决：主动心跳采样。弥补自动连播时浏览器 progress 事件触发频率不稳定的缺陷。
                 if (dur > 0 && ap.audio.buffered.length > 0) {
                     const bEnd = ap.audio.buffered.end(ap.audio.buffered.length - 1);
                     const bP = (bEnd / dur * 100) + "%";
                     ['prog-buffer', 'm-prog-buffer'].forEach(id => { const el = document.getElementById(id); if(el) el.style.width = bP; });
                 }
-
                 syncLyrics(cur);
-
-                // 物理移除移动端预载限制，解决息屏后连播中断
                 if (dur > 0 && cur / dur > 0.7 && ap.list.audios.length > 1) {
                     const nextIdx = (ap.list.index + 1) % ap.list.audios.length;
                     const nextAudio = ap.list.audios[nextIdx];
@@ -915,7 +795,6 @@ files['index.html'] = `<!DOCTYPE html>
                     }
                 }
             });
-
             ap.on('listswitch', (data) => { 
                 if (isPlaylistSwitching) return;
                 const targetIdx = data.index !== undefined ? data.index : ap.list.index;
@@ -951,29 +830,21 @@ files['index.html'] = `<!DOCTYPE html>
             const isMob = window.innerWidth <= 768; 
             if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; } 
             const theme = solaraTheme[currentThemeIdx]; 
-            
-            // 物理控制：根据深浅模式切换移动端基色
             const currentMGreen = isMob && isDarkMode ? '#000000' : '#4d7c5f';
             document.documentElement.style.setProperty('--m-green', currentMGreen);
             const finalBg = isMob ? currentMGreen : theme.bg;
-            
-            // 物理染色：同步状态栏与 meta theme-color
             const metaTheme = document.querySelector('meta[name="theme-color"]'); 
             if(metaTheme) metaTheme.setAttribute('content', finalBg);
             document.body.style.backgroundColor = finalBg;
-            
             const stage = document.getElementById('bg-stage'), overlay = document.getElementById('bg-overlay');
             const newGrad = isMob ? currentMGreen : \`linear-gradient(135deg, \${theme.bg} 0%, \${theme.deep} 100%)\`;
-            
             if (isForceRandom) {
                 overlay.style.background = newGrad; overlay.style.opacity = '1';
                 setTimeout(() => { stage.style.background = newGrad; overlay.style.opacity = '0'; }, 1200);
             } else {
                 stage.style.background = newGrad;
             }
-
             if(!isMob) { const mainUI = document.getElementById('main-ui'); if(mainUI) mainUI.style.background = \`linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%)\`; }
-
             document.documentElement.style.setProperty('--dynamic-accent', isMob ? '#ffffff' : theme.accent);
             const listTabs = document.querySelectorAll('#tabs-scroll div, .m-pl-card');
             listTabs.forEach(el => {
@@ -1010,7 +881,6 @@ files['index.html'] = `<!DOCTYPE html>
                 const img = document.getElementById(imgId); const logo = document.getElementById(logoId);
                 if(!img || !logo) return;
                 if(song.cover) { 
-                    // 核心修复：防止视觉假死问题
                     const n = new Image(); n.src = song.cover; 
                     n.onload = () => { img.src = song.cover; img.style.display = 'block'; logo.style.setProperty('display', 'none', 'important'); }; 
                 }
@@ -1019,9 +889,7 @@ files['index.html'] = `<!DOCTYPE html>
             upUI('ui-cover', 'pc-logo-box'); upUI('m-ui-cover', 'm-logo-box');
             ['ui-title', 'm-ui-title'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.title; });
             ['ui-artist', 'm-ui-artist'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.artist; });
-            
             if (!song.lrc) {
-               // 核心优化：异步拉取歌词
                dbOp('get_lrc', { file_id: song.file_id }).then(res => {
                    if (res.success) {
                        song.lrc = res.lrc;
@@ -1029,7 +897,6 @@ files['index.html'] = `<!DOCTYPE html>
                    }
                });
             } else processLrc(song.lrc);
-
             updateHighlights(song.file_id, false); 
         }
 
@@ -1074,7 +941,6 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function renderCustomTabs() { 
-            // 物理修复：移除 10.1.3 LaTeX 乱码残留包装
             document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); 
         }
         
@@ -1083,16 +949,13 @@ files['index.html'] = `<!DOCTYPE html>
             if(currentTab === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
             else if(currentTab === 'fav') ids = libState.favorites;
             else ids = libState.playlists.find(p => p.id === currentTab)?.ids || [];
-            
             const isMob = window.innerWidth <= 768;
             const q = document.getElementById(isMob ? 'm-list-search' : 'search-input').value.toLowerCase();
             let listData = ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
             if (q) listData = listData.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
-
             const visibleData = listData.slice(0, renderCount);
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null;
             const currentSelectedId = currentAudio ? new URL(currentAudio.url, window.location.origin).searchParams.get('file_id') : null;
-
             const html = visibleData.map(s => {
                 const isActive = (s.file_id === currentSelectedId);
                 const isFavorited = libState.favorites.includes(s.file_id);
@@ -1112,7 +975,6 @@ files['index.html'] = `<!DOCTYPE html>
                     </div>
                 </div>\`;
             }).join('') || '<div class="py-20 text-center opacity-20 font-black text-white/40">列表暂无旋律</div>';
-            
             const container = document.getElementById(isMob ? 'm-list-view' : 'list-view');
             if(container) container.innerHTML = html;
         }
@@ -1131,17 +993,13 @@ files['index.html'] = `<!DOCTYPE html>
                 globalActiveListId = currentTab;
                 setupPlayer(); 
             }
-            
             let targetIdx = idx;
             if (fid) { 
                 const foundIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fid)); 
                 if (foundIdx !== -1) targetIdx = foundIdx; 
             }
-            
-            // 安全指令：确保索引有效后同步执行播放动作
             if (targetIdx !== -1 && ap.list.audios[targetIdx]) {
                 globalPlayingId = fid;
-                // 物理重置进度：切歌瞬间强行归零播放条与缓存条，防止旧数据残留视觉.
                 ['prog-bar', 'm-prog-bar', 'prog-buffer', 'm-prog-buffer'].forEach(id => {
                     const el = document.getElementById(id);
                     if(el) el.style.width = "0%";
@@ -1154,7 +1012,6 @@ files['index.html'] = `<!DOCTYPE html>
                     updateHighlights(fid, true);
                 } catch (e) { console.error("Playback fail:", e); }
             }
-            
             setTimeout(() => { isPlaylistSwitching = false; }, 200);
         }
 
@@ -1170,9 +1027,7 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function handlePlayToggle() { if (!ap) return; if (ap.paused) ap.play(); else ap.pause(); }
-        function handlePrev() {
-            handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length);
-        }
+        function handlePrev() { handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length); }
         function handleNext() {
             if (modes[modeIdx] === 'random' && ap.list.audios.length > 1) {
                 let nextIdx; do { nextIdx = Math.floor(Math.random() * ap.list.audios.length); } while (nextIdx === ap.list.index);
@@ -1185,21 +1040,16 @@ files['index.html'] = `<!DOCTYPE html>
         function handleMouseSeekStart(e) { isScrubbing = true; handleMouseSeekMove(e); window.addEventListener('mousemove', handleMouseSeekMove); window.addEventListener('mouseup', handleMouseSeekEnd); }
         function handleMouseSeekMove(e) { if (!isScrubbing) return; const rect = document.getElementById('pc-scrubber').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)); document.getElementById('prog-bar').style.width = (p * 100) + '%'; document.getElementById('cur-time').innerText = fmtTime(p * (ap.audio.duration || 0)); }
         function handleMouseSeekEnd(e) { if (!isScrubbing) return; const rect = document.getElementById('pc-scrubber').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)); ap.seek(p * (ap.audio.duration || 0)); isScrubbing = false; window.removeEventListener('mousemove', handleMouseSeekMove); window.removeEventListener('mouseup', handleMouseSeekEnd); }
-
         function handleMouseVolStart(e) { isDraggingVol = true; handleMouseVolMove(e); window.addEventListener('mousemove', handleMouseVolMove); window.addEventListener('mouseup', handleMouseVolEnd); }
         function handleMouseVolMove(e) { if (!isDraggingVol) return; const rect = document.getElementById('pc-vol-rail').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)); ap.volume(p, true); lastVolume = p; updateVolUI(p); }
         function handleMouseVolEnd() { isDraggingVol = false; window.removeEventListener('mousemove', handleMouseVolMove); window.removeEventListener('mouseup', handleMouseVolEnd); }
-
         function handleTouchStart(e) { isScrubbing = true; handleTouchMove(e); }
         function handleTouchMove(e) { if (!isScrubbing) return; if(e.cancelable) e.preventDefault(); const rect = document.getElementById('m-scrubber-wrap').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width)); document.getElementById('m-prog-bar').style.width = (p * 100) + '%'; document.getElementById('m-cur-time').innerText = fmtTime(p * (ap.audio.duration || 0)); }
         function handleTouchEnd(e) { if (!isScrubbing) return; const rect = document.getElementById('m-scrubber-wrap').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.changedTouches[0].clientX - rect.left) / rect.width)); ap.seek(p * (ap.audio.duration || 0)); isScrubbing = false; }
-
         function toggleMute() { if (isMuted) { ap.volume(lastVolume, true); updateVolUI(lastVolume); isMuted = false; } else { lastVolume = ap.audio.volume; ap.volume(0, true); updateVolUI(0); isMuted = true; } }
         function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>'); }
-
         function handleSearch() { renderCount = pageSize; renderAllLists(); }
         function clearSearch(id) { document.getElementById(id).value = ""; renderCount = pageSize; renderAllLists(); }
-        
         function setSleep(mins) { 
             if(sleepTimerInt) clearInterval(sleepTimerInt); 
             const statusEl = document.getElementById('sleep-status'); 
@@ -1213,20 +1063,16 @@ files['index.html'] = `<!DOCTYPE html>
                 }, 1000); 
             } 
         }
-
         function fmtTime(s) { if (isNaN(s) || s < 0) return "00:00"; const m = Math.floor(s/60), sec = Math.floor(s%60); return (m<10?"0"+m:m)+":"+(sec<10?"0"+sec:sec); }
-        
         async function handleLikeToggle() { 
             const cur = ap.list.audios[ap.list.index]; if(!cur) return; 
             const fileId = new URL(cur.url, window.location.origin).searchParams.get('file_id');
             await toggleLikeById(fileId);
         }
-
         async function toggleLikeById(fid) {
             const isAdding = !libState.favorites.includes(fid);
             if (!isAdding) libState.favorites = libState.favorites.filter(id => id !== fid);
             else libState.favorites.push(fid);
-            
             document.querySelectorAll(\`.song-item[data-id="\${fid}"]\`).forEach(el => {
                 const btn = el.querySelector('.action-btn:first-child');
                 if(btn) { 
@@ -1238,7 +1084,6 @@ files['index.html'] = `<!DOCTYPE html>
             await dbOp('toggle_fav', { file_id: fid }); 
             silentRefresh(); 
         }
-
         async function deleteSongById(fid) {
             const pid = currentTab;
             showSarahDialog("删除确认", \`确定将此旋律从\${pid === 'all' ? '全库永久抹去' : '当前歌单移除'}吗？\`, false, null, async (y) => { 
@@ -1263,11 +1108,9 @@ files['index.html'] = `<!DOCTYPE html>
             const container = document.getElementById(window.innerWidth <= 768 ? 'm-list-view' : 'list-view');
             if (container) container.scrollTop = 0;
             updateBackground(false); 
-            // 返回键支持：注入 UI 路由状态
             history.pushState({stage:'drawer'}, '');
             setTimeout(() => { isPlaylistSwitching = false; }, 200); 
         }
-
         function switchAdminList(t) { currentAdminTab = t; renderAdminPlaylistTabs(); renderAdminSongList(); }
         function toggleAdmin(s, fromPop = false) { 
             document.getElementById('admin-panel').classList.toggle('active', s); 
@@ -1280,7 +1123,6 @@ files['index.html'] = `<!DOCTYPE html>
         }
         function toggleUploadArea() { document.getElementById('sleep-area').classList.add('hidden'); document.getElementById('upload-area').classList.toggle('hidden'); }
         function toggleSleepArea() { document.getElementById('upload-area').classList.add('hidden'); document.getElementById('sleep-area').classList.toggle('hidden'); }
-
         function showSarahDialog(title, msg, isInput, def, cb) { 
             const ov = document.getElementById('sarah-dialog'); 
             const box = ov.querySelector('.sarah-dialog-box');
@@ -1288,7 +1130,6 @@ files['index.html'] = `<!DOCTYPE html>
             const msgEl = document.getElementById('dialog-msg');
             const inputWrap = document.getElementById('dialog-input-wrap');
             const inp = document.getElementById('dialog-input');
-
             if(isInput) { 
                 msgEl.style.display = 'none'; 
                 msgEl.innerHTML = ""; 
@@ -1301,7 +1142,6 @@ files['index.html'] = `<!DOCTYPE html>
                 msgEl.innerText = msg;
                 inputWrap.classList.add('hidden'); 
             }
-
             document.getElementById('dialog-confirm').onclick = () => { 
                 ov.classList.remove('active'); 
                 box.style.transform = 'scale(0.95)';
@@ -1321,7 +1161,6 @@ files['index.html'] = `<!DOCTYPE html>
             box.style.pointerEvents = 'none';
             setTimeout(() => { ov.classList.add('hidden'); ov.style.display = 'none'; }, 200);
         }
-
         function renderAdminPlaylistTabs() {
             const container = document.getElementById('admin-playlist-tabs'); if(!container) return;
             const isPC = window.innerWidth > 768;
@@ -1334,7 +1173,6 @@ files['index.html'] = `<!DOCTYPE html>
             html += \`<div class="browser-tab" onclick="addPlaylistPrompt()" style="min-width:40px;flex:none;"><span class="browser-tab-text" style="opacity:1;color:white;font-size:14px;font-weight:bold;">+</span></div>\`;
             container.innerHTML = html;
         }
-
         async function renderUploadLogs() {
             const container = document.getElementById('admin-song-list');
             container.innerHTML = '<div class="py-10 text-center text-white/40 animate-pulse">正在获取 D1 日志...</div>';
@@ -1354,7 +1192,6 @@ files['index.html'] = `<!DOCTYPE html>
                 </div>\`;
             }).join('') || '<div class="py-10 text-center text-white/20">暂无上传记录</div>';
         }
-
         function renderAdminSongList() {
             const container = document.getElementById('admin-song-list');
             let ids = [];
@@ -1365,7 +1202,6 @@ files['index.html'] = `<!DOCTYPE html>
             const list = ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
             container.innerHTML = list.map((s, i) => \`<div class="admin-song-row" id="admin-row-\${i}" data-fileid="\${s.file_id}" onmousedown="handleAdminDragStart(event, \${i}, false)" ontouchstart="handleAdminDragStart(event, \${i}, true)"><div class="admin-song-info"><input class="admin-song-input admin-song-title-input" value="\${s.title}" readonly onchange="updateSongInfo('\${s.file_id}', 'title', this.value)"><input class="admin-song-input admin-song-artist-input" value="\${s.artist}" readonly onchange="updateSongInfo('\${s.file_id}', 'artist', this.value)"></div><div class="admin-action-group"><div class="admin-action-btn" onclick="openPlaylistSelector('\${s.file_id}')" title="分发"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div><div class="admin-action-btn delete" onclick="deleteSong('\${s.file_id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></div><div class="admin-action-btn" onclick="toggleEditMode(\${i})" title="编辑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div></div></div>\`).join('') || '<div class="py-10 text-center text-white/20 text-xs">暂无歌曲</div>';
         }
-
         function handleAdminDragStart(e, idx, isTouch) {
             if ((e.target.tagName === 'INPUT' && !e.target.readOnly) || e.target.closest('.admin-action-btn')) return;
             const targetEl = e.currentTarget; if (targetEl.classList.contains('editing')) return;
@@ -1398,7 +1234,6 @@ files['index.html'] = `<!DOCTYPE html>
                 targetEl.addEventListener('touchend', () => clearTimeout(longPressTimer), { once: true });
             } else initDrag(e.clientX, e.clientY);
         }
-
         async function movePlaylist(idx, dir) {
             if (window.innerWidth <= 768) return; 
             const nIdx = idx + dir; if(nIdx < 0 || nIdx >= libState.playlists.length) return;
@@ -1407,7 +1242,6 @@ files['index.html'] = `<!DOCTYPE html>
             const nIds = libState.playlists.map(p => p.id);
             await dbOp('update_playlist_order', { ids: nIds });
         }
-
         function handleAdminPlaylistDragStart(e, idx) {
             if (window.innerWidth <= 768 || e.target.closest('.browser-tab-close') || e.target.closest('.browser-tab-arrow')) return;
             const targetEl = e.currentTarget; let isMoved = false;
@@ -1456,7 +1290,6 @@ files['index.html'] = `<!DOCTYPE html>
             window.addEventListener('mousemove', checkInit);
             window.addEventListener('mouseup', () => window.removeEventListener('mousemove', checkInit), { once: true });
         }
-
         function toggleEditMode(idx) {
             const row = document.getElementById('admin-row-' + idx);
             const btn = row.querySelector('.admin-action-btn:last-child');
@@ -1476,14 +1309,11 @@ files['index.html'] = `<!DOCTYPE html>
                 btn.innerHTML = '<span class="text-xs font-bold">✔</span>';
             }
         }
-
         async function updateSongInfo(fid, field, val) { const s = db.find(x => x.file_id === fid); if(s) { s[field] = val; await dbOp('update_song', s); silentRefresh(); } }
-        
         function deleteSong(fid) {
             const pid = currentTab;
             showSarahDialog("删除确认", \`确定将此旋律从\${pid === 'all' ? '全库永久抹去' : '当前歌单移除'}吗？\`, false, null, async (y) => { if(y) { await dbOp('delete_song', { file_id: fid, playlist_id: pid }); silentRefresh(); } }); 
         }
-
         function openPlaylistSelector(fid) {
             document.getElementById('playlist-selector-list').innerHTML = libState.playlists.map(pl => {
                 const ex = pl.ids.includes(fid);
@@ -1500,13 +1330,10 @@ files['index.html'] = `<!DOCTYPE html>
             }
             await dbOp('add_to_playlist', { playlist_id: pid, file_id: fid });
         }
-
         function addPlaylistPrompt() { showSarahDialog("新歌单", "请输入名称", true, "", async (n) => { if(n) { await dbOp('add_playlist', { name: n }); await silentRefresh(); renderAdminPlaylistTabs(); } }); }
         function renamePlaylistPrompt(idx) { showSarahDialog("重命名", "请输入新名称", true, libState.playlists[idx].name, async (n) => { if(n) { await dbOp('rename_playlist', { id: libState.playlists[idx].id, name: n }); await silentRefresh(); renderAdminPlaylistTabs(); } }); }
         function deletePlaylist(idx) { showSarahDialog("删除", "确定删除此列表吗？", false, null, async (y) => { if(y) { await dbOp('delete_playlist', { id: libState.playlists[idx].id }); silentRefresh(); } }); }
-
         function previewTag(inp) {
-            // 核心修复：按需异步加载元数据解析库。
             if (!window.jsmediatags) {
                 const s = document.createElement('script');
                 s.src = "https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js";
@@ -1527,7 +1354,6 @@ files['index.html'] = `<!DOCTYPE html>
                 }, onError: () => { if(i === files.length - 1) setTimeout(() => handleUp(files), 500); }});
             });
         }
-
         async function handleUp(batchFiles) {
             if(!batchFiles.length) return;
             const btn = document.querySelector("#upload-area button"); if(btn) btn.disabled = true;
@@ -1580,7 +1406,6 @@ files['index.html'] = `<!DOCTYPE html>
             };
             startWorkers();
         }
-
         function toggleMobileDrawer(s, fromPop = false) {
             const d = document.getElementById('m-drawer'), o = document.getElementById('m-overlay');
             if(s) { 
@@ -1594,7 +1419,6 @@ files['index.html'] = `<!DOCTYPE html>
                 d.classList.remove('active'); o.style.display = 'none'; 
             }
         }
-
         function showMsg(txt) { const b = document.getElementById('msg-box'); b.innerText = txt; b.classList.add('active'); setTimeout(() => b.classList.remove('active'), 3000); }
         window.onload = init;
     </script>
@@ -1610,7 +1434,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.8 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.9 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1618,6 +1442,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.8 构建成功。接口数据秒开已生效，移动端深色模式切换已部署。');
+        console.log('\n✅ Sarah MUSIC 10.1.9 构建成功。离线秒开功能已生效，深色模式与 UI 细节已优化。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
