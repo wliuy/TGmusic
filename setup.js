@@ -3,7 +3,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.2
+ * Sarah MUSIC 旗舰全功能重构版 10.1.3
  * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
  * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
  * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
@@ -11,7 +11,7 @@ const { execSync } = require('child_process');
  * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.2 (物理重置切歌进度残留 & 视觉逻辑同步)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.3 (修复列表乱码 & 移动端返回键伪路由优化)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放稳定) ---
@@ -202,7 +202,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1012';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1013';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -516,7 +516,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.2</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.3</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -627,7 +627,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.2</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.3</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -707,6 +707,20 @@ files['index.html'] = `<!DOCTYPE html>
                 updateUIModes(); updateVolUI(lastVolume); 
                 window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
                 
+                // 移动端返回键优化：注入初始伪路由
+                history.replaceState({stage:'main'}, '');
+                window.onpopstate = (e) => {
+                    const drawer = document.getElementById('m-drawer');
+                    const admin = document.getElementById('admin-panel');
+                    const selector = document.getElementById('playlist-selector-modal');
+                    const dialog = document.getElementById('sarah-dialog');
+                    
+                    if (dialog && !dialog.classList.contains('hidden')) { closeSarahDialog(); return; }
+                    if (selector && !selector.classList.contains('hidden')) { closePlaylistSelector(); return; }
+                    if (admin && admin.classList.contains('active')) { toggleAdmin(false, true); return; }
+                    if (drawer && drawer.classList.contains('active')) { toggleMobileDrawer(false, true); return; }
+                };
+
                 if (libState.favorites.length > 0) { 
                     const f = libState.favorites[0]; 
                     globalActiveListId = 'fav'; 
@@ -1005,7 +1019,8 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function renderCustomTabs() { 
-            document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\text{\${pl.name}}</div>\`.replace('text{\${pl.name}}', pl.name)); 
+            // 核心修复：物理移除乱码 LaTeX 包装器 \text{}
+            document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); 
         }
         
         function renderAllLists() {
@@ -1187,13 +1202,22 @@ files['index.html'] = `<!DOCTYPE html>
             renderAllLists();
             const container = document.getElementById(window.innerWidth <= 768 ? 'm-list-view' : 'list-view');
             if (container) container.scrollTop = 0;
-            // 仅更新预览反馈
             updateBackground(false); 
+            // 返回键支持：注入 UI 路由状态
+            history.pushState({stage:'drawer'}, '');
             setTimeout(() => { isPlaylistSwitching = false; }, 200); 
         }
 
         function switchAdminList(t) { currentAdminTab = t; renderAdminPlaylistTabs(); renderAdminSongList(); }
-        function toggleAdmin(s) { document.getElementById('admin-panel').classList.toggle('active', s); if(s) { currentAdminTab = currentTab; renderAdminPlaylistTabs(); renderAdminSongList(); } }
+        function toggleAdmin(s, fromPop = false) { 
+            document.getElementById('admin-panel').classList.toggle('active', s); 
+            if(s) { 
+                currentAdminTab = currentTab; 
+                renderAdminPlaylistTabs(); 
+                renderAdminSongList(); 
+                if(!fromPop) history.pushState({stage:'admin'}, '');
+            } 
+        }
         function toggleUploadArea() { document.getElementById('sleep-area').classList.add('hidden'); document.getElementById('upload-area').classList.toggle('hidden'); }
         function toggleSleepArea() { document.getElementById('upload-area').classList.add('hidden'); document.getElementById('sleep-area').classList.toggle('hidden'); }
 
@@ -1263,11 +1287,11 @@ files['index.html'] = `<!DOCTYPE html>
                 <div class="px-4 py-2 bg-white/5 rounded-xl mb-1 flex items-center justify-between border border-white/5 \${isFail ? 'bg-red-500/5' : ''}">
                     <div class="flex items-center gap-2 truncate flex-1">
                         <div class="w-1.5 h-1.5 rounded-full \${isFail ? 'bg-red-400 shadow-[0_0_5px_#f87171]' : 'bg-emerald-400 shadow-[0_0_5px_#34d399]'}"></div>
-                        <span class="text-[11px] font-bold text-white/80 truncate">\text{\${log.filename}}</span>
+                        <span class="text-[11px] font-bold text-white/80 truncate">\${log.filename}</span>
                         \${isFail ? '<span class="text-[9px] text-red-400/60 ml-2 italic truncate">(' + (log.reason || '失败') + ')</span>' : ''}
                     </div>
                     <span class="text-[9px] text-white/20 font-mono ml-4 flex-shrink-0">\${dateStr}</span>
-                </div>\`.replace('text{\${log.filename}}', log.filename);
+                </div>\`;
             }).join('') || '<div class="py-10 text-center text-white/20">暂无上传记录</div>';
         }
 
@@ -1497,7 +1521,7 @@ files['index.html'] = `<!DOCTYPE html>
             startWorkers();
         }
 
-        function toggleMobileDrawer(s) {
+        function toggleMobileDrawer(s, fromPop = false) {
             const d = document.getElementById('m-drawer'), o = document.getElementById('m-overlay');
             if(s) { 
                 if (!libState.playlists) return;
@@ -1505,7 +1529,10 @@ files['index.html'] = `<!DOCTYPE html>
                 document.getElementById('m-pl-cards').innerHTML = h.map(c => \`<div data-id="\${c.id}" onclick="switchList('\${c.id}')" class="m-pl-card \${currentTab===c.id?'active':''}">\${c.name}</div>\`).join('');
                 d.classList.add('active'); o.style.display = 'block'; 
                 renderAllLists();
-            } else { d.classList.remove('active'); o.style.display = 'none'; }
+                if(!fromPop) history.pushState({stage:'drawer'}, '');
+            } else { 
+                d.classList.remove('active'); o.style.display = 'none'; 
+            }
         }
 
         function showMsg(txt) { const b = document.getElementById('msg-box'); b.innerText = txt; b.classList.add('active'); setTimeout(() => b.classList.remove('active'), 3000); }
@@ -1523,7 +1550,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.2 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.3 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1531,6 +1558,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.2 构建成功。切歌进度残留已物理清空，UI 同步反馈更精准。');
+        console.log('\n✅ Sarah MUSIC 10.1.3 构建成功。列表乱码已根治，伪路由返回逻辑已生效。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
