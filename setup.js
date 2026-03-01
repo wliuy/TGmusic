@@ -3,15 +3,14 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.7
- * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
- * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
- * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
- * 4. 版本同步：全面对齐 HTML 文本与控制台日志的版本号标识。
- * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
+ * Sarah MUSIC 旗舰全功能重构版 10.1.8
+ * 1. 极致秒开：引入 IndexedDB 离线持久化层。
+ * 2. 启动重构：init 逻辑改为 Stale-While-Revalidate 模式，优先读取本地缓存渲染首屏。
+ * 3. 异步同步：在 UI 渲染完成后静默同步 D1 数据库最新状态，确保数据最终一致。
+ * 4. 视觉保真：保持 10.1.7 所有的视觉反馈与排序逻辑。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.7 (增加列表条目鼠标悬浮视觉反馈)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.8 (极致秒开：IndexedDB 数据离线化)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
@@ -202,7 +201,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1017';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1018';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -211,7 +210,7 @@ files['index.html'] = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-width=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#4d7c5f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -282,12 +281,10 @@ files['index.html'] = `<!DOCTYPE html>
         .btn-main { width: 56px !important; height: 56px !important; }
 
         .scrubber-area { flex: 1; display: flex; align-items: center; gap: 16px; margin: 0 20px; }
-        /* 物理级根治点1：移除溢出隐藏，确保圆点白框不再被截断 */
         .rail { flex: 1; height: 6px; background: rgba(0, 0, 0, 0.08); border-radius: 10px; position: relative; cursor: pointer; overflow: visible !important; }
         .fill { height: 100%; background: var(--dynamic-accent); border-radius: 10px; width: 0%; position: relative; z-index: 5; transition: width 0.1s linear; }
         .buffer-fill { height: 100%; background: rgba(255, 255, 255, 0.35); border-radius: 10px; width: 0%; position: absolute; left: 0; top: 0; z-index: 2; transition: width 0.4s ease; }
         
-        /* 播放进度圆点精修：仅保留核心实心与单层锐利白边 */
         .dot { 
             position: absolute; right: -8px; top: 50%; transform: translateY(-50%); 
             width: 16px; height: 16px; 
@@ -519,7 +516,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.7</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.8</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -630,7 +627,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.7</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.8</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -661,6 +658,37 @@ files['index.html'] = `<!DOCTYPE html>
         let globalUploadQueue = [], uploadActiveWorkers = 0, preloadedFids = new Set();
         let renderCount = 20, pageSize = 20, isPlaylistSwitching = false, globalActiveListId = 'fav';
         let lastBackgroundUpdateId = null;
+
+        // --- IndexedDB 离线引擎 (v10.1.8) ---
+        const idb = {
+            store: (key, val) => {
+                return new Promise(res => {
+                    const req = indexedDB.open('SarahDB', 1);
+                    req.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+                    req.onsuccess = e => {
+                        const db = e.target.result;
+                        const tx = db.transaction('kv', 'readwrite');
+                        tx.objectStore('kv').put(val, key);
+                        tx.oncomplete = () => res(true);
+                    };
+                });
+            },
+            get: (key) => {
+                return new Promise(res => {
+                    const req = indexedDB.open('SarahDB', 1);
+                    req.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+                    req.onsuccess = e => {
+                        const db = e.target.result;
+                        const tx = db.transaction('kv', 'readonly');
+                        const store = tx.objectStore('kv');
+                        const get = store.get(key);
+                        get.onsuccess = () => res(get.result);
+                        get.onerror = () => res(null);
+                    };
+                    req.onerror = () => res(null);
+                });
+            }
+        };
 
         const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.yang.pp.ua/file/logo/sarah(1).png';
         const solaraTheme = [
@@ -709,39 +737,50 @@ files['index.html'] = `<!DOCTYPE html>
                     });
                 }).catch(() => {});
             }
-            try {
-                const res = await fetch('/api/songs'); const raw = await res.json();
-                if (raw.error) { console.error("D1 Loader Error"); return; }
-                libState = raw; db = libState.songs;
+
+            // 极致秒开：读取 IndexedDB 缓存
+            const cachedState = await idb.get('lib_state');
+            if (cachedState) {
+                libState = cachedState; db = libState.songs;
                 buildIndexMap(); renderCustomTabs(); 
                 setupPlayer(); 
                 renderAllLists(); 
-                updateUIModes(); updateVolUI(lastVolume); 
-                window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
+                updateUIModes(); updateVolUI(lastVolume);
                 
-                // 移动端返回键优化：注入初始伪路由
+                if (libState.favorites.length > 0) { 
+                    const f = libState.favorites[0]; 
+                    globalActiveListId = 'fav'; currentTab = 'fav';
+                    refreshUIMetaAt(dbIndexMap.get(f)); 
+                    updateHighlights(f, true); 
+                } else if (libState.all_order.length > 0) refreshUIMetaAt(dbIndexMap.get(libState.all_order[0]));
+            }
+
+            try {
+                const res = await fetch('/api/songs'); const raw = await res.json();
+                if (raw.error) return;
+                
+                // 数据比对：如果缓存与网络不一致，则静默更新并存入缓存
+                if (JSON.stringify(raw) !== JSON.stringify(libState)) {
+                    libState = raw; db = libState.songs;
+                    await idb.store('lib_state', raw);
+                    buildIndexMap(); renderCustomTabs(); 
+                    setupPlayer(); 
+                    renderAllLists(); 
+                    updateUIModes(); updateVolUI(lastVolume);
+                }
+                
+                window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
                 history.replaceState({stage:'main'}, '');
                 window.onpopstate = (e) => {
                     const drawer = document.getElementById('m-drawer');
                     const admin = document.getElementById('admin-panel');
                     const selector = document.getElementById('playlist-selector-modal');
                     const dialog = document.getElementById('sarah-dialog');
-                    
                     if (dialog && !dialog.classList.contains('hidden')) { closeSarahDialog(); return; }
                     if (selector && !selector.classList.contains('hidden')) { closePlaylistSelector(); return; }
                     if (admin && admin.classList.contains('active')) { toggleAdmin(false, true); return; }
                     if (drawer && drawer.classList.contains('active')) { toggleMobileDrawer(false, true); return; }
                 };
-
-                if (libState.favorites.length > 0) { 
-                    const f = libState.favorites[0]; 
-                    globalActiveListId = 'fav'; 
-                    currentTab = 'fav';
-                    refreshUIMetaAt(dbIndexMap.get(f)); 
-                    updateHighlights(f, true); 
-                }
-                else if (libState.all_order.length > 0) refreshUIMetaAt(dbIndexMap.get(libState.all_order[0]));
-                else if (db.length > 0) refreshUIMetaAt(0);
             } catch (e) { console.error(e); }
         }
 
@@ -754,6 +793,7 @@ files['index.html'] = `<!DOCTYPE html>
                 curFid = new URL(ap.list.audios[ap.list.index].url, window.location.origin).searchParams.get('file_id');
             }
             libState = raw; db = libState.songs;
+            await idb.store('lib_state', raw);
             buildIndexMap();
             if(ap) {
               let ids = [];
@@ -802,7 +842,6 @@ files['index.html'] = `<!DOCTYPE html>
             }).filter(Boolean);
 
             if (ap) {
-                // 物理级优化：增量更新列表，而不是无脑 clear()
                 const currentTrackUrls = ap.list.audios.map(a => a.url);
                 const newTrackUrls = trackList.map(a => a.url);
                 if (JSON.stringify(currentTrackUrls) !== JSON.stringify(newTrackUrls)) {
@@ -843,7 +882,6 @@ files['index.html'] = `<!DOCTYPE html>
                     }
                     if (fid !== lastBackgroundUpdateId) {
                         lastBackgroundUpdateId = fid;
-                        // 性能权衡：切歌触发视觉更新
                         updateBackground(true);
                     }
                     updateHighlights(fid, false);
@@ -865,7 +903,6 @@ files['index.html'] = `<!DOCTYPE html>
                 ['cur-time', 'm-cur-time'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = fmtTime(cur); });
                 ['total-time', 'm-total-time'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = fmtTime(dur); });
                 
-                // 根本解决：主动心跳采样。弥补自动连播时浏览器 progress 事件触发频率不稳定的缺陷。
                 if (dur > 0 && ap.audio.buffered.length > 0) {
                     const bEnd = ap.audio.buffered.end(ap.audio.buffered.length - 1);
                     const bP = (bEnd / dur * 100) + "%";
@@ -874,7 +911,6 @@ files['index.html'] = `<!DOCTYPE html>
 
                 syncLyrics(cur);
 
-                // 物理移除移动端预载限制，解决息屏后连播中断
                 if (dur > 0 && cur / dur > 0.7 && ap.list.audios.length > 1) {
                     const nextIdx = (ap.list.index + 1) % ap.list.audios.length;
                     const nextAudio = ap.list.audios[nextIdx];
@@ -925,7 +961,6 @@ files['index.html'] = `<!DOCTYPE html>
             if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; } 
             const theme = solaraTheme[currentThemeIdx]; const finalBg = isMob ? '#4d7c5f' : theme.bg;
             
-            // 物理染色：同步状态栏与 meta theme-color
             const metaTheme = document.querySelector('meta[name="theme-color"]'); 
             if(metaTheme) metaTheme.setAttribute('content', finalBg);
             document.body.style.backgroundColor = finalBg;
@@ -975,7 +1010,6 @@ files['index.html'] = `<!DOCTYPE html>
                 const img = document.getElementById(imgId); const logo = document.getElementById(logoId);
                 if(!img || !logo) return;
                 if(song.cover) { 
-                    // 核心修复：防止视觉假死问题
                     const n = new Image(); n.src = song.cover; 
                     n.onload = () => { img.src = song.cover; img.style.display = 'block'; logo.style.setProperty('display', 'none', 'important'); }; 
                 }
@@ -986,13 +1020,12 @@ files['index.html'] = `<!DOCTYPE html>
             ['ui-artist', 'm-ui-artist'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = song.artist; });
             
             if (!song.lrc) {
-               // 核心优化：异步拉取歌词
-               dbOp('get_lrc', { file_id: song.file_id }).then(res => {
-                   if (res.success) {
-                       song.lrc = res.lrc;
-                       if (globalPlayingId === song.file_id) processLrc(song.lrc);
-                   }
-               });
+                dbOp('get_lrc', { file_id: song.file_id }).then(res => {
+                    if (res.success) {
+                        song.lrc = res.lrc;
+                        if (globalPlayingId === song.file_id) processLrc(song.lrc);
+                    }
+                });
             } else processLrc(song.lrc);
 
             updateHighlights(song.file_id, false); 
@@ -1039,7 +1072,6 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function renderCustomTabs() { 
-            // 物理修复：移除 10.1.3 LaTeX 乱码残留包装
             document.getElementById('custom-tabs').innerHTML = libState.playlists.map((pl) => \`<div id="tab-pl-\${pl.id}" onclick="switchList('\${pl.id}')" class="cursor-pointer px-3 py-2 rounded-lg font-black text-xs inline-block">\${pl.name}</div>\`).join(''); 
         }
         
@@ -1103,10 +1135,8 @@ files['index.html'] = `<!DOCTYPE html>
                 if (foundIdx !== -1) targetIdx = foundIdx; 
             }
             
-            // 安全指令：确保索引有效后同步执行播放动作
             if (targetIdx !== -1 && ap.list.audios[targetIdx]) {
                 globalPlayingId = fid;
-                // 物理重置进度：切歌瞬间强行归零播放条与缓存条，防止旧数据残留视觉。
                 ['prog-bar', 'm-prog-bar', 'prog-buffer', 'm-prog-buffer'].forEach(id => {
                     const el = document.getElementById(id);
                     if(el) el.style.width = "0%";
@@ -1223,7 +1253,6 @@ files['index.html'] = `<!DOCTYPE html>
             const container = document.getElementById(window.innerWidth <= 768 ? 'm-list-view' : 'list-view');
             if (container) container.scrollTop = 0;
             updateBackground(false); 
-            // 返回键支持：注入 UI 路由状态
             history.pushState({stage:'drawer'}, '');
             setTimeout(() => { isPlaylistSwitching = false; }, 200); 
         }
@@ -1466,7 +1495,6 @@ files['index.html'] = `<!DOCTYPE html>
         function deletePlaylist(idx) { showSarahDialog("删除", "确定删除此列表吗？", false, null, async (y) => { if(y) { await dbOp('delete_playlist', { id: libState.playlists[idx].id }); silentRefresh(); } }); }
 
         function previewTag(inp) {
-            // 核心修复：按需异步加载元数据解析库。
             if (!window.jsmediatags) {
                 const s = document.createElement('script');
                 s.src = "https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js";
@@ -1570,7 +1598,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.7 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.8 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1578,6 +1606,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.7 构建成功。列表条目悬浮视觉反馈已生效，物理保真度 100%。');
+        console.log('\n✅ Sarah MUSIC 10.1.8 构建成功。IndexedDB 离线引擎已上线，极致秒开已激活。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
