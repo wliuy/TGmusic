@@ -3,68 +3,36 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.13
- * 1. UI 修复：紧急恢复静态资源 CDN 引用，彻底解决 10.1.10 导致的样式坍塌问题。
- * 2. 极致秒开：保留 IndexedDB 离线持久化层。
- * 3. 性能闭环：保留 D1 直链持久化缓存及 Batch Query 聚合查询优化。
- * 4. 视觉保真：1:1 还原原始精致的毛玻璃 UI 与交互手感。
+ * Sarah MUSIC 旗舰全功能重构版 10.1.8
+ * 1. 极致秒开：引入 IndexedDB 离线持久化层。
+ * 2. 启动重构：init 逻辑改为 Stale-While-Revalidate 模式，优先读取本地缓存渲染首屏。
+ * 3. 异步同步：在 UI 渲染完成后静默同步 D1 数据库最新状态，确保数据最终一致。
+ * 4. 视觉保真：保持 10.1.7 所有的视觉反馈与排序逻辑。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'fix: Sarah MUSIC 10.1.13 (回归原始 UI，修复资源引用错误)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.8 (极致秒开：IndexedDB 数据离线化)';
 const files = {};
 
-// --- API: 流媒体传输 (物理移除冷启动延迟，引入 D1 持久化缓存映射) ---
+// --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
 files['functions/api/stream.js'] = `let urlCache = new Map();
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const fileId = url.searchParams.get('file_id');
-  const width = url.searchParams.get('w');
   const BOT_TOKEN = env.TG_Bot_Token;
   if (!fileId || !BOT_TOKEN) return new Response("Params error", { status: 400 });
   try {
-    let downloadUrl = "";
-    // L1 缓存：内存级（温启动瞬发）
     let cacheItem = urlCache.get(fileId);
+    let downloadUrl = "";
     if (cacheItem && Date.now() < cacheItem.expiry) {
       downloadUrl = cacheItem.url;
     } else {
-      // L2 缓存：D1 持久级（物理级秒播，解决冷启动问题）
-      const d1Cache = await env.DB.prepare("SELECT file_path, expiry FROM link_cache WHERE file_id = ?").bind(fileId).first();
-      if (d1Cache && Date.now() < d1Cache.expiry) {
-        downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + d1Cache.file_path;
-        urlCache.set(fileId, { url: downloadUrl, expiry: d1Cache.expiry });
-      } else {
-        // L3 最终回源：请求 Telegram API
-        const getFileUrl = "https://api.telegram.org/bot" + BOT_TOKEN + "/getFile?file_id=" + fileId;
-        const fileInfo = await (await fetch(getFileUrl)).json();
-        if (!fileInfo.ok) return new Response("TG API Fault", { status: 400 });
-        const filePath = fileInfo.result.file_path;
-        downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + filePath;
-        const expiry = Date.now() + 1800000; // 30分钟 TTL
-        urlCache.set(fileId, { url: downloadUrl, expiry });
-        // 持久化到 D1
-        await env.DB.prepare("INSERT OR REPLACE INTO link_cache (file_id, file_path, expiry) VALUES (?, ?, ?)")
-          .bind(fileId, filePath, expiry).run();
-      }
+      const getFileUrl = "https://api.telegram.org/bot" + BOT_TOKEN + "/getFile?file_id=" + fileId;
+      const fileInfo = await (await fetch(getFileUrl)).json();
+      if (!fileInfo.ok) return new Response("TG API Fault", { status: 400 });
+      downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + fileInfo.result.file_path;
+      urlCache.set(fileId, { url: downloadUrl, expiry: Date.now() + 1800000 });
     }
-    
-    // 封面图按需代理逻辑
-    if (width && downloadUrl) {
-      const isImg = /\\.(jpg|jpeg|png|webp)$/i.test(downloadUrl);
-      if (isImg) {
-        const thumbUrl = "https://images.weserv.nl/?url=" + encodeURIComponent(downloadUrl) + "&w=" + width + "&fit=cover";
-        const thumbRes = await fetch(thumbUrl);
-        return new Response(thumbRes.body, { 
-          headers: { 
-            'Content-Type': 'image/jpeg', 
-            'Cache-Control': 'public, max-age=31536000', 
-            'Access-Control-Allow-Origin': '*' 
-          } 
-        });
-      }
-    }
-
     const range = request.headers.get('Range');
     const fileRes = await fetch(downloadUrl, { headers: range ? { 'Range': range } : {} });
     const headers = new Headers(fileRes.headers);
@@ -77,28 +45,23 @@ export async function onRequest(context) {
   } catch (err) { return new Response("Service Error", { status: 500 }); }
 }`;
 
-// --- API: 列表获取 (核心优化：利用 Batch Query 降低 30% 数据库往返时延) ---
+// --- API: 列表获取 (核心优化：移除 DDL 延迟) ---
 files['functions/api/songs.js'] = `export async function onRequest(context) {
   const { env } = context;
   try {
-    // 物理级聚合：一次数据库往返获取全部关系快照
-    const batchRes = await env.DB.batch([
-      env.DB.prepare("SELECT file_id, title, artist, cover FROM songs"),
-      env.DB.prepare("SELECT * FROM playlist_mapping ORDER BY sort_order DESC"),
-      env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav')")
-    ]);
-    
-    const [songs, mappings, playlists] = batchRes.map(r => r.results || []);
+    const songs = await env.DB.prepare("SELECT file_id, title, artist, cover FROM songs").all();
+    const mappings = await env.DB.prepare("SELECT * FROM playlist_mapping ORDER BY sort_order DESC").all();
+    const playlists = await env.DB.prepare("SELECT * FROM playlists WHERE id NOT IN ('all', 'fav')").all();
     
     const res = {
-      songs: songs,
-      favorites: mappings.filter(m => m.playlist_id === 'fav').map(m => m.file_id),
-      playlists: playlists.sort((a, b) => (Number(b.sort_order) || 0) - (Number(a.sort_order) || 0)).map(p => ({
+      songs: songs.results || [],
+      favorites: mappings.results.filter(m => m.playlist_id === 'fav').map(m => m.file_id),
+      playlists: (playlists.results || []).sort((a, b) => (Number(b.sort_order) || 0) - (Number(a.sort_order) || 0)).map(p => ({
         id: p.id,
         name: p.name,
-        ids: mappings.filter(m => m.playlist_id === p.id).map(m => m.file_id)
+        ids: mappings.results.filter(m => m.playlist_id === p.id).map(m => m.file_id)
       })),
-      all_order: mappings.filter(m => m.playlist_id === 'all').map(m => m.file_id)
+      all_order: mappings.results.filter(m => m.playlist_id === 'all').map(m => m.file_id)
     };
     return new Response(JSON.stringify(res), { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
   } catch (err) { 
@@ -115,7 +78,6 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT)").run();
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT, sort_order INTEGER)").run();
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS playlist_mapping (playlist_id TEXT, file_id TEXT, sort_order INTEGER, PRIMARY KEY(playlist_id, file_id))").run();
-    await env.DB.prepare("CREATE TABLE IF NOT EXISTS link_cache (file_id TEXT PRIMARY KEY, file_path TEXT, expiry INTEGER)").run();
 
     const { action, data } = await request.json();
     if (action === 'get_lrc') {
@@ -239,7 +201,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1023';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1018';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -248,7 +210,7 @@ files['index.html'] = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-width=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#4d7c5f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -554,7 +516,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.13</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.8</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -665,7 +627,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.13</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.8</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -1131,9 +1093,8 @@ files['index.html'] = `<!DOCTYPE html>
             const html = visibleData.map(s => {
                 const isActive = (s.file_id === currentSelectedId);
                 const isFavorited = libState.favorites.includes(s.file_id);
-                const thumbCover = s.cover ? s.cover + '&w=100' : DEFAULT_LOGO;
                 return \`<div data-id="\${s.file_id}" onclick="handleTrackSwitch(-1, '\${s.file_id}')" class="song-item group \${isActive ? 'active' : ''}">
-                    <img src="\${thumbCover}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
+                    <img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
                     <div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div>
                     <div class="song-actions">
                         <div class="action-btn \${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('\${s.file_id}')" title="收藏">
@@ -1637,7 +1598,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.13 UI Restored)---');
+    console.log('\n---正在同步至 GitHub (10.1.8 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1645,6 +1606,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.13 构建成功。UI 已完美回归，样式支撑库已重新接入 CDN。');
+        console.log('\n✅ Sarah MUSIC 10.1.8 构建成功。IndexedDB 离线引擎已上线，极致秒开已激活。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
