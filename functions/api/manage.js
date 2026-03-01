@@ -6,6 +6,7 @@ export async function onRequest(context) {
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT)").run();
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT, sort_order INTEGER)").run();
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS playlist_mapping (playlist_id TEXT, file_id TEXT, sort_order INTEGER, PRIMARY KEY(playlist_id, file_id))").run();
+    await env.DB.prepare("CREATE TABLE IF NOT EXISTS link_cache (file_id TEXT PRIMARY KEY, file_path TEXT, expiry INTEGER)").run();
 
     const { action, data } = await request.json();
     if (action === 'get_lrc') {
