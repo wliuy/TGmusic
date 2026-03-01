@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-width=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#4d7c5f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -308,7 +308,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.8</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.9</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -419,7 +419,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.8</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.9</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -885,8 +885,9 @@
             const html = visibleData.map(s => {
                 const isActive = (s.file_id === currentSelectedId);
                 const isFavorited = libState.favorites.includes(s.file_id);
+                const thumbCover = s.cover ? s.cover + '&w=100' : DEFAULT_LOGO;
                 return `<div data-id="${s.file_id}" onclick="handleTrackSwitch(-1, '${s.file_id}')" class="song-item group ${isActive ? 'active' : ''}">
-                    <img src="${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
+                    <img src="${thumbCover}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
                     <div class="flex-1 truncate"><div class="song-title-text truncate">${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">${s.artist}</div></div>
                     <div class="song-actions">
                         <div class="action-btn ${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('${s.file_id}')" title="收藏">

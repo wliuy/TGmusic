@@ -3,22 +3,23 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.8
- * 1. 极致秒开：引入 IndexedDB 离线持久化层。
- * 2. 启动重构：init 逻辑改为 Stale-While-Revalidate 模式，优先读取本地缓存渲染首屏。
- * 3. 异步同步：在 UI 渲染完成后静默同步 D1 数据库最新状态，确保数据最终一致。
- * 4. 视觉保真：保持 10.1.7 所有的视觉反馈与排序逻辑。
+ * Sarah MUSIC 旗舰全功能重构版 10.1.9
+ * 1. 极致秒开：保留 IndexedDB 离线持久化层。
+ * 2. 封面图按需代理：引入后端 Thumbnail 压缩机制，列表封面仅加载 100px 缩略图。
+ * 3. 带宽优化：显著减少移动端列表滑动时的流量消耗与内存占用。
+ * 4. 视觉保真：保持 10.1.8 所有的极致加载体验与视觉反馈。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.8 (极致秒开：IndexedDB 数据离线化)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.9 (封面图按需代理 / Thumbnail on demand)';
 const files = {};
 
-// --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
+// --- API: 流媒体传输 (物理移除 setTimeout，改用缩略图代理机制减少带宽消耗) ---
 files['functions/api/stream.js'] = `let urlCache = new Map();
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const fileId = url.searchParams.get('file_id');
+  const width = url.searchParams.get('w');
   const BOT_TOKEN = env.TG_Bot_Token;
   if (!fileId || !BOT_TOKEN) return new Response("Params error", { status: 400 });
   try {
@@ -33,6 +34,23 @@ export async function onRequest(context) {
       downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + fileInfo.result.file_path;
       urlCache.set(fileId, { url: downloadUrl, expiry: Date.now() + 1800000 });
     }
+    
+    // 封面图按需代理逻辑
+    if (width && downloadUrl) {
+      const isImg = /\\.(jpg|jpeg|png|webp)$/i.test(downloadUrl);
+      if (isImg) {
+        const thumbUrl = "https://images.weserv.nl/?url=" + encodeURIComponent(downloadUrl) + "&w=" + width + "&fit=cover";
+        const thumbRes = await fetch(thumbUrl);
+        return new Response(thumbRes.body, { 
+          headers: { 
+            'Content-Type': 'image/jpeg', 
+            'Cache-Control': 'public, max-age=31536000', 
+            'Access-Control-Allow-Origin': '*' 
+          } 
+        });
+      }
+    }
+
     const range = request.headers.get('Range');
     const fileRes = await fetch(downloadUrl, { headers: range ? { 'Range': range } : {} });
     const headers = new Headers(fileRes.headers);
@@ -201,7 +219,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1018';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1019';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -210,7 +228,7 @@ files['index.html'] = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-width=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#4d7c5f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -516,7 +534,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.8</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.9</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -627,7 +645,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.8</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.9</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -1093,8 +1111,9 @@ files['index.html'] = `<!DOCTYPE html>
             const html = visibleData.map(s => {
                 const isActive = (s.file_id === currentSelectedId);
                 const isFavorited = libState.favorites.includes(s.file_id);
+                const thumbCover = s.cover ? s.cover + '&w=100' : DEFAULT_LOGO;
                 return \`<div data-id="\${s.file_id}" onclick="handleTrackSwitch(-1, '\${s.file_id}')" class="song-item group \${isActive ? 'active' : ''}">
-                    <img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
+                    <img src="\${thumbCover}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
                     <div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div>
                     <div class="song-actions">
                         <div class="action-btn \${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('\${s.file_id}')" title="收藏">
@@ -1598,7 +1617,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.8 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.9 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1606,6 +1625,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.8 构建成功。IndexedDB 离线引擎已上线，极致秒开已激活。');
+        console.log('\n✅ Sarah MUSIC 10.1.9 构建成功。封面图按需代理已激活，带宽节省模式上线。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }

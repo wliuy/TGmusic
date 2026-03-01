@@ -3,6 +3,7 @@ export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const fileId = url.searchParams.get('file_id');
+  const width = url.searchParams.get('w');
   const BOT_TOKEN = env.TG_Bot_Token;
   if (!fileId || !BOT_TOKEN) return new Response("Params error", { status: 400 });
   try {
@@ -17,6 +18,23 @@ export async function onRequest(context) {
       downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + fileInfo.result.file_path;
       urlCache.set(fileId, { url: downloadUrl, expiry: Date.now() + 1800000 });
     }
+    
+    // 封面图按需代理逻辑
+    if (width && downloadUrl) {
+      const isImg = /\.(jpg|jpeg|png|webp)$/i.test(downloadUrl);
+      if (isImg) {
+        const thumbUrl = "https://images.weserv.nl/?url=" + encodeURIComponent(downloadUrl) + "&w=" + width + "&fit=cover";
+        const thumbRes = await fetch(thumbUrl);
+        return new Response(thumbRes.body, { 
+          headers: { 
+            'Content-Type': 'image/jpeg', 
+            'Cache-Control': 'public, max-age=31536000', 
+            'Access-Control-Allow-Origin': '*' 
+          } 
+        });
+      }
+    }
+
     const range = request.headers.get('Range');
     const fileRes = await fetch(downloadUrl, { headers: range ? { 'Range': range } : {} });
     const headers = new Headers(fileRes.headers);
