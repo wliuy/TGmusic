@@ -11,9 +11,9 @@
     <link rel="apple-touch-icon" sizes="192x192" href="https://tc.yang.pp.ua/file/logo/sarah-y.png">
     <title>Sarah</title>
     <link rel="icon" type="image/png" sizes="192x192" href="https://tc.yang.pp.ua/file/logo/sarah-y.png">
-    <script src="/assets/js/tailwind.js"></script>
-    <link rel="stylesheet" href="/assets/css/APlayer.min.css">
-    <link rel="stylesheet" href="/assets/css/fonts.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;500;700;900&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
     <style>
         :root {
             --dynamic-accent: #d97706; --solara-text: #1e293b; --glass-blur: blur(40px);
@@ -308,7 +308,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.12</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.13</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -419,7 +419,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.12</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.13</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -440,7 +440,7 @@
     </div>
 
     <div id="ap-hidden" style="display:none"></div>
-    <script src="/assets/js/APlayer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
     <script>
         let ap = null, db = [], lrcLines = [], currentTab = 'fav', tempMetaMap = new Map(), globalPlayingId = null;
         let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
@@ -1290,7 +1290,7 @@
         function previewTag(inp) {
             if (!window.jsmediatags) {
                 const s = document.createElement('script');
-                s.src = "/assets/js/jsmediatags.min.js";
+                s.src = "https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js";
                 s.onload = () => previewTag(inp);
                 document.head.appendChild(s);
                 return;
