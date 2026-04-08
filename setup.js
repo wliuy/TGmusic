@@ -3,15 +3,16 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.7
+ * Sarah MUSIC 旗舰全功能重构版 10.1.10
  * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
- * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段的资源竞争，实现即刻播放。
+ * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段 of 资源竞争，实现即刻播放。
  * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
  * 4. 版本同步：全面对齐 HTML 文本与控制台日志的版本号标识。
  * 5. 格式保真：1:1 还原 1400 行规模的管理端代码，确保排序与上传算法绝对原始一致。
+ * 6. 访问认证：新增毛玻璃透明认证层，对接服务端 PASSWORD 环境变量，不正确无法进入。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.7 (增加列表条目鼠标悬浮视觉反馈)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.10 (增加服务端 PASSWORD 变量认证，恢复 1:1 源码保真)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
@@ -131,6 +132,17 @@ files['functions/api/manage.js'] = `export async function onRequest(context) {
   } catch (err) { return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500 }); }
 }`;
 
+// --- API: 认证中心 ---
+files['functions/api/check_auth.js'] = `export async function onRequest(context) {
+  const { request, env } = context;
+  if (request.method !== 'POST') return new Response("Bad Method", { status: 405 });
+  try {
+    const { password } = await request.json();
+    const correctPassword = env.PASSWORD || "sarah";
+    return new Response(JSON.stringify({ success: password === correctPassword }), { headers: { 'Content-Type': 'application/json' } });
+  } catch (err) { return new Response(JSON.stringify({ success: false }), { status: 500 }); }
+}`;
+
 // --- API: 上传中心 ---
 files['functions/api/upload.js'] = `export async function onRequest(context) {
   const { request, env } = context;
@@ -202,7 +214,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v1017';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v10110';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -485,6 +497,14 @@ files['index.html'] = `<!DOCTYPE html>
         .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
 
+        /* 认证层样式：完美适配毛玻璃主题 */
+        #auth-gate { position: fixed; inset: 0; z-index: 9999; background: #4d7c5f; backdrop-filter: blur(80px); -webkit-backdrop-filter: blur(80px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; transition: opacity 0.8s ease; }
+        .auth-card { width: 100%; max-width: 320px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 2.5rem; padding: 3rem 2rem; text-align: center; box-shadow: 0 40px 100px rgba(0,0,0,0.2); }
+        .auth-input { width: 100%; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; padding: 1.25rem; color: white; text-align: center; font-size: 1.25rem; font-weight: 900; outline: none; margin-bottom: 2rem; transition: 0.3s; }
+        .auth-input:focus { background: rgba(255, 255, 255, 0.15); border-color: white; }
+        .auth-btn { width: 100%; padding: 1.25rem; background: white; color: #4d7c5f; border-radius: 1.25rem; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; transition: 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .auth-btn:active { transform: scale(0.95); opacity: 0.9; }
+
         @media (max-width: 768px) { .desktop-container { display: none; } .mobile-player-container { display: flex; } }
     </style>
 </head>
@@ -492,6 +512,15 @@ files['index.html'] = `<!DOCTYPE html>
     <div id="msg-box"></div>
     <div id="bg-stage"></div>
     <div id="bg-overlay"></div>
+
+    <!-- 访问认证层 -->
+    <div id="auth-gate" style="display:none">
+        <div class="auth-card">
+            <h2 class="text-white font-black text-2xl mb-8 tracking-tighter">AUTHENTICATION</h2>
+            <input type="password" id="entry-pass" class="auth-input" placeholder="••••••" onkeydown="if(event.key==='Enter')verifyAccess()">
+            <button onclick="verifyAccess()" class="auth-btn">解锁进入</button>
+        </div>
+    </div>
 
     <!-- Sarah Dialog UI -->
     <div id="sarah-dialog" class="sarah-dialog-overlay fixed inset-0 bg-black/60 backdrop-blur-2xl z-[3000] hidden items-center justify-center" onclick="closeSarahDialog()">
@@ -519,7 +548,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.7</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.10</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -630,7 +659,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.7</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.10</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -691,7 +720,28 @@ files['index.html'] = `<!DOCTYPE html>
             } catch (e) { console.error(e); return { success: false }; }
         }
 
-        async function init() {
+        async function verifyAccess() {
+            const pass = document.getElementById('entry-pass').value;
+            const res = await fetch('/api/check_auth', { method: 'POST', body: JSON.stringify({ password: pass }) });
+            const data = await res.json();
+            if (data.success) {
+                sessionStorage.setItem('sarah_authed', 'true');
+                const gate = document.getElementById('auth-gate');
+                gate.style.opacity = '0';
+                setTimeout(() => { gate.style.display = 'none'; init(true); }, 800);
+            } else {
+                showMsg("密码错误");
+            }
+        }
+
+        async function init(isForce = false) {
+            // 访问认证拦截
+            if (!sessionStorage.getItem('sarah_authed')) {
+                document.getElementById('auth-gate').style.display = 'flex';
+                return;
+            }
+            if (isForce) document.getElementById('auth-gate').style.display = 'none';
+
             // 加速响应1：优先开启视觉背景
             updateBackground(true);
             ['main-ui', 'm-player'].forEach(id => {
@@ -1570,7 +1620,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.7 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.10 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1578,6 +1628,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.7 构建成功。列表条目悬浮视觉反馈已生效，物理保真度 100%。');
+        console.log('\n✅ Sarah MUSIC 10.1.10 构建成功。访问认证逻辑已上线，物理保真度 100%。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
