@@ -276,13 +276,35 @@
         .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
 
-        /* 认证层样式：完美适配毛玻璃主题 */
-        #auth-gate { position: fixed; inset: 0; z-index: 9999; background: #4d7c5f; backdrop-filter: blur(80px); -webkit-backdrop-filter: blur(80px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; transition: opacity 0.8s ease; }
-        .auth-card { width: 100%; max-width: 320px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 2.5rem; padding: 3rem 2rem; text-align: center; box-shadow: 0 40px 100px rgba(0,0,0,0.2); }
-        .auth-input { width: 100%; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; padding: 1.25rem; color: white; text-align: center; font-size: 1.25rem; font-weight: 900; outline: none; margin-bottom: 2rem; transition: 0.3s; }
-        .auth-input:focus { background: rgba(255, 255, 255, 0.15); border-color: white; }
-        .auth-btn { width: 100%; padding: 1.25rem; background: white; color: #4d7c5f; border-radius: 1.25rem; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; transition: 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .auth-btn:active { transform: scale(0.95); opacity: 0.9; }
+        /* 认证层样式 */
+        #auth-gate { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; transition: opacity 0.8s ease; }
+        @media (min-width: 769px) {
+            #auth-gate { background: linear-gradient(135deg, #f0fdf4 0%, #064e3b 100%); }
+            #auth-gate .auth-card { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: 0 40px 120px rgba(0, 0, 0, 0.15); }
+            #auth-gate .auth-title { color: #1e293b; }
+            #auth-gate .auth-subtitle { color: rgba(30, 41, 59, 0.5); }
+            #auth-gate .auth-input { background: rgba(255, 255, 255, 0.3); border: 1px solid rgba(255, 255, 255, 0.4); color: #1e293b; }
+            #auth-gate .auth-input::placeholder { color: rgba(30, 41, 59, 0.3); }
+            #auth-gate .auth-input:focus { background: rgba(255, 255, 255, 0.45); border-color: rgba(255, 255, 255, 0.6); }
+            #auth-gate .auth-btn { background: var(--dynamic-accent); color: white; box-shadow: 0 15px 35px rgba(0,0,0,0.15); }
+            #auth-gate .auth-btn:active { transform: scale(0.95); }
+        }
+        @media (max-width: 768px) {
+            #auth-gate { background: #4d7c5f; backdrop-filter: blur(80px); -webkit-backdrop-filter: blur(80px); }
+            #auth-gate .auth-card { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 40px 100px rgba(0,0,0,0.2); }
+            #auth-gate .auth-title { color: white; }
+            #auth-gate .auth-subtitle { color: rgba(255,255,255,0.5); }
+            #auth-gate .auth-input { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); color: white; }
+            #auth-gate .auth-input::placeholder { color: rgba(255,255,255,0.3); }
+            #auth-gate .auth-input:focus { background: rgba(255, 255, 255, 0.15); border-color: white; }
+            #auth-gate .auth-btn { background: white; color: #4d7c5f; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+            #auth-gate .auth-btn:active { transform: scale(0.95); opacity: 0.9; }
+        }
+        .auth-card { width: 100%; max-width: 380px; border-radius: 2rem; padding: 3.5rem 2.5rem; text-align: center; }
+        .auth-title { font-size: 1.75rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+        .auth-subtitle { font-size: 0.8rem; font-weight: 500; margin-bottom: 2.5rem; letter-spacing: 0.05em; }
+        .auth-input { width: 100%; border-radius: 1rem; padding: 1.1rem 1.25rem; font-size: 1.1rem; font-weight: 700; outline: none; transition: 0.3s; text-align: center; letter-spacing: 0.15em; }
+        .auth-btn { width: 100%; padding: 1.1rem; border-radius: 1rem; font-weight: 900; font-size: 0.85rem; letter-spacing: 3px; transition: 0.3s; border: none; cursor: pointer; text-transform: uppercase; }
 
         @media (max-width: 768px) { .desktop-container { display: none; } .mobile-player-container { display: flex; } }
     </style>
@@ -295,9 +317,10 @@
     <!-- 访问认证层 -->
     <div id="auth-gate" style="display:none">
         <div class="auth-card">
-            <h2 class="text-white font-black text-2xl mb-8 tracking-tighter">AUTHENTICATION</h2>
-            <input type="password" id="entry-pass" class="auth-input" placeholder="••••••" onkeydown="if(event.key==='Enter')verifyAccess()">
-            <button onclick="verifyAccess()" class="auth-btn">解锁进入</button>
+            <h2 class="auth-title">Sarah Music</h2>
+            <p class="auth-subtitle">请输入访问密码以继续</p>
+            <input type="password" id="entry-pass" class="auth-input" placeholder="请输入密码" onkeydown="if(event.key==='Enter')verifyAccess()">
+            <button onclick="verifyAccess()" class="auth-btn">进入</button>
         </div>
     </div>
 
@@ -499,12 +522,28 @@
             } catch (e) { console.error(e); return { success: false }; }
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        const AUTH_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
+
+        function isAuthed() {
+            try {
+                const raw = localStorage.getItem('sarah_auth');
+                if (!raw) return false;
+                const { ts } = JSON.parse(raw);
+                return (Date.now() - ts) < AUTH_EXPIRY_MS;
+            } catch { return false; }
+        }
+
         async function verifyAccess() {
             const pass = document.getElementById('entry-pass').value;
             const res = await fetch('/api/check_auth', { method: 'POST', body: JSON.stringify({ password: pass }) });
             const data = await res.json();
             if (data.success) {
-                sessionStorage.setItem('sarah_authed', 'true');
+                localStorage.setItem('sarah_auth', JSON.stringify({ ts: Date.now() }));
                 const gate = document.getElementById('auth-gate');
                 gate.style.opacity = '0';
                 setTimeout(() => { gate.style.display = 'none'; init(true); }, 800);
@@ -514,8 +553,7 @@
         }
 
         async function init(isForce = false) {
-            // 访问认证拦截
-            if (!sessionStorage.getItem('sarah_authed')) {
+            if (!isAuthed()) {
                 document.getElementById('auth-gate').style.display = 'flex';
                 return;
             }
@@ -890,17 +928,20 @@
             const html = visibleData.map(s => {
                 const isActive = (s.file_id === currentSelectedId);
                 const isFavorited = libState.favorites.includes(s.file_id);
-                return `<div data-id="${s.file_id}" onclick="handleTrackSwitch(-1, '${s.file_id}')" class="song-item group ${isActive ? 'active' : ''}">
+                const safeId = escapeHtml(s.file_id);
+                const safeTitle = escapeHtml(s.title);
+                const safeArtist = escapeHtml(s.artist);
+                return `<div data-id="${safeId}" onclick="handleTrackSwitch(-1, '${safeId}')" class="song-item group ${isActive ? 'active' : ''}">
                     <img src="${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
-                    <div class="flex-1 truncate"><div class="song-title-text truncate">${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">${s.artist}</div></div>
+                    <div class="flex-1 truncate"><div class="song-title-text truncate">${safeTitle}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">${safeArtist}</div></div>
                     <div class="song-actions">
-                        <div class="action-btn ${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('${s.file_id}')" title="收藏">
+                        <div class="action-btn ${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('${safeId}')" title="收藏">
                             <svg class="w-4 h-4" fill="${isFavorited ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                         </div>
-                        <div class="action-btn" onclick="event.stopPropagation(); openPlaylistSelector('${s.file_id}')" title="添加">
+                        <div class="action-btn" onclick="event.stopPropagation(); openPlaylistSelector('${safeId}')" title="添加">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>
                         </div>
-                        <div class="action-btn" onclick="event.stopPropagation(); deleteSongById('${s.file_id}')" title="移除">
+                        <div class="action-btn" onclick="event.stopPropagation(); deleteSongById('${safeId}')" title="移除">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </div>
                     </div>
@@ -1152,7 +1193,12 @@
             else if(currentAdminTab === 'logs') { renderUploadLogs(); return; }
             else ids = libState.playlists.find(p => p.id === currentAdminTab)?.ids || [];
             const list = ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
-            container.innerHTML = list.map((s, i) => `<div class="admin-song-row" id="admin-row-${i}" data-fileid="${s.file_id}" onmousedown="handleAdminDragStart(event, ${i}, false)" ontouchstart="handleAdminDragStart(event, ${i}, true)"><div class="admin-song-info"><input class="admin-song-input admin-song-title-input" value="${s.title}" readonly onchange="updateSongInfo('${s.file_id}', 'title', this.value)"><input class="admin-song-input admin-song-artist-input" value="${s.artist}" readonly onchange="updateSongInfo('${s.file_id}', 'artist', this.value)"></div><div class="admin-action-group"><div class="admin-action-btn" onclick="openPlaylistSelector('${s.file_id}')" title="分发"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div><div class="admin-action-btn delete" onclick="deleteSong('${s.file_id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></div><div class="admin-action-btn" onclick="toggleEditMode(${i})" title="编辑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div></div></div>`).join('') || '<div class="py-10 text-center text-white/20 text-xs">暂无歌曲</div>';
+            container.innerHTML = list.map((s, i) => {
+                const safeId = escapeHtml(s.file_id);
+                const safeTitle = escapeHtml(s.title);
+                const safeArtist = escapeHtml(s.artist);
+                return `<div class="admin-song-row" id="admin-row-${i}" data-fileid="${safeId}" onmousedown="handleAdminDragStart(event, ${i}, false)" ontouchstart="handleAdminDragStart(event, ${i}, true)"><div class="admin-song-info"><input class="admin-song-input admin-song-title-input" value="${safeTitle}" readonly onchange="updateSongInfo('${safeId}', 'title', this.value)"><input class="admin-song-input admin-song-artist-input" value="${safeArtist}" readonly onchange="updateSongInfo('${safeId}', 'artist', this.value)"></div><div class="admin-action-group"><div class="admin-action-btn" onclick="openPlaylistSelector('${safeId}')" title="分发"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div><div class="admin-action-btn delete" onclick="deleteSong('${safeId}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></div><div class="admin-action-btn" onclick="toggleEditMode(${i})" title="编辑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div></div></div>`;
+            }).join('') || '<div class="py-10 text-center text-white/20 text-xs">暂无歌曲</div>';
         }
 
         function handleAdminDragStart(e, idx, isTouch) {
@@ -1274,9 +1320,12 @@
         }
 
         function openPlaylistSelector(fid) {
+            const safeFid = escapeHtml(fid);
             document.getElementById('playlist-selector-list').innerHTML = libState.playlists.map(pl => {
                 const ex = pl.ids.includes(fid);
-                return `<div onclick="addToPlaylist('${pl.id}', '${fid}')" class="p-4 bg-white/10 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/20 ${ex?'text-emerald-400 font-bold':''}">${ex ? '<span class="text-emerald-400">' + pl.name + '</span>' : '<span class="text-white">' + pl.name + '</span>'} ${ex ? '<span class="text-[10px] text-emerald-400">已添加</span>' : '<span class="text-white font-bold text-lg">+</span>'}</div>`;
+                const safeName = escapeHtml(pl.name);
+                const safePlId = escapeHtml(pl.id);
+                return `<div onclick="addToPlaylist('${safePlId}', '${safeFid}')" class="p-4 bg-white/10 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/20 ${ex?'text-emerald-400 font-bold':''}">${ex ? '<span class="text-emerald-400">' + safeName + '</span>' : '<span class="text-white">' + safeName + '</span>'} ${ex ? '<span class="text-[10px] text-emerald-400">已添加</span>' : '<span class="text-white font-bold text-lg">+</span>'}</div>`;
             }).join('');
             document.getElementById('playlist-selector-modal').classList.remove('hidden'); document.getElementById('playlist-selector-modal').classList.add('flex');
         }
