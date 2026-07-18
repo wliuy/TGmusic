@@ -497,13 +497,35 @@ files['index.html'] = `<!DOCTYPE html>
         .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
 
-        /* 认证层样式：完美适配毛玻璃主题 */
-        #auth-gate { position: fixed; inset: 0; z-index: 9999; background: #4d7c5f; backdrop-filter: blur(80px); -webkit-backdrop-filter: blur(80px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; transition: opacity 0.8s ease; }
-        .auth-card { width: 100%; max-width: 320px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 2.5rem; padding: 3rem 2rem; text-align: center; box-shadow: 0 40px 100px rgba(0,0,0,0.2); }
-        .auth-input { width: 100%; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; padding: 1.25rem; color: white; text-align: center; font-size: 1.25rem; font-weight: 900; outline: none; margin-bottom: 2rem; transition: 0.3s; }
-        .auth-input:focus { background: rgba(255, 255, 255, 0.15); border-color: white; }
-        .auth-btn { width: 100%; padding: 1.25rem; background: white; color: #4d7c5f; border-radius: 1.25rem; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; transition: 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .auth-btn:active { transform: scale(0.95); opacity: 0.9; }
+        /* 认证层样式 */
+        #auth-gate { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; transition: opacity 0.8s ease; }
+        @media (min-width: 769px) {
+            #auth-gate { background: linear-gradient(135deg, #f0fdf4 0%, #064e3b 100%); }
+            #auth-gate .auth-card { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: 0 40px 120px rgba(0, 0, 0, 0.15); }
+            #auth-gate .auth-title { color: #1e293b; }
+            #auth-gate .auth-subtitle { color: rgba(30, 41, 59, 0.5); }
+            #auth-gate .auth-input { background: rgba(255, 255, 255, 0.3); border: 1px solid rgba(255, 255, 255, 0.4); color: #1e293b; }
+            #auth-gate .auth-input::placeholder { color: rgba(30, 41, 59, 0.3); }
+            #auth-gate .auth-input:focus { background: rgba(255, 255, 255, 0.45); border-color: rgba(255, 255, 255, 0.6); }
+            #auth-gate .auth-btn { background: var(--dynamic-accent); color: white; box-shadow: 0 15px 35px rgba(0,0,0,0.15); }
+            #auth-gate .auth-btn:active { transform: scale(0.95); }
+        }
+        @media (max-width: 768px) {
+            #auth-gate { background: #4d7c5f; backdrop-filter: blur(80px); -webkit-backdrop-filter: blur(80px); }
+            #auth-gate .auth-card { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 40px 100px rgba(0,0,0,0.2); }
+            #auth-gate .auth-title { color: white; }
+            #auth-gate .auth-subtitle { color: rgba(255,255,255,0.5); }
+            #auth-gate .auth-input { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); color: white; }
+            #auth-gate .auth-input::placeholder { color: rgba(255,255,255,0.3); }
+            #auth-gate .auth-input:focus { background: rgba(255, 255, 255, 0.15); border-color: white; }
+            #auth-gate .auth-btn { background: white; color: #4d7c5f; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+            #auth-gate .auth-btn:active { transform: scale(0.95); opacity: 0.9; }
+        }
+        .auth-card { width: 100%; max-width: 380px; border-radius: 2rem; padding: 3.5rem 2.5rem; text-align: center; }
+        .auth-title { font-size: 1.75rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+        .auth-subtitle { font-size: 0.8rem; font-weight: 500; margin-bottom: 2.5rem; letter-spacing: 0.05em; }
+        .auth-input { width: 100%; border-radius: 1rem; padding: 1.1rem 1.25rem; font-size: 1.1rem; font-weight: 700; outline: none; transition: 0.3s; text-align: center; letter-spacing: 0.15em; }
+        .auth-btn { width: 100%; padding: 1.1rem; border-radius: 1rem; font-weight: 900; font-size: 0.85rem; letter-spacing: 3px; transition: 0.3s; border: none; cursor: pointer; text-transform: uppercase; }
 
         @media (max-width: 768px) { .desktop-container { display: none; } .mobile-player-container { display: flex; } }
     </style>
@@ -516,9 +538,10 @@ files['index.html'] = `<!DOCTYPE html>
     <!-- 访问认证层 -->
     <div id="auth-gate" style="display:none">
         <div class="auth-card">
-            <h2 class="text-white font-black text-2xl mb-8 tracking-tighter">AUTHENTICATION</h2>
-            <input type="password" id="entry-pass" class="auth-input" placeholder="••••••" onkeydown="if(event.key==='Enter')verifyAccess()">
-            <button onclick="verifyAccess()" class="auth-btn">解锁进入</button>
+            <h2 class="auth-title">Sarah Music</h2>
+            <p class="auth-subtitle">请输入访问密码以继续</p>
+            <input type="password" id="entry-pass" class="auth-input" placeholder="请输入密码" onkeydown="if(event.key==='Enter')verifyAccess()">
+            <button onclick="verifyAccess()" class="auth-btn">进入</button>
         </div>
     </div>
 
@@ -725,7 +748,7 @@ files['index.html'] = `<!DOCTYPE html>
             const res = await fetch('/api/check_auth', { method: 'POST', body: JSON.stringify({ password: pass }) });
             const data = await res.json();
             if (data.success) {
-                sessionStorage.setItem('sarah_authed', 'true');
+                localStorage.setItem('sarah_auth', JSON.stringify({ ts: Date.now() }));
                 const gate = document.getElementById('auth-gate');
                 gate.style.opacity = '0';
                 setTimeout(() => { gate.style.display = 'none'; init(true); }, 800);
@@ -734,9 +757,25 @@ files['index.html'] = `<!DOCTYPE html>
             }
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        const AUTH_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
+
+        function isAuthed() {
+            try {
+                const raw = localStorage.getItem('sarah_auth');
+                if (!raw) return false;
+                const { ts } = JSON.parse(raw);
+                return (Date.now() - ts) < AUTH_EXPIRY_MS;
+            } catch { return false; }
+        }
+
         async function init(isForce = false) {
             // 访问认证拦截
-            if (!sessionStorage.getItem('sarah_authed')) {
+            if (!isAuthed()) {
                 document.getElementById('auth-gate').style.display = 'flex';
                 return;
             }
