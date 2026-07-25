@@ -899,6 +899,21 @@ files['index.html'] = `<!DOCTYPE html>
 
         function buildIndexMap() { dbIndexMap.clear(); for(let j = 0; j < db.length; j++) dbIndexMap.set(db[j].file_id, j); }
         
+        function preloadNextTrack() {
+            if (!ap || ap.list.audios.length <= 1) return;
+            const nextIdx = (ap.list.index + 1) % ap.list.audios.length;
+            const nextAudio = ap.list.audios[nextIdx];
+            if (!nextAudio) return;
+            const nextFid = new URLSearchParams(nextAudio.url.split('?')[1]).get('file_id');
+            if (!preloadedFids.has(nextFid)) {
+                const preNode = document.createElement('audio');
+                preNode.src = nextAudio.url;
+                preNode.preload = "auto";
+                preNode.load();
+                preloadedFids.add(nextFid);
+            }
+        }
+
         function setupPlayer() {
             let ids = [];
             const sourceId = globalActiveListId;
@@ -992,18 +1007,29 @@ files['index.html'] = `<!DOCTYPE html>
 
                 syncLyrics(cur);
 
-                // 物理移除移动端预载限制，解决息屏后连播中断
-                if (dur > 0 && cur / dur > 0.7 && ap.list.audios.length > 1) {
-                    const nextIdx = (ap.list.index + 1) % ap.list.audios.length;
-                    const nextAudio = ap.list.audios[nextIdx];
-                    const nextFid = new URLSearchParams(nextAudio.url.split('?')[1]).get('file_id');
-                    if (!preloadedFids.has(nextFid)) {
-                        const preNode = document.createElement('audio');
-                        preNode.src = nextAudio.url;
-                        preNode.preload = "auto";
-                        preNode.load();
-                        preloadedFids.add(nextFid);
-                    }
+                // 预加载下一首：提前至50%触发，确保息屏前有足够缓冲
+                if (dur > 0 && cur / dur > 0.5 && ap.list.audios.length > 1) {
+                    preloadNextTrack();
+                }
+            });
+
+            // 核心修复：息屏/切后台时强制预加载下一首，防止连播中断
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && ap && !ap.paused && ap.list.audios.length > 1) {
+                    preloadNextTrack();
+                }
+            });
+
+            // 安全网：确保 ended 事件能正确触发下一首
+            ap.audio.addEventListener('ended', () => {
+                if (ap.options.loop === 'one') return;
+                // 如果 APlayer 没有自动切换，手动触发
+                if (ap.list.index < ap.list.audios.length - 1 || ap.options.loop === 'all') {
+                    setTimeout(() => {
+                        if (ap && ap.paused && document.hidden) {
+                            handleNext();
+                        }
+                    }, 300);
                 }
             });
 
