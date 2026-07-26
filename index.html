@@ -677,6 +677,7 @@
 
         function buildIndexMap() { dbIndexMap.clear(); for(let j = 0; j < db.length; j++) dbIndexMap.set(db[j].file_id, j); }
         
+        let preloadedAudioEl = null;
         function preloadNextTrack() {
             if (!ap || ap.list.audios.length <= 1) return;
             const nextIdx = (ap.list.index + 1) % ap.list.audios.length;
@@ -684,11 +685,27 @@
             if (!nextAudio) return;
             const nextFid = new URLSearchParams(nextAudio.url.split('?')[1]).get('file_id');
             if (!preloadedFids.has(nextFid)) {
+                // 清理上一个预加载元素，避免多个 audio 元素抢占音频硬件
+                if (preloadedAudioEl) {
+                    preloadedAudioEl.pause();
+                    preloadedAudioEl.removeAttribute('src');
+                    preloadedAudioEl.load();
+                    preloadedAudioEl = null;
+                }
                 const preNode = document.createElement('audio');
-                preNode.src = nextAudio.url;
                 preNode.preload = "auto";
-                preNode.load();
+                preNode.src = nextAudio.url;
+                preloadedAudioEl = preNode;
                 preloadedFids.add(nextFid);
+                // 加载完成后释放资源
+                preNode.addEventListener('canplaythrough', () => {
+                    if (preloadedAudioEl === preNode) {
+                        preNode.pause();
+                        preNode.removeAttribute('src');
+                        preNode.load();
+                        preloadedAudioEl = null;
+                    }
+                }, { once: true });
             }
         }
 
@@ -791,15 +808,18 @@
                 }
             });
 
-            // 核心修复：息屏/切后台时强制预加载下一首，防止连播中断
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden && ap && !ap.paused && ap.list.audios.length > 1) {
-                    preloadNextTrack();
-                }
-            });
+            // 息屏/切后台：不再强制预加载，避免后台 audio 元素抢占音频硬件导致电流声
+            // 连播安全由 ended 事件中的 handleNext() 保证
 
             // 安全网：确保 ended 事件能正确触发下一首
             ap.audio.addEventListener('ended', () => {
+                // 清理预加载资源
+                if (preloadedAudioEl) {
+                    preloadedAudioEl.pause();
+                    preloadedAudioEl.removeAttribute('src');
+                    preloadedAudioEl.load();
+                    preloadedAudioEl = null;
+                }
                 if (ap.options.loop === 'one') return;
                 // 如果 APlayer 没有自动切换，手动触发
                 if (ap.list.index < ap.list.audios.length - 1 || ap.options.loop === 'all') {
@@ -820,6 +840,13 @@
                     if (fid && fid !== globalPlayingId) {
                       refreshUIMetaByAudio(audio);
                     }
+                }
+                // 清理预加载资源，防止多个 audio 元素竞争
+                if (preloadedAudioEl) {
+                    preloadedAudioEl.pause();
+                    preloadedAudioEl.removeAttribute('src');
+                    preloadedAudioEl.load();
+                    preloadedAudioEl = null;
                 }
                 preloadedFids.clear();
                 ['prog-buffer', 'm-prog-buffer'].forEach(id => {
@@ -1017,9 +1044,16 @@
         async function handleTrackSwitch(idx, fid) {
             if(!ap) return;
             isPlaylistSwitching = true;
+            // 清理预加载资源，防止多个 audio 元素竞争导致电流声
+            if (preloadedAudioEl) {
+                preloadedAudioEl.pause();
+                preloadedAudioEl.removeAttribute('src');
+                preloadedAudioEl.load();
+                preloadedAudioEl = null;
+            }
             if (fid && globalActiveListId !== currentTab) {
                 globalActiveListId = currentTab;
-                setupPlayer(); 
+                setupPlayer();
             }
             
             let targetIdx = idx;
