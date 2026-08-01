@@ -3,7 +3,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 /**
- * Sarah MUSIC 旗舰全功能重构版 10.1.10
+ * Sarah MUSIC 旗舰全功能重构版 10.1.11
  * 1. 视觉秒开：移除 UI 容器的强制隐藏样式，重构 init 流程使主题先行、数据后到，根治首屏白屏问题。
  * 2. 带宽优化：针对 768px 以下设备物理禁用后台预载机制，消除起播阶段 of 资源竞争，实现即刻播放。
  * 3. 预览增强：恢复预览操作对背景层的静默调用，确保歌单标签高亮（底色）即时跟随预览意图。
@@ -12,7 +12,7 @@ const { execSync } = require('child_process');
  * 6. 访问认证：新增毛玻璃透明认证层，对接服务端 PASSWORD 环境变量，不正确无法进入。
  */
 const REMOTE_URL = 'git@github.com:wliuy/TGmusic.git';
-const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.10 (增加服务端 PASSWORD 变量认证，恢复 1:1 源码保真)';
+const COMMIT_MSG = 'feat: Sarah MUSIC 10.1.11 (增加服务端 PASSWORD 变量认证，恢复 1:1 源码保真)';
 const files = {};
 
 // --- API: 流媒体传输 (物理移除 setTimeout，改用时间戳过期机制确保播放 stable) ---
@@ -214,7 +214,7 @@ files['manifest.json'] = `{
   ]
 }`;
 
-files['sw.js'] = `const CACHE_NAME = 'sarah-music-v10110';
+files['sw.js'] = `const CACHE_NAME = 'sarah-music-v10111';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(['/']))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => { if (e.request.url.includes('/api/')) return; e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request))); });`;
@@ -244,32 +244,35 @@ files['index.html'] = `<!DOCTYPE html>
             --logo-url: url('https://tc.ayang.cc.cd/file/logo/tgmusic.png');
         }
 
-        body { color: var(--solara-text); font-family: 'Noto Sans SC', sans-serif; height: 100vh; margin: 0; overflow: hidden; background: #fdf2f2; transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        body { color: var(--solara-text); font-family: 'Noto Sans SC', sans-serif; height: 100vh; height: 100dvh; margin: 0; overflow: hidden; background: #fdf2f2; transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
         #bg-stage { position: fixed; inset: 0; z-index: -2; transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
         #bg-overlay { position: fixed; inset: 0; z-index: -1; opacity: 0; transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; }
 
         .desktop-container { 
-            width: 96%; max-width: 1350px; height: 82vh; 
+            width: 96%; max-width: 1350px; height: auto; 
+            max-height: calc(100dvh - 24px); min-height: 0; 
             background: var(--main-glass); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
             border: 1px solid var(--glass-border); border-radius: 24px; 
             box-shadow: 0 40px 120px rgba(0, 0, 0, 0.1); 
-            display: flex; flex-direction: column; padding: 24px 44px; gap: 16px; 
+            display: flex; flex-direction: column; padding: clamp(14px, 2.5vh, 24px) clamp(16px, 3vw, 44px); gap: 16px; 
             position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); 
             justify-content: space-between; transition: all 1.2s ease; 
         }
+        .desktop-container > * { flex-shrink: 0; }
+        .desktop-container .content-layout { flex-shrink: 1; }
 
         .settings-corner { position: absolute; right: 32px; top: 25px; z-index: 200; display: flex; align-items: center; justify-content: center; }
-        .brand-title { font-size: 3rem; font-weight: 900; color: white; text-align: center; }
+        .brand-title { font-size: clamp(2rem, 5vw, 3rem); font-weight: 900; color: white; text-align: center; }
         .brand-sub { font-size: 0.85rem; font-weight: 700; color: rgba(255,255,255,0.6); text-align: center; margin-top: 12px; font-style: italic; }
 
-        .search-panel { background: rgba(255, 255, 255, 0.15); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.2); padding: 20px 36px; display: flex; gap: 16px; align-items: center; }
+        .search-panel { background: rgba(255, 255, 255, 0.15); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.2); padding: clamp(12px, 2vh, 20px) clamp(14px, 3vw, 36px); display: flex; gap: 16px; align-items: center; }
         .search-capsule { flex: 1; height: 44px; background: rgba(255, 255, 255, 0.25); border-radius: 12px; display: flex; align-items: center; border: 1px solid rgba(255, 255, 255, 0.3); backdrop-filter: blur(15px); padding-right: 12px; }
         .search-input-field { flex: 1; background: transparent; border: 0; outline: none; padding: 0 16px; font-weight: 700; font-size: 1.15rem; color: #1e293b; }
         .search-confirm-btn { background: var(--dynamic-accent); color: white; padding: 0 32px; height: 44px; border-radius: 12px; font-weight: 900; box-shadow: 0 10px 25px rgba(0,0,0,0.15); transition: 0.3s; }
         .clear-search-icon { width: 24px; height: 24px; display: grid; place-items: center; opacity: 0.3; cursor: pointer; transition: 0.2s; color: #1e293b; }
         .clear-search-icon:hover { opacity: 0.8; }
 
-        .content-layout { flex: 1; display: grid; grid-template-columns: 0.65fr 1fr 1fr; gap: 24px; overflow: hidden; max-height: 55%; margin: 10px 0; }
+        .content-layout { flex: 1 1 0%; min-height: 0; display: grid; grid-template-columns: minmax(0, 0.65fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 24px; overflow: hidden; margin: 10px 0; }
         .panel-box { background: var(--inner-glass); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.2); display: flex; flex-direction: column; overflow: hidden; }
         
         .song-item { padding: 12px 16px; margin: 3px 8px; border-radius: 10px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; position: relative; padding-right: 110px; }
@@ -288,7 +291,7 @@ files['index.html'] = `<!DOCTYPE html>
         .lrc-line { display: block; width: 90%; padding: 10px 14px; font-size: 14px; font-weight: 600; color: #475569; transition: all 0.4s ease; flex-shrink: 0; opacity: 0.5; }
         .lrc-line.active { color: var(--dynamic-accent); background: rgba(255, 255, 255, 0.25); border-radius: 10px; font-weight: 900; opacity: 1; backdrop-filter: blur(10px); transform: scale(1.1); }
 
-        .footer-bar { height: 90px; background: transparent; display: flex; align-items: center; padding: 0 10px; gap: 24px; margin-top: auto; }
+        .footer-bar { height: auto; min-height: 64px; background: transparent; display: flex; align-items: center; padding: 6px 10px; gap: 20px; margin-top: auto; }
         .btn-round { width: 44px; height: 44px; border-radius: 50%; background: var(--dynamic-accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; transition: background 0.3s; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); color: var(--btn-icon-color); border: 0 !important; overflow: hidden; }
         @media (hover: hover) { .btn-round:not(.m-header *):hover { transform: translateY(-3px); } }
         .btn-main { width: 56px !important; height: 56px !important; }
@@ -315,7 +318,7 @@ files['index.html'] = `<!DOCTYPE html>
         .volume-rail { flex: 1; height: 4px; background: rgba(0, 0, 0, 0.08); border-radius: 10px; position: relative; cursor: pointer; overflow: visible !important; }
 
         .cover-container { 
-            width: 14rem; height: 14rem; border-radius: 1.5rem; overflow: hidden; margin-bottom: 2rem; 
+            width: min(14rem, 30vh); height: min(14rem, 30vh); border-radius: 1.5rem; overflow: hidden; margin-bottom: 2rem; 
             box-shadow: 0 15px 45px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.2); 
             display: flex; align-items: center; justify-content: center; position: relative; 
             background: rgba(255,255,255,0.08); backdrop-filter: blur(30px);
@@ -544,6 +547,22 @@ files['index.html'] = `<!DOCTYPE html>
             .auth-btn { background: #fff; color: var(--auth-deep, #064e3b); box-shadow: 0 12px 30px rgba(0,0,0,0.15); }
         }
 
+        /* 窗口自适应：中等宽度桌面布局收窄为两列，歌词整行下移 */
+        @media (max-width: 1150px) {
+            .desktop-container { padding: 16px 22px; gap: 12px; }
+            .content-layout { gap: 16px; grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr); grid-template-rows: minmax(0, 1fr) minmax(0, 0.85fr); }
+            .content-layout > section:nth-child(3) { grid-column: 1 / -1; grid-row: 2; }
+            .cover-container { width: 10.5rem; height: 10.5rem; }
+            .volume-control { width: 120px; }
+        }
+        /* 窗口自适应：矮窗口压缩移动端唱片与间距，避免纵向溢出 */
+        @media (max-height: 700px) {
+            .m-main { padding-top: 20px; }
+            .m-controls-capsule { padding: 0 15px 20px 15px; }
+            .m-disc-container { width: min(72vw, 200px, 34vh); }
+            .m-info-wrap { height: 46px; }
+        }
+
         @media (max-width: 768px) { .desktop-container { display: none; } .mobile-player-container { display: flex; } }
     </style>
 </head>
@@ -588,7 +607,7 @@ files['index.html'] = `<!DOCTYPE html>
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.10</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.11</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -699,7 +718,7 @@ files['index.html'] = `<!DOCTYPE html>
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.10</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.11</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -760,20 +779,6 @@ files['index.html'] = `<!DOCTYPE html>
             } catch (e) { console.error(e); return { success: false }; }
         }
 
-        async function verifyAccess() {
-            const pass = document.getElementById('entry-pass').value;
-            const res = await fetch('/api/check_auth', { method: 'POST', body: JSON.stringify({ password: pass }) });
-            const data = await res.json();
-            if (data.success) {
-                localStorage.setItem('sarah_auth', JSON.stringify({ ts: Date.now() }));
-                const gate = document.getElementById('auth-gate');
-                gate.style.opacity = '0';
-                setTimeout(() => { gate.style.display = 'none'; init(true); }, 800);
-            } else {
-                showMsg("密码错误");
-            }
-        }
-
         function escapeHtml(str) {
             if (!str) return '';
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -790,10 +795,24 @@ files['index.html'] = `<!DOCTYPE html>
             } catch { return false; }
         }
 
+        async function verifyAccess() {
+            const pass = document.getElementById('entry-pass').value;
+            const res = await fetch('/api/check_auth', { method: 'POST', body: JSON.stringify({ password: pass }) });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.setItem('sarah_auth', JSON.stringify({ ts: Date.now() }));
+                const gate = document.getElementById('auth-gate');
+                gate.style.opacity = '0';
+                setTimeout(() => { gate.style.display = 'none'; init(true); }, 800);
+            } else {
+                showMsg("密码错误");
+            }
+        }
+
         function applyAuthTheme() {
             const t = solaraTheme[Math.floor(Math.random() * solaraTheme.length)];
             const gate = document.getElementById('auth-gate');
-            gate.style.setProperty('--auth-bg', `linear-gradient(135deg, ${t.bg} 0%, ${t.deep} 100%)`);
+            gate.style.setProperty('--auth-bg', \`linear-gradient(135deg, \${t.bg} 0%, \${t.deep} 100%)\`);
             gate.style.setProperty('--auth-deep', t.deep);
             gate.style.setProperty('--auth-accent', t.accent);
             gate.style.setProperty('--auth-text', '#1e293b');
@@ -801,8 +820,26 @@ files['index.html'] = `<!DOCTYPE html>
             gate.style.setProperty('--auth-accent-shadow', t.accent + '4d');
         }
 
+        let isMobileLayout = window.innerWidth <= 768;
+        function applyResponsiveLayout() {
+            const nowMobile = window.innerWidth <= 768;
+            const m = document.getElementById('main-ui');
+            const p = document.getElementById('m-player');
+            if (m) m.style.display = nowMobile ? 'none' : 'flex';
+            if (p) p.style.display = nowMobile ? 'flex' : 'none';
+            if (nowMobile !== isMobileLayout) {
+                isMobileLayout = nowMobile;
+                renderAllLists();
+                if (currentThemeIdx >= 0) updateBackground(false);
+            }
+        }
+        let responsiveResizeTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(responsiveResizeTimer);
+            responsiveResizeTimer = setTimeout(applyResponsiveLayout, 150);
+        });
+
         async function init(isForce = false) {
-            // 访问认证拦截
             if (!isAuthed()) {
                 document.getElementById('auth-gate').style.display = 'flex';
                 applyAuthTheme();
@@ -812,10 +849,7 @@ files['index.html'] = `<!DOCTYPE html>
 
             // 加速响应1：优先开启视觉背景
             updateBackground(true);
-            ['main-ui', 'm-player'].forEach(id => {
-               const el = document.getElementById(id);
-               if(el) el.style.display = id === 'main-ui' ? 'flex' : (window.innerWidth <= 768 ? 'flex' : 'none');
-            });
+            applyResponsiveLayout();
 
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js').then(reg => {
@@ -899,19 +933,27 @@ files['index.html'] = `<!DOCTYPE html>
 
         function buildIndexMap() { dbIndexMap.clear(); for(let j = 0; j < db.length; j++) dbIndexMap.set(db[j].file_id, j); }
         
-        function preloadNextTrack() {
+        let warmingFid = null;
+        function warmNextTrack() {
             if (!ap || ap.list.audios.length <= 1) return;
             const nextIdx = (ap.list.index + 1) % ap.list.audios.length;
             const nextAudio = ap.list.audios[nextIdx];
             if (!nextAudio) return;
             const nextFid = new URLSearchParams(nextAudio.url.split('?')[1]).get('file_id');
-            if (!preloadedFids.has(nextFid)) {
-                const preNode = document.createElement('audio');
-                preNode.src = nextAudio.url;
-                preNode.preload = "auto";
-                preNode.load();
-                preloadedFids.add(nextFid);
-            }
+            if (!nextFid || preloadedFids.has(nextFid) || warmingFid === nextFid) return;
+            preloadedFids.add(nextFid);
+            warmingFid = nextFid;
+            // 纯 fetch 预热 HTTP 缓存：不创建第二个 audio 元素，杜绝电流声；整曲入缓存，息屏后无需联网即可连播
+            fetch(nextAudio.url, { credentials: 'same-origin' })
+                .then(async (res) => {
+                    if (!res || !res.body) return;
+                    const total = Number(res.headers.get('Content-Length') || 0);
+                    if (total > 40 * 1024 * 1024) { res.body.cancel(); return; }
+                    const reader = res.body.getReader();
+                    for (;;) { if ((await reader.read()).done) break; }
+                })
+                .catch(() => {})
+                .finally(() => { warmingFid = null; });
         }
 
         function setupPlayer() {
@@ -1007,16 +1049,16 @@ files['index.html'] = `<!DOCTYPE html>
 
                 syncLyrics(cur);
 
-                // 预加载下一首：提前至50%触发，确保息屏前有足够缓冲
+                // 预热下一首：50% 时用 fetch 预热 HTTP 缓存，确保息屏前有足够缓冲
                 if (dur > 0 && cur / dur > 0.5 && ap.list.audios.length > 1) {
-                    preloadNextTrack();
+                    warmNextTrack();
                 }
             });
 
-            // 核心修复：息屏/切后台时强制预加载下一首，防止连播中断
+            // 息屏/切后台：用纯 fetch 预热缓存（绝不创建第二个 audio 元素，避免电流声），连播安全由 ended 事件保证
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden && ap && !ap.paused && ap.list.audios.length > 1) {
-                    preloadNextTrack();
+                    warmNextTrack();
                 }
             });
 
@@ -1143,7 +1185,7 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function processLrc(rawLrc) {
-            const pattern = /^\\\[(\\d+):(\\d+).(\\d+)\\\](.*)/;
+            const pattern = /^\\[(\\d+):(\\d+).(\\d+)\\](.*)/;
             lrcLines = (rawLrc || "").split(/\\r?\\n/).map(l => { const m = pattern.exec(l); return m ? { t: parseInt(m[1]) * 60 + parseInt(m[2]), text: m[4].trim() } : null; }).filter(v => v && v.text);
             const renderL = (id) => {
                 const el = document.getElementById(id); if(!el) return;
@@ -1205,17 +1247,20 @@ files['index.html'] = `<!DOCTYPE html>
             const html = visibleData.map(s => {
                 const isActive = (s.file_id === currentSelectedId);
                 const isFavorited = libState.favorites.includes(s.file_id);
-                return \`<div data-id="\${s.file_id}" onclick="handleTrackSwitch(-1, '\${s.file_id}')" class="song-item group \${isActive ? 'active' : ''}">
+                const safeId = escapeHtml(s.file_id);
+                const safeTitle = escapeHtml(s.title);
+                const safeArtist = escapeHtml(s.artist);
+                return \`<div data-id="\${safeId}" onclick="handleTrackSwitch(-1, '\${safeId}')" class="song-item group \${isActive ? 'active' : ''}">
                     <img src="\${s.cover || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
-                    <div class="flex-1 truncate"><div class="song-title-text truncate">\${s.title}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${s.artist}</div></div>
+                    <div class="flex-1 truncate"><div class="song-title-text truncate">\${safeTitle}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">\${safeArtist}</div></div>
                     <div class="song-actions">
-                        <div class="action-btn \${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('\${s.file_id}')" title="收藏">
+                        <div class="action-btn \${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('\${safeId}')" title="收藏">
                             <svg class="w-4 h-4" fill="\${isFavorited ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                         </div>
-                        <div class="action-btn" onclick="event.stopPropagation(); openPlaylistSelector('\${s.file_id}')" title="添加">
+                        <div class="action-btn" onclick="event.stopPropagation(); openPlaylistSelector('\${safeId}')" title="添加">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>
                         </div>
-                        <div class="action-btn" onclick="event.stopPropagation(); deleteSongById('\${s.file_id}')" title="移除">
+                        <div class="action-btn" onclick="event.stopPropagation(); deleteSongById('\${safeId}')" title="移除">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </div>
                     </div>
@@ -1238,7 +1283,7 @@ files['index.html'] = `<!DOCTYPE html>
             isPlaylistSwitching = true;
             if (fid && globalActiveListId !== currentTab) {
                 globalActiveListId = currentTab;
-                setupPlayer(); 
+                setupPlayer();
             }
             
             let targetIdx = idx;
@@ -1467,7 +1512,12 @@ files['index.html'] = `<!DOCTYPE html>
             else if(currentAdminTab === 'logs') { renderUploadLogs(); return; }
             else ids = libState.playlists.find(p => p.id === currentAdminTab)?.ids || [];
             const list = ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
-            container.innerHTML = list.map((s, i) => \`<div class="admin-song-row" id="admin-row-\${i}" data-fileid="\${s.file_id}" onmousedown="handleAdminDragStart(event, \${i}, false)" ontouchstart="handleAdminDragStart(event, \${i}, true)"><div class="admin-song-info"><input class="admin-song-input admin-song-title-input" value="\${s.title}" readonly onchange="updateSongInfo('\${s.file_id}', 'title', this.value)"><input class="admin-song-input admin-song-artist-input" value="\${s.artist}" readonly onchange="updateSongInfo('\${s.file_id}', 'artist', this.value)"></div><div class="admin-action-group"><div class="admin-action-btn" onclick="openPlaylistSelector('\${s.file_id}')" title="分发"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div><div class="admin-action-btn delete" onclick="deleteSong('\${s.file_id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></div><div class="admin-action-btn" onclick="toggleEditMode(\${i})" title="编辑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div></div></div>\`).join('') || '<div class="py-10 text-center text-white/20 text-xs">暂无歌曲</div>';
+            container.innerHTML = list.map((s, i) => {
+                const safeId = escapeHtml(s.file_id);
+                const safeTitle = escapeHtml(s.title);
+                const safeArtist = escapeHtml(s.artist);
+                return \`<div class="admin-song-row" id="admin-row-\${i}" data-fileid="\${safeId}" onmousedown="handleAdminDragStart(event, \${i}, false)" ontouchstart="handleAdminDragStart(event, \${i}, true)"><div class="admin-song-info"><input class="admin-song-input admin-song-title-input" value="\${safeTitle}" readonly onchange="updateSongInfo('\${safeId}', 'title', this.value)"><input class="admin-song-input admin-song-artist-input" value="\${safeArtist}" readonly onchange="updateSongInfo('\${safeId}', 'artist', this.value)"></div><div class="admin-action-group"><div class="admin-action-btn" onclick="openPlaylistSelector('\${safeId}')" title="分发"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div><div class="admin-action-btn delete" onclick="deleteSong('\${safeId}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></div><div class="admin-action-btn" onclick="toggleEditMode(\${i})" title="编辑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div></div></div>\`;
+            }).join('') || '<div class="py-10 text-center text-white/20 text-xs">暂无歌曲</div>';
         }
 
         function handleAdminDragStart(e, idx, isTouch) {
@@ -1589,9 +1639,12 @@ files['index.html'] = `<!DOCTYPE html>
         }
 
         function openPlaylistSelector(fid) {
+            const safeFid = escapeHtml(fid);
             document.getElementById('playlist-selector-list').innerHTML = libState.playlists.map(pl => {
                 const ex = pl.ids.includes(fid);
-                return \`<div onclick="addToPlaylist('\${pl.id}', '\${fid}')" class="p-4 bg-white/10 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/20 \${ex?'text-emerald-400 font-bold':''}">\${ex ? '<span class="text-emerald-400">' + pl.name + '</span>' : '<span class="text-white">' + pl.name + '</span>'} \${ex ? '<span class="text-[10px] text-emerald-400">已添加</span>' : '<span class="text-white font-bold text-lg">+</span>'}</div>\`;
+                const safeName = escapeHtml(pl.name);
+                const safePlId = escapeHtml(pl.id);
+                return \`<div onclick="addToPlaylist('\${safePlId}', '\${safeFid}')" class="p-4 bg-white/10 rounded-2xl flex justify-between items-center cursor-pointer hover:bg-white/20 \${ex?'text-emerald-400 font-bold':''}">\${ex ? '<span class="text-emerald-400">' + safeName + '</span>' : '<span class="text-white">' + safeName + '</span>'} \${ex ? '<span class="text-[10px] text-emerald-400">已添加</span>' : '<span class="text-white font-bold text-lg">+</span>'}</div>\`;
             }).join('');
             document.getElementById('playlist-selector-modal').classList.remove('hidden'); document.getElementById('playlist-selector-modal').classList.add('flex');
         }
@@ -1703,7 +1756,8 @@ files['index.html'] = `<!DOCTYPE html>
         window.onload = init;
     </script>
 </body>
-</html>`;
+</html>
+`;
 
 // --- Deployment ---
 try {
@@ -1714,7 +1768,7 @@ try {
         if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
         fs.writeFileSync(f, files[f].trim());
     });
-    console.log('\n---正在同步至 GitHub (10.1.10 Optimized)---');
+    console.log('\n---正在同步至 GitHub (10.1.11 Optimized)---');
     try {
         try { execSync('git init'); } catch(e){}
         execSync('git add .');
@@ -1722,6 +1776,6 @@ try {
         execSync('git branch -M main');
         try { execSync('git remote add origin ' + REMOTE_URL); } catch(e){}
         execSync('git push -u origin main --force');
-        console.log('\n✅ Sarah MUSIC 10.1.10 构建成功。访问认证逻辑已上线，物理保真度 100%。');
+        console.log('\n✅ Sarah MUSIC 10.1.11 构建成功。访问认证逻辑已上线，物理保真度 100%。');
     } catch(e) { console.error('\n❌ Git 同步失败。'); }
 } catch (err) { console.error('\n❌ 构建失败: ' + err.message); }
