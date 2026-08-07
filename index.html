@@ -80,14 +80,6 @@
         @media (hover: hover) { .btn-round:not(.m-header *):hover { transform: translateY(-3px); } }
         .btn-main { width: 56px !important; height: 56px !important; }
 
-        /* 桌面端左下播放控制组：玻璃胶囊容器 + 弹性按钮 */
-        .transport-group { display: flex; align-items: center; gap: 6px; padding: 7px 9px; border-radius: 999px; background: linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.10) 100%); border: 1px solid rgba(255,255,255,0.28); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 10px 30px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.35); }
-        .footer-bar .btn-round { width: 42px; height: 42px; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 4px 12px rgba(0,0,0,0.16); transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s, filter 0.18s; }
-        .footer-bar .btn-round:hover { transform: translateY(-2px) scale(1.1); box-shadow: 0 10px 22px rgba(0,0,0,0.28); filter: brightness(1.1); }
-        .footer-bar .btn-round:active { transform: translateY(0) scale(0.94); }
-        .footer-bar .btn-main { width: 58px !important; height: 58px !important; border: 2px solid rgba(255,255,255,0.45); box-shadow: 0 12px 30px rgba(0,0,0,0.32), 0 0 0 4px rgba(255,255,255,0.12); }
-        .footer-bar .btn-main:hover { box-shadow: 0 16px 36px rgba(0,0,0,0.38), 0 0 0 6px rgba(255,255,255,0.16); }
-
         .scrubber-area { flex: 1; display: flex; align-items: center; gap: 16px; margin: 0 20px; }
         /* 物理级根治点1：移除溢出隐藏，确保圆点白框不再被截断 */
         .rail { flex: 1; height: 6px; background: rgba(0, 0, 0, 0.08); border-radius: 10px; position: relative; cursor: pointer; overflow: visible !important; }
@@ -110,7 +102,7 @@
         .volume-rail { flex: 1; height: 4px; background: rgba(0, 0, 0, 0.08); border-radius: 10px; position: relative; cursor: pointer; overflow: visible !important; }
 
         .cover-container { 
-            width: min(14rem, 30vh); height: min(14rem, 30vh); border-radius: 1.5rem; overflow: hidden; margin-bottom: 0.75rem; 
+            width: min(14rem, 30vh); height: min(14rem, 30vh); aspect-ratio: 1/1; border-radius: 1.5rem; overflow: hidden; margin-bottom: 0.75rem; 
             box-shadow: 0 15px 45px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.2); 
             display: flex; align-items: center; justify-content: center; position: relative; 
             background: rgba(255,255,255,0.08); backdrop-filter: blur(30px);
@@ -441,7 +433,7 @@
             <section class="panel-box"><div id="lrc-view" class="lyrics-panel custom-scroll"></div></section>
         </main>
         <footer class="footer-bar">
-            <div class="transport-group">
+            <div class="flex items-center gap-2">
                 <div id="mode-btn" onclick="toggleMode()" class="btn-round"><svg id="mode-icon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
                 <div id="prev-btn" onclick="handlePrev()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
                 <div id="play-btn" onclick="handlePlayToggle()" class="btn-round btn-main"><svg id="p-icon" class="w-8 h-8" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
@@ -816,10 +808,10 @@
                 const mid = ch / 2;
                 const amp = Math.max(ch * 0.4, 5);
                 ctx.beginPath();
-                ctx.lineWidth = Math.max(1.5, Math.round(ch / 12));
+                ctx.lineWidth = Math.max(1, ch * 0.05);
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
-                ctx.strokeStyle = playing ? waveAccent : 'rgba(120,120,120,0.4)';
+                ctx.strokeStyle = waveAccent;
                 if (waveData) {
                     const n = waveData.length;
                     for (let i = 0; i < n; i++) {
@@ -1683,6 +1675,27 @@
         function renamePlaylistPrompt(idx) { showSarahDialog("重命名", "请输入新名称", true, libState.playlists[idx].name, async (n) => { if(n) { await dbOp('rename_playlist', { id: libState.playlists[idx].id, name: n }); await silentRefresh(); renderAdminPlaylistTabs(); } }); }
         function deletePlaylist(idx) { showSarahDialog("删除", "确定删除此列表吗？", false, null, async (y) => { if(y) { await dbOp('delete_playlist', { id: libState.playlists[idx].id }); silentRefresh(); } }); }
 
+        function cropCoverSquare(blob) {
+            return new Promise(resolve => {
+                if (!blob || typeof URL.createObjectURL !== 'function') return resolve(blob);
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    try {
+                        const side = Math.min(img.width, img.height);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = side; canvas.height = side;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, side, side);
+                        canvas.toBlob(b => resolve(b || blob), 'image/jpeg', 0.92);
+                    } catch (e) { resolve(blob); }
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); resolve(blob); };
+                img.src = url;
+            });
+        }
+
         function previewTag(inp) {
             // 核心修复：按需异步加载元数据解析库。
             if (!window.jsmediatags) {
@@ -1697,9 +1710,9 @@
             files.forEach((f, i) => {
                 const pId = "up-p-" + Date.now() + i;
                 container.innerHTML += `<div class="upload-preview-item" id="${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">${f.name}</span><div id="${pId}-s" class="preview-status-dot"></div></div><div class="preview-prog-container" id="${pId}-w"><div class="preview-prog-fill" id="${pId}-f"></div></div></div>`;
-                jsmediatags.read(f, { onSuccess: (t) => {
+                jsmediatags.read(f, { onSuccess: async (t) => {
                     const { title, artist, picture, lyrics } = t.tags; let blob = null;
-                    if (picture) { const { data, format } = picture; blob = new Blob([new Uint8Array(data)], { type: format }); }
+                    if (picture) { const { data, format } = picture; blob = await cropCoverSquare(new Blob([new Uint8Array(data)], { type: format })); }
                     tempMetaMap.set(f.name, { title: title || f.name.replace(/\.[^/.]+$/, ""), artist: artist || "未知", coverBlob: blob, lrc: lyrics?.lyrics || "" });
                     if(i === files.length - 1) setTimeout(() => handleUp(files), 500);
                 }, onError: () => { if(i === files.length - 1) setTimeout(() => handleUp(files), 500); }});
