@@ -520,14 +520,14 @@
     <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
     <script>
         let ap = null, db = [], lrcLines = [], currentTab = 'fav', tempMetaMap = new Map(), globalPlayingId = null;
-        let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
+        let modeIdx = 2, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
         let currentThemeIdx = -1, sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false;
         let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
         let globalUploadQueue = [], uploadActiveWorkers = 0;
         // 息屏连播根治：单一 audio 元素 + 整曲 Blob 预载，杜绝第二个 audio 元素带来的电流声
         let nextBlob = null, warmingAbort = null;
-        let renderCount = 20, pageSize = 20, isPlaylistSwitching = false, globalActiveListId = 'fav';
+        let renderCount = 20, pageSize = 20, isPlaylistSwitching = false, globalActiveListId = 'fav', favPending = new Set();
         let lastBackgroundUpdateId = null;
 
         const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.ayang.cc.cd/file/logo/tgmusic.png';
@@ -683,9 +683,11 @@
                 };
 
                 if (libState.favorites.length > 0) { 
-                    const f = libState.favorites[0]; 
+                    const f = libState.favorites[Math.floor(Math.random() * libState.favorites.length)]; 
                     globalActiveListId = 'fav'; 
                     currentTab = 'fav';
+                    const idxInList = ap.list.audios.findIndex(a => a.url.includes('file_id=' + f));
+                    if (idxInList !== -1) { try { ap.list.switch(idxInList); } catch (e) {} }
                     refreshUIMetaAt(dbIndexMap.get(f)); 
                     updateHighlights(f, true); 
                 }
@@ -1051,7 +1053,7 @@
                 el.querySelector('svg').setAttribute('fill', isFav ? 'currentColor' : 'none');
             });
             document.querySelectorAll('.song-item').forEach(el => {
-                const isActive = el.dataset.id === cid;
+                const isActive = el.dataset.id === (globalPlayingId || cid);
                 el.classList.toggle('active', isActive);
                 if (isActive && shouldScroll) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             });
@@ -1209,11 +1211,7 @@
             await toggleLikeById(fileId);
         }
 
-        async function toggleLikeById(fid) {
-            const isAdding = !libState.favorites.includes(fid);
-            if (!isAdding) libState.favorites = libState.favorites.filter(id => id !== fid);
-            else libState.favorites.push(fid);
-            
+        function updateFavButtons(fid, isAdding) {
             document.querySelectorAll(`.song-item[data-id="${fid}"]`).forEach(el => {
                 const btn = el.querySelector('.action-btn:first-child');
                 if(btn) { 
@@ -1221,13 +1219,36 @@
                     btn.querySelector('svg').setAttribute('fill', isAdding ? 'currentColor' : 'none'); 
                 }
             });
-            updateHighlights(fid, false);
-            await dbOp('toggle_fav', { file_id: fid }); 
-            silentRefresh(); 
         }
 
-        async function deleteSongById(fid) {
-            const pid = currentTab;
+        async function toggleLikeById(fid) {
+            if (!fid || favPending.has(fid)) return;
+            favPending.add(fid);
+            const isAdding = !libState.favorites.includes(fid);
+            try {
+                if (!isAdding) libState.favorites = libState.favorites.filter(id => id !== fid);
+                else libState.favorites.push(fid);
+                updateFavButtons(fid, isAdding);
+                const result = await dbOp('toggle_fav', { file_id: fid });
+                if (!result.success) {
+                    if (isAdding) libState.favorites = libState.favorites.filter(id => id !== fid);
+                    else libState.favorites.push(fid);
+                    updateFavButtons(fid, !isAdding);
+                    updateHighlights(globalPlayingId || fid, false);
+                    showMsg("操作失败，请重试");
+                    return;
+                }
+                silentRefresh();
+                updateHighlights(globalPlayingId || fid, false);
+                renderAllLists();
+            } finally {
+                favPending.delete(fid);
+            }
+        }
+
+        function deleteSongById(fid) { confirmDeleteSong(fid, currentTab); }
+
+        function confirmDeleteSong(fid, pid) {
             showSarahDialog("删除确认", `确定将此旋律从${pid === 'all' ? '全库永久抹去' : '当前歌单移除'}吗？`, false, null, async (y) => { 
                 if(y) { 
                     await dbOp('delete_song', { file_id: fid, playlist_id: pid }); 
@@ -1373,13 +1394,14 @@
                     if (dragPlaceholder) { dragPlaceholder.parentNode.insertBefore(currentDraggedEl, dragPlaceholder); dragPlaceholder.remove(); }
                     if (ghost) ghost.remove(); currentDraggedEl.classList.remove('is-hidden');
                     const nIds = Array.from(document.querySelectorAll('#admin-song-list .admin-song-row')).map(r => r.dataset.fileid);
-                    const pid = (currentAdminTab === 'all' || currentAdminTab === 'fav') ? currentAdminTab : currentAdminTab;
+                    const pid = currentAdminTab;
                     await dbOp('update_order', { playlist_id: pid, ids: nIds }); silentRefresh();
                     currentDraggedEl = null; dragPlaceholder = null;
                 };
                 window.addEventListener(isTouch ? 'touchmove' : 'mousemove', move, { passive: false }); window.addEventListener(isTouch ? 'touchend' : 'mouseup', end);
             };
             if (isTouch) {
+                initialTouchY = lastY;
                 if(longPressTimer) clearTimeout(longPressTimer); longPressTimer = setTimeout(() => { if (navigator.vibrate) navigator.vibrate(50); initDrag(lastX, lastY); }, 500);
                 targetEl.addEventListener('touchmove', (te) => { lastX = te.touches[0].clientX; lastY = te.touches[0].clientY; if (Math.abs(lastY - initialTouchY) > 10) clearTimeout(longPressTimer); }, { passive: true });
                 targetEl.addEventListener('touchend', () => clearTimeout(longPressTimer), { once: true });
@@ -1397,7 +1419,7 @@
 
         function handleAdminPlaylistDragStart(e, idx) {
             if (window.innerWidth <= 768 || e.target.closest('.browser-tab-close') || e.target.closest('.browser-tab-arrow')) return;
-            const targetEl = e.currentTarget; let isMoved = false;
+            const targetEl = e.currentTarget;
             const startX = e.clientX, startY = e.clientY;
             const initDrag = (cX, cY) => {
                 const rect = targetEl.getBoundingClientRect();
@@ -1437,7 +1459,7 @@
             };
             const checkInit = (me) => {
                 if (Math.abs(me.clientX - startX) > 5 || Math.abs(me.clientY - startY) > 5) {
-                    isMoved = true; window.removeEventListener('mousemove', checkInit); initDrag(me.clientX, me.clientY);
+                    window.removeEventListener('mousemove', checkInit); initDrag(me.clientX, me.clientY);
                 }
             };
             window.addEventListener('mousemove', checkInit);
@@ -1467,8 +1489,7 @@
         async function updateSongInfo(fid, field, val) { const s = db.find(x => x.file_id === fid); if(s) { s[field] = val; await dbOp('update_song', s); silentRefresh(); } }
         
         function deleteSong(fid) {
-            const pid = currentTab;
-            showSarahDialog("删除确认", `确定将此旋律从${pid === 'all' ? '全库永久抹去' : '当前歌单移除'}吗？`, false, null, async (y) => { if(y) { await dbOp('delete_song', { file_id: fid, playlist_id: pid }); silentRefresh(); } }); 
+            confirmDeleteSong(fid, currentAdminTab);
         }
 
         function openPlaylistSelector(fid) {
@@ -1577,7 +1598,7 @@
             if(s) { 
                 if (!libState.playlists) return;
                 const h = [{id:'all',name:'全库'}, {id:'fav',name:'收藏'}, ...libState.playlists.map((p)=>({id:p.id,name:p.name}))];
-                document.getElementById('m-pl-cards').innerHTML = h.map(c => `<div data-id="${c.id}" onclick="switchList('${c.id}')" class="m-pl-card ${currentTab===c.id?'active':''}">${c.name}</div>`).join('');
+                document.getElementById('m-pl-cards').innerHTML = h.map(c => `<div data-id="${c.id}" onclick="switchList('${c.id}')" class="m-pl-card ${currentTab===c.id?'active':''}">${escapeHtml(c.name)}</div>`).join('');
                 d.classList.add('active'); o.style.display = 'block'; 
                 renderAllLists();
                 if(!fromPop) history.pushState({stage:'drawer'}, '');
