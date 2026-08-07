@@ -1,5 +1,6 @@
 export async function onRequest(context) {
   const { request, env } = context;
+  if (request.headers.get('X-Password') !== (env.PASSWORD || "sarah")) return new Response("Unauthorized", { status: 401 });
   const BOT_TOKEN = env.TG_Bot_Token;
   const CHAT_ID = env.TG_Chat_ID;
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS upload_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, status TEXT, reason TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)").run();

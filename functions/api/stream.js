@@ -5,6 +5,7 @@ export async function onRequest(context) {
   const fileId = url.searchParams.get('file_id');
   const BOT_TOKEN = env.TG_Bot_Token;
   if (!fileId || !BOT_TOKEN) return new Response("Params error", { status: 400 });
+  if (url.searchParams.get('k') !== (env.PASSWORD || "sarah")) return new Response("Unauthorized", { status: 401 });
   try {
     let cacheItem = urlCache.get(fileId);
     let downloadUrl = "";

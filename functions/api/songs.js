@@ -1,5 +1,6 @@
 export async function onRequest(context) {
-  const { env } = context;
+  const { request, env } = context;
+  if (request.headers.get('X-Password') !== (env.PASSWORD || "sarah")) return new Response("Unauthorized", { status: 401 });
   try {
     const songs = await env.DB.prepare("SELECT file_id, title, artist, cover FROM songs").all();
     const mappings = await env.DB.prepare("SELECT * FROM playlist_mapping ORDER BY sort_order DESC").all();
