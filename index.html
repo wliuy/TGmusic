@@ -47,6 +47,7 @@
         .search-panel { background: rgba(255, 255, 255, 0.15); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.2); padding: clamp(12px, 2vh, 20px) clamp(14px, 3vw, 36px); display: flex; gap: 16px; align-items: center; }
         .search-capsule { flex: 1; height: 44px; background: rgba(255, 255, 255, 0.25); border-radius: 12px; display: flex; align-items: center; border: 1px solid rgba(255, 255, 255, 0.3); backdrop-filter: blur(15px); padding-right: 12px; }
         .search-input-field { flex: 1; background: transparent; border: 0; outline: none; padding: 0 16px; font-weight: 700; font-size: 1.15rem; color: #1e293b; }
+        .search-input-field::placeholder { font-size: 0.9rem; font-weight: 400; color: rgba(30, 41, 59, 0.35); }
         .search-confirm-btn { background: var(--dynamic-accent); color: white; padding: 0 32px; height: 44px; border-radius: 12px; font-weight: 900; box-shadow: 0 10px 25px rgba(0,0,0,0.15); transition: 0.3s; }
         .clear-search-icon { width: 24px; height: 24px; display: grid; place-items: center; opacity: 0.3; cursor: pointer; transition: 0.2s; color: #1e293b; }
         .clear-search-icon:hover { opacity: 0.8; }
@@ -163,6 +164,7 @@
 
         .m-list-search-wrap { padding: 12px 20px 10px 20px; flex-shrink: 0; display: flex; align-items: center; position: relative; }
         .m-list-search-box { width: 100%; height: 46px; background: rgba(255, 255, 255, 0.08); border: 1.5px solid rgba(255, 255, 255, 0.15); border-radius: 16px; padding: 0 45px 0 20px; color: white; font-size: 14px; font-weight: 700; outline: none; }
+        .m-list-search-box::placeholder { font-size: 12px; font-weight: 400; opacity: 0.55; }
         .m-clear-search { position: absolute; right: 35px; color: white; opacity: 0.5; cursor: pointer; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(20px); z-index: 2000; align-items: center; justify-content: center; }
@@ -385,7 +387,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.12</p>
+            <p class="brand-sub">Premium Music Hub | v10.1.14</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -496,7 +498,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.12</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.14</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -522,7 +524,7 @@
         let ap = null, db = [], lrcLines = [], currentTab = 'fav', tempMetaMap = new Map(), globalPlayingId = null;
         let modeIdx = 2, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
         let currentThemeIdx = -1, sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false;
-        let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null, touchOffsetTop = 0; 
+        let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null; 
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
         let globalUploadQueue = [], uploadActiveWorkers = 0;
         // 息屏连播根治：单一 audio 元素 + 整曲 Blob 预载，杜绝第二个 audio 元素带来的电流声
@@ -1279,6 +1281,8 @@
                 renderAdminPlaylistTabs(); 
                 renderAdminSongList(); 
                 if(!fromPop) history.pushState({stage:'admin'}, '');
+            } else {
+                cleanupAdminDragState();
             } 
         }
         function toggleUploadArea() { document.getElementById('sleep-area').classList.add('hidden'); document.getElementById('upload-area').classList.toggle('hidden'); }
@@ -1374,31 +1378,66 @@
             }).join('') || '<div class="py-10 text-center text-white/20 text-xs">暂无歌曲</div>';
         }
 
+        function cleanupAdminDragState() {
+            document.querySelectorAll('body > .admin-song-row.is-dragging, body > .browser-tab.is-dragging').forEach(g => g.remove());
+            document.querySelectorAll('.admin-song-row.is-hidden, .browser-tab.is-hidden').forEach(el => el.classList.remove('is-hidden'));
+            document.querySelectorAll('.admin-song-placeholder').forEach(p => p.remove());
+            currentDraggedEl = null; dragPlaceholder = null;
+        }
+
         function handleAdminDragStart(e, idx, isTouch) {
             if ((e.target.tagName === 'INPUT' && !e.target.readOnly) || e.target.closest('.admin-action-btn')) return;
             const targetEl = e.currentTarget; if (targetEl.classList.contains('editing')) return;
+            if (currentDraggedEl) return;
             let lastY = isTouch ? e.touches[0].clientY : e.clientY; let lastX = isTouch ? e.touches[0].clientX : e.clientX;
             const initDrag = (cX, cY) => {
-                if (currentDraggedEl) return; currentDraggedEl = targetEl; const rect = currentDraggedEl.getBoundingClientRect();
-                touchOffsetTop = cY - rect.top; dragPlaceholder = document.createElement('div'); dragPlaceholder.className = 'admin-song-placeholder';
+                currentDraggedEl = targetEl; const rect = currentDraggedEl.getBoundingClientRect();
+                const offsetLeft = cX - rect.left; const offsetTop = cY - rect.top;
+                dragPlaceholder = document.createElement('div'); dragPlaceholder.className = 'admin-song-placeholder';
                 currentDraggedEl.parentNode.insertBefore(dragPlaceholder, currentDraggedEl);
-                const ghost = currentDraggedEl.cloneNode(true); ghost.classList.add('is-dragging'); ghost.style.width = rect.width + 'px'; ghost.style.left = rect.left + 'px'; ghost.style.top = (cY - touchOffsetTop) + 'px'; document.body.appendChild(ghost);
+                const ghost = currentDraggedEl.cloneNode(true); ghost.classList.add('is-dragging'); ghost.style.width = rect.width + 'px'; ghost.style.left = rect.left + 'px'; ghost.style.top = (cY - offsetTop) + 'px'; document.body.appendChild(ghost);
                 currentDraggedEl.classList.add('is-hidden');
+                const scrollBox = document.querySelector('.admin-content');
+                let finished = false;
+                const placeGhost = (gx, gy) => {
+                    const box = scrollBox.getBoundingClientRect();
+                    const maxX = Math.max(box.left, box.right - rect.width);
+                    const maxY = Math.max(box.top, box.bottom - rect.height);
+                    ghost.style.left = Math.max(box.left + 2, Math.min(gx, maxX - 2)) + 'px';
+                    ghost.style.top = Math.max(box.top + 2, Math.min(gy, maxY - 2)) + 'px';
+                };
                 const move = (me) => {
-                    if (me.cancelable) me.preventDefault(); const mY = me.touches ? me.touches[0].clientY : me.clientY; const mX = me.touches ? me.touches[0].clientX : me.clientX;
-                    ghost.style.top = (mY - touchOffsetTop) + 'px'; const hov = document.elementFromPoint(mX, mY)?.closest('.admin-song-row');
+                    if (me.cancelable) me.preventDefault();
+                    const mY = me.touches ? me.touches[0].clientY : me.clientY; const mX = me.touches ? me.touches[0].clientX : me.clientX;
+                    placeGhost(mX - offsetLeft, mY - offsetTop);
+                    const box = scrollBox.getBoundingClientRect();
+                    const zone = 36;
+                    if (mY < box.top + zone) scrollBox.scrollTop -= 14;
+                    else if (mY > box.bottom - zone) scrollBox.scrollTop += 14;
+                    const hov = document.elementFromPoint(mX, mY)?.closest('.admin-song-row');
                     if (hov && hov !== currentDraggedEl && hov !== dragPlaceholder) { const r = hov.getBoundingClientRect(); if (mY < r.top + r.height / 2) hov.parentNode.insertBefore(dragPlaceholder, hov); else hov.parentNode.insertBefore(dragPlaceholder, hov.nextSibling); }
                 };
-                const end = async () => {
-                    window.removeEventListener(isTouch ? 'touchmove' : 'mousemove', move); window.removeEventListener(isTouch ? 'touchend' : 'mouseup', end);
-                    if (dragPlaceholder) { dragPlaceholder.parentNode.insertBefore(currentDraggedEl, dragPlaceholder); dragPlaceholder.remove(); }
-                    if (ghost) ghost.remove(); currentDraggedEl.classList.remove('is-hidden');
-                    const nIds = Array.from(document.querySelectorAll('#admin-song-list .admin-song-row')).map(r => r.dataset.fileid);
-                    const pid = currentAdminTab;
-                    await dbOp('update_order', { playlist_id: pid, ids: nIds }); silentRefresh();
+                const finish = async () => {
+                    if (finished) return; finished = true;
+                    window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', finish);
+                    window.removeEventListener('touchmove', move); window.removeEventListener('touchend', finish);
+                    window.removeEventListener('touchcancel', finish); window.removeEventListener('blur', finish);
+                    window.removeEventListener('keydown', esc);
+                    if (ghost && ghost.parentNode) ghost.remove();
+                    if (currentDraggedEl) {
+                        if (dragPlaceholder && dragPlaceholder.parentNode) dragPlaceholder.parentNode.insertBefore(currentDraggedEl, dragPlaceholder);
+                        currentDraggedEl.classList.remove('is-hidden');
+                        if (dragPlaceholder) dragPlaceholder.remove();
+                        const nIds = Array.from(document.querySelectorAll('#admin-song-list .admin-song-row')).map(r => r.dataset.fileid);
+                        try { await dbOp('update_order', { playlist_id: currentAdminTab, ids: nIds }); silentRefresh(); } catch (err) { console.error(err); }
+                    } else if (dragPlaceholder) dragPlaceholder.remove();
                     currentDraggedEl = null; dragPlaceholder = null;
                 };
-                window.addEventListener(isTouch ? 'touchmove' : 'mousemove', move, { passive: false }); window.addEventListener(isTouch ? 'touchend' : 'mouseup', end);
+                const esc = (ke) => { if (ke.key === 'Escape') finish(); };
+                window.addEventListener('mousemove', move, { passive: false }); window.addEventListener('mouseup', finish);
+                window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', finish);
+                window.addEventListener('touchcancel', finish); window.addEventListener('blur', finish);
+                window.addEventListener('keydown', esc);
             };
             if (isTouch) {
                 initialTouchY = lastY;
@@ -1418,12 +1457,13 @@
         }
 
         function handleAdminPlaylistDragStart(e, idx) {
-            if (window.innerWidth <= 768 || e.target.closest('.browser-tab-close') || e.target.closest('.browser-tab-arrow')) return;
+            if (window.innerWidth <= 768 || currentDraggedEl || e.target.closest('.browser-tab-close') || e.target.closest('.browser-tab-arrow')) return;
             const targetEl = e.currentTarget;
             const startX = e.clientX, startY = e.clientY;
             const initDrag = (cX, cY) => {
                 const rect = targetEl.getBoundingClientRect();
                 const offsetLeft = cX - rect.left;
+                currentDraggedEl = targetEl;
                 dragPlaceholder = document.createElement('div');
                 dragPlaceholder.className = 'browser-tab is-hidden';
                 dragPlaceholder.style.width = rect.width + 'px';
@@ -1436,8 +1476,13 @@
                 ghost.style.top = rect.top + 'px';
                 document.body.appendChild(ghost);
                 targetEl.classList.add('is-hidden');
+                const nav = document.querySelector('.admin-tabs-nav');
+                let finished = false;
                 const move = (me) => {
-                    const mX = me.clientX; ghost.style.left = (mX - offsetLeft) + 'px';
+                    const mX = me.clientX;
+                    const box = nav.getBoundingClientRect();
+                    const maxX = Math.max(box.left, box.right - rect.width);
+                    ghost.style.left = Math.max(box.left + 2, Math.min(mX - offsetLeft, maxX - 2)) + 'px';
                     const hov = document.elementFromPoint(mX, cY)?.closest('.browser-tab');
                     if (hov && hov !== targetEl && hov !== dragPlaceholder && hov.dataset.plid) {
                         const r = hov.getBoundingClientRect();
@@ -1445,17 +1490,26 @@
                         else hov.parentNode.insertBefore(dragPlaceholder, hov.nextSibling);
                     }
                 };
-                const end = async () => {
-                    window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end);
-                    if (dragPlaceholder) { dragPlaceholder.parentNode.insertBefore(targetEl, dragPlaceholder); dragPlaceholder.remove(); }
-                    if (ghost) ghost.remove(); targetEl.classList.remove('is-hidden');
-                    const nIds = Array.from(document.querySelectorAll('.browser-tab[data-plid]')).map(t => t.dataset.plid);
-                    const newPls = nIds.map(id => libState.playlists.find(p => p.id === id)).filter(Boolean);
-                    libState.playlists = newPls;
-                    renderAdminPlaylistTabs(); renderCustomTabs(); updateBackground(false);
-                    await dbOp('update_playlist_order', { ids: nIds });
+                const finish = async () => {
+                    if (finished) return; finished = true;
+                    window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', finish);
+                    window.removeEventListener('blur', finish); window.removeEventListener('keydown', esc);
+                    if (ghost && ghost.parentNode) ghost.remove();
+                    if (currentDraggedEl) {
+                        if (dragPlaceholder && dragPlaceholder.parentNode) dragPlaceholder.parentNode.insertBefore(targetEl, dragPlaceholder);
+                        targetEl.classList.remove('is-hidden');
+                        if (dragPlaceholder) dragPlaceholder.remove();
+                        const nIds = Array.from(document.querySelectorAll('.browser-tab[data-plid]')).map(t => t.dataset.plid);
+                        const newPls = nIds.map(id => libState.playlists.find(p => p.id === id)).filter(Boolean);
+                        libState.playlists = newPls;
+                        renderAdminPlaylistTabs(); renderCustomTabs(); updateBackground(false);
+                        try { await dbOp('update_playlist_order', { ids: nIds }); } catch (err) { console.error(err); }
+                    } else if (dragPlaceholder) dragPlaceholder.remove();
+                    currentDraggedEl = null; dragPlaceholder = null;
                 };
-                window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+                const esc = (ke) => { if (ke.key === 'Escape') finish(); };
+                window.addEventListener('mousemove', move); window.addEventListener('mouseup', finish);
+                window.addEventListener('blur', finish); window.addEventListener('keydown', esc);
             };
             const checkInit = (me) => {
                 if (Math.abs(me.clientX - startX) > 5 || Math.abs(me.clientY - startY) > 5) {
