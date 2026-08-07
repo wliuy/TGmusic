@@ -406,7 +406,7 @@
         </div>
         <main class="content-layout">
             <section class="panel-box p-6 items-center text-center">
-                <div class="cover-container shadow-sm border border-white/20 mx-auto" id="pc-cover-wrap"><div class="cover-placeholder rounded-2xl" id="pc-logo-box"></div><img id="ui-cover" src="" class="cover-img rounded-2xl" style="display:none"></div>
+                <div class="cover-container shadow-sm border border-white/20 mx-auto" id="pc-cover-wrap" onclick="locateCurrentSong()" title="定位到当前歌曲" style="cursor:pointer"><div class="cover-placeholder rounded-2xl" id="pc-logo-box"></div><img id="ui-cover" src="" class="cover-img rounded-2xl" style="display:none"></div>
                 <div class="mt-2 flex flex-col items-center w-full">
                     <h2 id="ui-title" class="text-lg font-black text-slate-800 truncate w-full mb-1">歌曲标题</h2>
                     <p id="ui-artist" class="text-xs font-black opacity-40 uppercase truncate w-full"></p>
@@ -1059,6 +1059,31 @@
                 el.classList.toggle('active', isActive);
                 if (isActive && shouldScroll) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             });
+        }
+
+        function locateCurrentSong() {
+            if (window.innerWidth <= 768) return;
+            if (!ap || !ap.list.audios.length) return;
+            const cur = ap.list.audios[ap.list.index];
+            if (!cur) return;
+            const fid = new URL(cur.url, window.location.origin).searchParams.get('file_id');
+            if (!fid) return;
+            const container = document.getElementById('list-view');
+            if (!container) return;
+            if (!container.querySelector(`.song-item[data-id="${fid}"]`)) {
+                const ids = currentTab === 'all' ? (libState.all_order.length ? libState.all_order : db.map(s => s.file_id))
+                    : currentTab === 'fav' ? libState.favorites
+                    : (libState.playlists.find(p => p.id === currentTab)?.ids || []);
+                const q = document.getElementById('search-input').value.toLowerCase();
+                let listData = ids.map(id => db[dbIndexMap.get(id)]).filter(Boolean);
+                if (q) listData = listData.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
+                const idx = listData.findIndex(s => s.file_id === fid);
+                if (idx !== -1) {
+                    renderCount = Math.max(renderCount, idx + 1);
+                    renderAllLists();
+                }
+            }
+            updateHighlights(fid, true);
         }
 
         function renderCustomTabs() { 
