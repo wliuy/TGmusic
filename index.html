@@ -1006,11 +1006,36 @@
             });
         }
 
-        function updateMediaSession() { 
+        const squareArtCache = new Map();
+        function squareCoverUrl(url) {
+            return new Promise(resolve => {
+                if (!url) return resolve(url);
+                if (squareArtCache.has(url)) return resolve(squareArtCache.get(url));
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    try {
+                        const side = Math.min(img.width, img.height);
+                        const c = document.createElement('canvas');
+                        c.width = side; c.height = side;
+                        const ctx = c.getContext('2d');
+                        ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, side, side);
+                        const dataUrl = c.toDataURL('image/jpeg', 0.9);
+                        squareArtCache.set(url, dataUrl);
+                        resolve(dataUrl);
+                    } catch (e) { resolve(url); }
+                };
+                img.onerror = () => resolve(url);
+                img.src = url;
+            });
+        }
+
+        async function updateMediaSession() { 
             const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return; 
             const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'); 
             const song = db[dbIndexMap.get(fileId)] || { title: currentAudio.name, artist: currentAudio.artist, cover: currentAudio.cover };
-            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'Sarah Music', artwork: [{ src: authStreamUrl(song.cover) || DEFAULT_LOGO, sizes: '512x512', type: 'image/png' }] }); 
+            const coverSrc = await squareCoverUrl(authStreamUrl(song.cover) || DEFAULT_LOGO);
+            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'Sarah Music', artwork: [{ src: coverSrc, sizes: '512x512', type: 'image/jpeg' }] }); 
             navigator.mediaSession.playbackState = ap.paused ? 'paused' : 'playing';
             navigator.mediaSession.setActionHandler('play', () => handlePlayToggle());
             navigator.mediaSession.setActionHandler('pause', () => handlePlayToggle());
