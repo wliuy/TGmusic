@@ -11,9 +11,13 @@
     <link rel="apple-touch-icon" sizes="192x192" href="https://tc.ayang.cc.cd/file/logo/tgmusic.png">
     <title>Sarah</title>
     <link rel="icon" type="image/png" sizes="192x192" href="https://tc.ayang.cc.cd/file/logo/tgmusic.png">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;500;700;900&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
+    <link rel="preload" as="image" href="https://tc.ayang.cc.cd/file/logo/tgmusic.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://tc.ayang.cc.cd">
+    <link rel="stylesheet" href="/assets/css/tailwind.css">
+    <link rel="stylesheet" href="/assets/css/APlayer.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
     <style>
         :root {
             --dynamic-accent: #d97706; --solara-text: #1e293b; --glass-blur: blur(40px);
@@ -105,6 +109,21 @@
         }
         .cover-img { width: 100%; height: 100%; object-fit: cover; transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10; position: absolute; inset: 0; }
         .cover-placeholder { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; background: var(--logo-url); background-size: cover; background-position: center; }
+
+        .eq-wrap { display: flex; align-items: flex-end; justify-content: center; gap: 5px; height: 20px; margin: 14px 0 6px; }
+        .eq-bar { width: 4px; height: 10px; border-radius: 99px; background: var(--dynamic-accent); transform-origin: center bottom; opacity: 0.85; animation: eq-bounce 1s ease-in-out infinite; animation-play-state: paused; }
+        .eq-wrap.playing .eq-bar { animation-play-state: running; }
+        .eq-bar:nth-child(1) { animation-duration: 0.72s; animation-delay: -0.10s; }
+        .eq-bar:nth-child(2) { animation-duration: 0.95s; animation-delay: -0.42s; }
+        .eq-bar:nth-child(3) { animation-duration: 0.62s; animation-delay: -0.28s; }
+        .eq-bar:nth-child(4) { animation-duration: 0.84s; animation-delay: -0.55s; }
+        .eq-bar:nth-child(5) { animation-duration: 0.70s; animation-delay: -0.18s; }
+        @keyframes eq-bounce {
+            0%, 100% { transform: scaleY(0.4); }
+            25% { transform: scaleY(1.5); }
+            50% { transform: scaleY(0.65); }
+            75% { transform: scaleY(1.8); }
+        }
 
         .mobile-player-container { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px; background: var(--m-green); }
         .m-header { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: transparent; border: 0; }
@@ -280,6 +299,8 @@
         #msg-box.active { transform: translateX(-50%) translateY(0); }
         .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
         /* 认证层样式 */
         #auth-gate { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -387,7 +408,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.1.14</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.0</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -407,6 +428,7 @@
         <main class="content-layout">
             <section class="panel-box p-6 items-center text-center">
                 <div class="cover-container shadow-sm border border-white/20 mx-auto" id="pc-cover-wrap" onclick="locateCurrentSong()" title="定位到当前歌曲" style="cursor:pointer"><div class="cover-placeholder rounded-2xl" id="pc-logo-box"></div><img id="ui-cover" src="" class="cover-img rounded-2xl" style="display:none"></div>
+                <div class="eq-wrap" id="pc-eq" aria-hidden="true"><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span></div>
                 <div class="mt-2 flex flex-col items-center w-full">
                     <h2 id="ui-title" class="text-lg font-black text-slate-800 truncate w-full mb-1">歌曲标题</h2>
                     <p id="ui-artist" class="text-xs font-black opacity-40 uppercase truncate w-full"></p>
@@ -498,7 +520,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.1.14</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.0</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -519,7 +541,7 @@
     </div>
 
     <div id="ap-hidden" style="display:none"></div>
-    <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+    <script src="/assets/js/APlayer.min.js"></script>
     <script>
         let ap = null, db = [], lrcLines = [], currentTab = 'fav', tempMetaMap = new Map(), globalPlayingId = null;
         let modeIdx = 2, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
@@ -843,6 +865,7 @@
                 const s = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 document.getElementById('m-disc-wrapper').classList.add('playing'); 
+                const pcEq = document.getElementById('pc-eq'); if (pcEq) pcEq.classList.add('playing');
                 
                 const cur = ap.list.audios[ap.list.index];
                 if (cur) {
@@ -867,6 +890,7 @@
                 const s = '<path d="M8 5v14l11-7z"></path>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 document.getElementById('m-disc-wrapper').classList.remove('playing'); 
+                const pcEq = document.getElementById('pc-eq'); if (pcEq) pcEq.classList.remove('playing'); 
                 updateMediaSession();
             });
 
@@ -1599,7 +1623,7 @@
             // 核心修复：按需异步加载元数据解析库。
             if (!window.jsmediatags) {
                 const s = document.createElement('script');
-                s.src = "https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js";
+                s.src = "/assets/js/jsmediatags.min.js";
                 s.onload = () => previewTag(inp);
                 document.head.appendChild(s);
                 return;
