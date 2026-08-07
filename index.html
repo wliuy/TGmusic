@@ -102,7 +102,7 @@
         .volume-rail { flex: 1; height: 4px; background: rgba(0, 0, 0, 0.08); border-radius: 10px; position: relative; cursor: pointer; overflow: visible !important; }
 
         .cover-container { 
-            width: min(14rem, 30vh); height: min(14rem, 30vh); aspect-ratio: 1/1; border-radius: 1.5rem; overflow: hidden; margin-bottom: 0.75rem; 
+            width: min(14rem, 30vh); height: min(14rem, 30vh); border-radius: 1.5rem; overflow: hidden; margin-bottom: 0.75rem; 
             box-shadow: 0 15px 45px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.2); 
             display: flex; align-items: center; justify-content: center; position: relative; 
             background: rgba(255,255,255,0.08); backdrop-filter: blur(30px);
@@ -110,7 +110,20 @@
         .cover-img { width: 100%; height: 100%; object-fit: cover; transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10; position: absolute; inset: 0; }
         .cover-placeholder { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; background: var(--logo-url); background-size: cover; background-position: center; }
 
-        .wave-canvas { display: block; width: 100%; height: 42px; margin: 14px 0 6px; cursor: pointer; }
+        .eq-wrap { display: flex; align-items: flex-end; justify-content: center; gap: 5px; height: 20px; margin: 14px 0 6px; }
+        .eq-bar { width: 4px; height: 10px; border-radius: 99px; background: var(--dynamic-accent); transform-origin: center bottom; opacity: 0.85; animation: eq-bounce 1s ease-in-out infinite; animation-play-state: paused; }
+        .eq-wrap.playing .eq-bar { animation-play-state: running; }
+        .eq-bar:nth-child(1) { animation-duration: 0.72s; animation-delay: -0.10s; }
+        .eq-bar:nth-child(2) { animation-duration: 0.95s; animation-delay: -0.42s; }
+        .eq-bar:nth-child(3) { animation-duration: 0.62s; animation-delay: -0.28s; }
+        .eq-bar:nth-child(4) { animation-duration: 0.84s; animation-delay: -0.55s; }
+        .eq-bar:nth-child(5) { animation-duration: 0.70s; animation-delay: -0.18s; }
+        @keyframes eq-bounce {
+            0%, 100% { transform: scaleY(0.4); }
+            25% { transform: scaleY(1.5); }
+            50% { transform: scaleY(0.65); }
+            75% { transform: scaleY(1.8); }
+        }
 
         .mobile-player-container { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px; background: var(--m-green); }
         .m-header { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: transparent; border: 0; }
@@ -415,7 +428,7 @@
         <main class="content-layout">
             <section class="panel-box p-6 items-center text-center">
                 <div class="cover-container shadow-sm border border-white/20 mx-auto" id="pc-cover-wrap" onclick="locateCurrentSong()" title="定位到当前歌曲" style="cursor:pointer"><div class="cover-placeholder rounded-2xl" id="pc-logo-box"></div><img id="ui-cover" src="" class="cover-img rounded-2xl" style="display:none"></div>
-                <canvas id="pc-wave" class="wave-canvas" onclick="locateCurrentSong()" title="定位到当前歌曲" aria-hidden="true"></canvas>
+                <div class="eq-wrap" id="pc-eq" aria-hidden="true"><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span></div>
                 <div class="mt-2 flex flex-col items-center w-full">
                     <h2 id="ui-title" class="text-lg font-black text-slate-800 truncate w-full mb-1">歌曲标题</h2>
                     <p id="ui-artist" class="text-xs font-black opacity-40 uppercase truncate w-full"></p>
@@ -540,8 +553,6 @@
         let nextBlob = null, warmingAbort = null;
         let renderCount = 20, pageSize = 20, isPlaylistSwitching = false, globalActiveListId = 'fav', favPending = new Set();
         let lastBackgroundUpdateId = null;
-        let waveAccent = '#d97706';
-        let audioCtx = null, waveAnalyser = null, waveSource = null, waveRafId = null, waveData = null, waveLoopStarted = false;
 
         const modes = ['list', 'single', 'random'], DEFAULT_LOGO = 'https://tc.ayang.cc.cd/file/logo/tgmusic.png';
         const solaraTheme = [
@@ -653,7 +664,6 @@
             // 加速响应1：优先开启视觉背景
             updateBackground(true);
             applyResponsiveLayout();
-            startWaveLoop();
 
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js').then(reg => {
@@ -782,69 +792,6 @@
                 .finally(() => { if (warmingFid === nextFid) { warmingFid = null; warmingAbort = null; } });
         }
 
-        function startWaveLoop() {
-            if (waveLoopStarted) return;
-            waveLoopStarted = true;
-            const canvas = document.getElementById('pc-wave');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            const dpr = window.devicePixelRatio || 1;
-            let cw = 0, ch = 0;
-            function fit() {
-                const rect = canvas.getBoundingClientRect();
-                if (rect.width !== cw || rect.height !== ch) {
-                    cw = rect.width; ch = rect.height;
-                    canvas.width = cw * dpr; canvas.height = ch * dpr;
-                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                }
-            }
-            function draw() {
-                waveRafId = requestAnimationFrame(draw);
-                fit();
-                ctx.clearRect(0, 0, cw, ch);
-                const playing = waveAnalyser && ap && !ap.paused;
-                if (playing) waveAnalyser.getByteTimeDomainData(waveData);
-                else if (waveData) waveData.fill(128);
-                const mid = ch / 2;
-                const amp = Math.max(ch * 0.4, 5);
-                ctx.beginPath();
-                ctx.lineWidth = Math.max(1, ch * 0.05);
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.strokeStyle = waveAccent;
-                if (waveData) {
-                    const n = waveData.length;
-                    for (let i = 0; i < n; i++) {
-                        const x = cw * (i / (n - 1));
-                        const y = mid + ((waveData[i] - 128) / 128) * amp;
-                        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                    }
-                    ctx.stroke();
-                } else {
-                    ctx.moveTo(0, mid); ctx.lineTo(cw, mid); ctx.stroke();
-                }
-            }
-            draw();
-        }
-
-        function ensureWaveAnalyser() {
-            if (audioCtx || !ap || !ap.audio) return;
-            try {
-                const AC = window.AudioContext || window.webkitAudioContext;
-                if (!AC) return;
-                audioCtx = new AC();
-                waveAnalyser = audioCtx.createAnalyser();
-                waveAnalyser.fftSize = 512;
-                waveAnalyser.smoothingTimeConstant = 0.82;
-                waveSource = audioCtx.createMediaElementSource(ap.audio);
-                waveSource.connect(waveAnalyser);
-                waveAnalyser.connect(audioCtx.destination);
-                waveData = new Uint8Array(waveAnalyser.frequencyBinCount);
-                if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-                startWaveLoop();
-            } catch (e) { audioCtx = null; waveAnalyser = null; }
-        }
-
         function setupPlayer() {
             let ids = [];
             const sourceId = globalActiveListId;
@@ -918,8 +865,7 @@
                 const s = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 document.getElementById('m-disc-wrapper').classList.add('playing'); 
-                ensureWaveAnalyser();
-                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+                const pcEq = document.getElementById('pc-eq'); if (pcEq) pcEq.classList.add('playing');
                 
                 const cur = ap.list.audios[ap.list.index];
                 if (cur) {
@@ -944,6 +890,7 @@
                 const s = '<path d="M8 5v14l11-7z"></path>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 document.getElementById('m-disc-wrapper').classList.remove('playing'); 
+                const pcEq = document.getElementById('pc-eq'); if (pcEq) pcEq.classList.remove('playing'); 
                 updateMediaSession();
             });
 
@@ -1006,36 +953,11 @@
             });
         }
 
-        const squareArtCache = new Map();
-        function squareCoverUrl(url) {
-            return new Promise(resolve => {
-                if (!url) return resolve(url);
-                if (squareArtCache.has(url)) return resolve(squareArtCache.get(url));
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = () => {
-                    try {
-                        const side = Math.min(img.width, img.height);
-                        const c = document.createElement('canvas');
-                        c.width = side; c.height = side;
-                        const ctx = c.getContext('2d');
-                        ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, side, side);
-                        const dataUrl = c.toDataURL('image/jpeg', 0.9);
-                        squareArtCache.set(url, dataUrl);
-                        resolve(dataUrl);
-                    } catch (e) { resolve(url); }
-                };
-                img.onerror = () => resolve(url);
-                img.src = url;
-            });
-        }
-
-        async function updateMediaSession() { 
+        function updateMediaSession() { 
             const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return; 
             const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'); 
             const song = db[dbIndexMap.get(fileId)] || { title: currentAudio.name, artist: currentAudio.artist, cover: currentAudio.cover };
-            const coverSrc = await squareCoverUrl(authStreamUrl(song.cover) || DEFAULT_LOGO);
-            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'Sarah Music', artwork: [{ src: coverSrc, sizes: '512x512', type: 'image/jpeg' }] }); 
+            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'Sarah Music', artwork: [{ src: authStreamUrl(song.cover) || DEFAULT_LOGO, sizes: '512x512', type: 'image/png' }] }); 
             navigator.mediaSession.playbackState = ap.paused ? 'paused' : 'playing';
             navigator.mediaSession.setActionHandler('play', () => handlePlayToggle());
             navigator.mediaSession.setActionHandler('pause', () => handlePlayToggle());
@@ -1067,7 +989,6 @@
             if(!isMob) { const mainUI = document.getElementById('main-ui'); if(mainUI) mainUI.style.background = `linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%)`; }
 
             document.documentElement.style.setProperty('--dynamic-accent', isMob ? '#ffffff' : theme.accent);
-            waveAccent = isMob ? '#ffffff' : theme.accent;
             const listTabs = document.querySelectorAll('#tabs-scroll div, .m-pl-card');
             listTabs.forEach(el => {
                 const tabId = el.getAttribute('id') || ''; 
@@ -1325,13 +1246,11 @@
             if(mins === 0) { sleepEndTime = null; statusEl.innerText = ""; } 
             else { 
                 sleepEndTime = Date.now() + mins * 60000; 
-                const tick = () => { 
+                sleepTimerInt = setInterval(() => { 
                     const diff = sleepEndTime - Date.now(); 
                     if(diff <= 0) { ap.pause(); clearInterval(sleepTimerInt); sleepEndTime = null; statusEl.innerText = ""; } 
                     else { statusEl.innerText = fmtTime(Math.floor(diff/1000)); } 
-                };
-                tick();
-                sleepTimerInt = setInterval(tick, 1000); 
+                }, 1000); 
             } 
         }
 
@@ -1700,27 +1619,6 @@
         function renamePlaylistPrompt(idx) { showSarahDialog("重命名", "请输入新名称", true, libState.playlists[idx].name, async (n) => { if(n) { await dbOp('rename_playlist', { id: libState.playlists[idx].id, name: n }); await silentRefresh(); renderAdminPlaylistTabs(); } }); }
         function deletePlaylist(idx) { showSarahDialog("删除", "确定删除此列表吗？", false, null, async (y) => { if(y) { await dbOp('delete_playlist', { id: libState.playlists[idx].id }); silentRefresh(); } }); }
 
-        function cropCoverSquare(blob) {
-            return new Promise(resolve => {
-                if (!blob || typeof URL.createObjectURL !== 'function') return resolve(blob);
-                const url = URL.createObjectURL(blob);
-                const img = new Image();
-                img.onload = () => {
-                    URL.revokeObjectURL(url);
-                    try {
-                        const side = Math.min(img.width, img.height);
-                        const canvas = document.createElement('canvas');
-                        canvas.width = side; canvas.height = side;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, side, side);
-                        canvas.toBlob(b => resolve(b || blob), 'image/jpeg', 0.92);
-                    } catch (e) { resolve(blob); }
-                };
-                img.onerror = () => { URL.revokeObjectURL(url); resolve(blob); };
-                img.src = url;
-            });
-        }
-
         function previewTag(inp) {
             // 核心修复：按需异步加载元数据解析库。
             if (!window.jsmediatags) {
@@ -1735,9 +1633,9 @@
             files.forEach((f, i) => {
                 const pId = "up-p-" + Date.now() + i;
                 container.innerHTML += `<div class="upload-preview-item" id="${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">${f.name}</span><div id="${pId}-s" class="preview-status-dot"></div></div><div class="preview-prog-container" id="${pId}-w"><div class="preview-prog-fill" id="${pId}-f"></div></div></div>`;
-                jsmediatags.read(f, { onSuccess: async (t) => {
+                jsmediatags.read(f, { onSuccess: (t) => {
                     const { title, artist, picture, lyrics } = t.tags; let blob = null;
-                    if (picture) { const { data, format } = picture; blob = await cropCoverSquare(new Blob([new Uint8Array(data)], { type: format })); }
+                    if (picture) { const { data, format } = picture; blob = new Blob([new Uint8Array(data)], { type: format }); }
                     tempMetaMap.set(f.name, { title: title || f.name.replace(/\.[^/.]+$/, ""), artist: artist || "未知", coverBlob: blob, lrc: lyrics?.lyrics || "" });
                     if(i === files.length - 1) setTimeout(() => handleUp(files), 500);
                 }, onError: () => { if(i === files.length - 1) setTimeout(() => handleUp(files), 500); }});
