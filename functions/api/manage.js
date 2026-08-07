@@ -1,6 +1,7 @@
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method !== 'POST') return new Response("Bad Method", { status: 405 });
+  if (request.headers.get('X-Password') !== (env.PASSWORD || "sarah")) return new Response("Unauthorized", { status: 401 });
   try {
     // 保障性建表逻辑：仅在管理操作时触发，不阻塞主列表加载
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT)").run();
