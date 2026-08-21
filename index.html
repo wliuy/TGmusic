@@ -106,7 +106,8 @@
             background: rgba(255,255,255,0.08); backdrop-filter: blur(30px);
         }
         .cover-img { width: 100%; height: 100%; object-fit: cover; transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10; position: absolute; inset: 0; }
-        .cover-placeholder { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; background: linear-gradient(135deg, var(--ph-c1, #10b981) 0%, var(--ph-c2, #064e3b) 100%); transition: background 0.6s ease; }
+        .cover-placeholder { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; background: linear-gradient(135deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.08) 55%, rgba(255,255,255,0.22) 100%); backdrop-filter: blur(30px) saturate(1.4); -webkit-backdrop-filter: blur(30px) saturate(1.4); border: 1px solid rgba(255,255,255,0.35); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45); transition: background 0.6s ease; }
+        .cover-placeholder svg { fill: var(--dynamic-accent); opacity: 0.7; }
 
         .mobile-player-container { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px; background: var(--m-green); }
         .m-header { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: transparent; border: 0; }
@@ -410,7 +411,7 @@
         </div>
         <main class="content-layout">
             <section class="panel-box p-6 items-center text-center">
-                <div class="cover-container shadow-sm border border-white/20 mx-auto" id="pc-cover-wrap" onclick="locateCurrentSong()" title="定位到当前歌曲" style="cursor:pointer"><div class="cover-placeholder rounded-2xl" id="pc-logo-box"><svg viewBox="0 0 100 100" style="width:40%;height:40%" fill="rgba(255,255,255,0.85)"><circle cx="36" cy="70" r="10"/><rect x="40" y="32" width="6" height="38"/><circle cx="66" cy="64" r="10"/><rect x="70" y="26" width="6" height="38"/><polygon points="40,32 76,26 76,35 40,41"/></svg></div><img id="ui-cover" src="" class="cover-img rounded-2xl" style="display:none"></div>
+                <div class="cover-container shadow-sm border border-white/20 mx-auto" id="pc-cover-wrap" onclick="locateCurrentSong()" title="定位到当前歌曲" style="cursor:pointer"><div class="cover-placeholder rounded-2xl" id="pc-logo-box"><svg viewBox="0 0 100 100" style="width:40%;height:40%"><circle cx="36" cy="70" r="10"/><rect x="40" y="32" width="6" height="38"/><circle cx="66" cy="64" r="10"/><rect x="70" y="26" width="6" height="38"/><polygon points="40,32 76,26 76,35 40,41"/></svg></div><img id="ui-cover" src="" class="cover-img rounded-2xl" style="display:none"></div>
                 <div class="flex flex-col items-center w-full">
                     <h2 id="ui-title" class="text-lg font-black text-slate-800 truncate w-full mb-1">歌曲标题</h2>
                     <p id="ui-artist" class="text-xs font-black opacity-40 uppercase truncate w-full"></p>
@@ -461,7 +462,7 @@
             </div>
         </header>
         <main class="m-main">
-            <div class="m-disc-container" id="m-disc-wrapper" onclick="handlePlayToggle()"><div class="m-disc-shadow-layer"></div><div class="m-disc-clipping" id="m-clipping-node"><div class="cover-placeholder !opacity-100" id="m-logo-box"><svg viewBox="0 0 100 100" style="width:40%;height:40%" fill="rgba(255,255,255,0.85)"><circle cx="36" cy="70" r="10"/><rect x="40" y="32" width="6" height="38"/><circle cx="66" cy="64" r="10"/><rect x="70" y="26" width="6" height="38"/><polygon points="40,32 76,26 76,35 40,41"/></svg></div><img id="m-ui-cover" src="" style="display:none;width:100%;height:100%;object-fit:cover"></div></div>
+            <div class="m-disc-container" id="m-disc-wrapper" onclick="handlePlayToggle()"><div class="m-disc-shadow-layer"></div><div class="m-disc-clipping" id="m-clipping-node"><div class="cover-placeholder !opacity-100" id="m-logo-box"><svg viewBox="0 0 100 100" style="width:40%;height:40%"><circle cx="36" cy="70" r="10"/><rect x="40" y="32" width="6" height="38"/><circle cx="66" cy="64" r="10"/><rect x="70" y="26" width="6" height="38"/><polygon points="40,32 76,26 76,35 40,41"/></svg></div><img id="m-ui-cover" src="" style="display:none;width:100%;height:100%;object-fit:cover"></div></div>
             <div id="m-lrc-flow" class="m-lyrics-panel"></div>
             <div class="m-info-wrap"><h2 id="m-ui-title" class="m-song-title truncate max-w-[90%] mx-auto"></h2><div class="m-artist-row"><span id="m-ui-artist" class="truncate max-w-[70%]"></span><button onclick="handleLikeToggle()" id="m-fav-trigger" class="ml-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg></button></div></div>
         </main>
@@ -537,11 +538,8 @@
         let lastBackgroundUpdateId = null;
 
         const modes = ['list', 'single', 'random'];
-        const COVER_GRADIENTS = [['#10b981', '#064e3b'], ['#fb7185', '#881337'], ['#0ea5e9', '#0c4a6e'], ['#a855f7', '#3b0764'], ['#f97316', '#7c2d12'], ['#d946ef', '#701a75']];
-        function pickCoverGradient(seed) { let h = 0; const s = String(seed || 'tgmusic'); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return COVER_GRADIENTS[h % COVER_GRADIENTS.length]; }
-        function placeholderCover(seed) {
-            const [c1, c2] = pickCoverGradient(seed);
-            const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="100" height="100" fill="url(#g)"/><g fill="rgba(255,255,255,0.85)"><circle cx="36" cy="70" r="10"/><rect x="40" y="32" width="6" height="38"/><circle cx="66" cy="64" r="10"/><rect x="70" y="26" width="6" height="38"/><polygon points="40,32 76,26 76,35 40,41"/></g></svg>`;
+        function placeholderCover() {
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="0.55" stop-color="#ffffff" stop-opacity="0.12"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.32"/></linearGradient></defs><rect width="100" height="100" fill="url(#g)"/><rect x="0.5" y="0.5" width="99" height="99" fill="none" stroke="#ffffff" stroke-opacity="0.4"/><g fill="#ffffff" fill-opacity="0.85"><circle cx="36" cy="70" r="10"/><rect x="40" y="32" width="6" height="38"/><circle cx="66" cy="64" r="10"/><rect x="70" y="26" width="6" height="38"/><polygon points="40,32 76,26 76,35 40,41"/></g></svg>`;
             return 'data:image/svg+xml,' + encodeURIComponent(svg);
         }
         const solaraTheme = [
@@ -728,7 +726,7 @@
 
               const newList = ids.map(id => {
                 const s = db[dbIndexMap.get(id)];
-                return s ? { name: s.title, artist: s.artist, cover: authStreamUrl(s.cover) || placeholderCover(s.file_id || s.title), url: authStreamUrl('/api/stream?file_id=' + s.file_id), lrc: s.lrc || '[00:00.00]暂无歌词' } : null;
+                return s ? { name: s.title, artist: s.artist, cover: authStreamUrl(s.cover) || placeholderCover(), url: authStreamUrl('/api/stream?file_id=' + s.file_id), lrc: s.lrc || '[00:00.00]暂无歌词' } : null;
               }).filter(Boolean);
               
               ap.list.audios = newList;
@@ -793,7 +791,7 @@
               if (!s) return null;
               return { 
                 name: s.title, artist: s.artist, 
-                cover: authStreamUrl(s.cover) || placeholderCover(s.file_id || s.title), 
+                cover: authStreamUrl(s.cover) || placeholderCover(), 
                 url: authStreamUrl('/api/stream?file_id=' + s.file_id), 
                 lrc: s.lrc || '[00:00.00]暂无歌词',
                 type: 'normal'
@@ -943,7 +941,7 @@
             const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return; 
             const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'); 
             const song = db[dbIndexMap.get(fileId)] || { title: currentAudio.name, artist: currentAudio.artist, cover: currentAudio.cover };
-            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'Sarah Music', artwork: [{ src: authStreamUrl(song.cover) || placeholderCover(song.file_id || song.title), sizes: '512x512', type: 'image/svg+xml' }] }); 
+            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'Sarah Music', artwork: [{ src: authStreamUrl(song.cover) || placeholderCover(), sizes: '512x512', type: 'image/svg+xml' }] }); 
             navigator.mediaSession.playbackState = ap.paused ? 'paused' : 'playing';
             navigator.mediaSession.setActionHandler('play', () => handlePlayToggle());
             navigator.mediaSession.setActionHandler('pause', () => handlePlayToggle());
@@ -1013,8 +1011,6 @@
                 }
                 else {
                     img.style.display = 'none'; logo.style.setProperty('display', 'flex', 'important');
-                    const [c1, c2] = pickCoverGradient(song.file_id || song.title);
-                    logo.style.setProperty('--ph-c1', c1); logo.style.setProperty('--ph-c2', c2);
                 }
             };
             upUI('ui-cover', 'pc-logo-box'); upUI('m-ui-cover', 'm-logo-box');
@@ -1127,7 +1123,7 @@
                 const safeTitle = escapeHtml(s.title);
                 const safeArtist = escapeHtml(s.artist);
                 return `<div data-id="${safeId}" onclick="handleTrackSwitch(-1, '${safeId}')" class="song-item group ${isActive ? 'active' : ''}">
-                    <img src="${authStreamUrl(s.cover) || placeholderCover(s.file_id || s.title)}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
+                    <img src="${authStreamUrl(s.cover) || placeholderCover()}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
                     <div class="flex-1 truncate"><div class="song-title-text truncate">${safeTitle}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">${safeArtist}</div></div>
                     <div class="song-actions">
                         <div class="action-btn ${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('${safeId}')" title="收藏">
