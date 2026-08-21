@@ -1232,11 +1232,13 @@
             if(mins === 0) { sleepEndTime = null; statusEl.innerText = ""; } 
             else { 
                 sleepEndTime = Date.now() + mins * 60000; 
-                sleepTimerInt = setInterval(() => { 
+                const tick = () => { 
                     const diff = sleepEndTime - Date.now(); 
                     if(diff <= 0) { ap.pause(); clearInterval(sleepTimerInt); sleepEndTime = null; statusEl.innerText = ""; } 
-                    else { statusEl.innerText = fmtTime(Math.floor(diff/1000)); } 
-                }, 1000); 
+                    else { statusEl.innerText = fmtTime(Math.ceil(diff/1000)); } 
+                }; 
+                tick(); 
+                sleepTimerInt = setInterval(tick, 1000); 
             } 
         }
 
