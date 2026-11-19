@@ -98,36 +98,32 @@ functions/api/      后端业务逻辑，6 个 API
 worker/index.js     Workers 入口，按路径分发到 functions/api
 wrangler.toml       Workers 配置（D1 绑定、静态资源）
 .assetsignore       上传白名单，防止源码泄露
-assets/             APlayer、Tailwind 等静态依赖
+assets/             APlayer、Tailwind、站点图标等静态资源
 sw.js               Service Worker
 manifest.json       PWA 配置
 ```
 
-> `functions/api/` 不是 Pages 专用代码，`worker/index.js` 正是从这里导入业务逻辑的。**删掉它 Worker 会直接崩。**
+> `functions/api/` 不是 Pages 专用代码，`worker/index.js` 正是从这里导入业务逻辑的。**删掉或改名它，两条部署路径都会崩。**
 
 ---
 
-## 🔁 可选：部署到 Pages
+## 🧹 清理 Pages 部署（可选）
 
-Workers 已经够用，Pages 不是必需的。只有当你需要 Pages 特有功能（比如免费无限静态请求、Git 分支预览）时才需要它。
+本项目现在只需要 Workers。`functions/api/` 目录名是 Pages 的路由约定，但 Workers 也直接导入它，**别删也别改名**。
 
-用同一套代码，Pages 靠 `functions/` 目录自动路由，`wrangler.toml` 会被忽略（因为缺少 `pages_build_output_dir`）。
+如果你之前建过 Pages 项目，想删掉它：
 
-### 1. 创建 Pages 部署
-1. 在 Cloudflare 控制台点击 **Create application** -> **Pages** -> **Connect to Git**。
-2. 选中你 Fork 的仓库。
-3. 构建设置全部保持默认（Framework preset: `None`，Build command 和 output directory 留空）。
-4. 点击 **Save and Deploy**（注：首次部署完访问会报错，直接进入下一步配置）。
+### 部署数超过 100 时删不掉
 
-### 2. 绑定数据库与变量
-进入该 Pages 项目的管理面板：
+Cloudflare 控制台会拒绝删除，这是[已知问题](https://developers.cloudflare.com/pages/platform/known-issues/#delete-a-project-with-a-high-amount-of-deployments)。必须先清理部署。
 
-* **绑定数据库**：进入 **Settings** -> **Functions** -> **D1 database bindings**。点击 Add binding，Variable name 必须填 `DB`，数据库选择你刚才创建的 D1 库。
-* **设置环境变量**：进入 **Settings** -> **Environment variables**，添加变量（同上表）。
+```sh
+npx wrangler login
+./scripts/delete-pages-deployments.sh <你的项目名>
+```
 
-### 3. 重新部署生效
-回到该项目的 **Deployments** 选项卡，找到最新的一条部署记录，点击右侧的 `...` 选择 **Retry deployment**。
+脚本会保留 production 部署，删掉所有 preview 部署。跑完再去控制台删项目就能成功了。
 
-部署完成后，打开分配的 `*.pages.dev` 域名，输入密码即可进入你的专属音乐库。
+依赖 `jq`（`brew install jq` 或 `apt install jq`）。
 
-> 💡 两种部署可以同时存在，共用同一个 D1 库，数据完全一致。
+> ⚠️ 删 Pages 项目不影响数据。音频都存在 Telegram，歌单信息在 D1，Worker 用的是同一个库。

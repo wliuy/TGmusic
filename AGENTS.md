@@ -15,16 +15,18 @@ sed -i 's/v10\.2\.4/v10.2.5/g' index.html
 
 ## 部署架构
 
-**Workers 是主部署**，Pages 是可选兼容路径。
+线上只有 Workers。`functions/api/` 目录名沿用了 Pages 的路由约定，但代码本身不依赖 Pages，只用标准 `Request`/`Response`。
 
-- **Workers**：`worker/index.js` 从 `functions/api/` 具名导入 6 个 `onRequest`，按路径分发；其余请求交给 `env.ASSETS`。`wrangler.toml` 里配 `main` + `assets` + D1 绑定。
-- **Pages**（可选）：靠 `functions/` 目录自动路由，`wrangler.toml` 因缺少 `pages_build_output_dir` 被忽略。
+- `worker/index.js` 从 `functions/api/` 具名导入 6 个 `onRequest`，按路径分发；其余请求交给 `env.ASSETS`。
+- `wrangler.toml` 配 `main` + `assets` + D1 绑定。
 
-`functions/api/` 不是 Pages 专用代码，**删掉它 Worker 会直接崩**。它承载全部业务逻辑。
+`functions/api/` 承载全部业务逻辑，**删掉或改名它 Worker 会直接崩**。想换目录名必须同步改 `worker/index.js` 的 6 个 import。
 
-`wrangler.toml` 绝不能加 `pages_build_output_dir`，否则会接管 Pages 配置、覆盖控制台的 D1 绑定和环境变量。
+pages.dev 域名如果还活着，属于历史残留。删 Pages 项目前若部署数超过 100，控制台会拒绝，需先用 `scripts/delete-pages-deployments.sh` 清理 preview 部署。
 
-静态资源目录是 `.`，靠 `.assetsignore` 挡住源码。**新增顶层文件或目录时必须同步加进 `.assetsignore`**，否则会被当静态文件公开。当前只上传 9 个文件（`index.html`、`sw.js`、`manifest.json`、`assets/` 下 6 个）。
+不要加 `pages_build_output_dir`，那会让 wrangler 走 Pages 部署模式、覆盖 Workers 配置。
+
+静态资源目录是 `.`，靠 `.assetsignore` 挡住源码。**新增顶层文件或目录时必须同步加进 `.assetsignore`**，否则会被当静态文件公开。当前只上传 12 个文件（`index.html`、`sw.js`、`manifest.json`、`assets/` 下 9 个，含 3 个图标）。
 
 ### 三条不能破的规矩
 
@@ -49,7 +51,7 @@ sed -i 's/v10\.2\.4/v10.2.5/g' index.html
 
 | 可以改 | 绝不能改 |
 |---|---|
-| `<title>`、`#auth-title`、`#brand-title`、`#m-brand-title`、`#app-title-meta`、`manifest.json` 的 `name` | `sarah_key` / `sarah_auth`（localStorage 键，改了所有人掉线） |
+| `<title>`、`#auth-title`、`#brand-title`、`#m-brand-title`、`#app-title-meta`、`manifest.json` 的 `name`/`icons` | `sarah_key` / `sarah_auth`（localStorage 键，改了所有人掉线） |
 | 播放器专辑名（用 `SITE_TITLE` 变量） | `.sarah-dialog-*` CSS 类、`showSarahDialog()` / `closeSarahDialog()` 函数名 |
 
 ## 约束

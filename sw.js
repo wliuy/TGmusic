@@ -1,11 +1,13 @@
-const CACHE_NAME = 'sarah-music-v3';
+const CACHE_NAME = 'tgmusic-v4';
 const PRECACHE = [
   '/',
   '/manifest.json',
   '/assets/css/tailwind.css',
   '/assets/css/APlayer.min.css',
   '/assets/js/APlayer.min.js',
-  '/assets/js/jsmediatags.min.js'
+  '/assets/js/jsmediatags.min.js',
+  '/assets/icon.svg',
+  '/assets/icon-192.png'
 ];
 
 self.addEventListener('install', (e) => {
