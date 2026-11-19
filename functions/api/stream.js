@@ -1,3 +1,5 @@
+import { isAuthed } from '../_auth.js';
+
 let urlCache = new Map();
 export async function onRequest(context) {
   const { request, env } = context;
@@ -5,7 +7,7 @@ export async function onRequest(context) {
   const fileId = url.searchParams.get('file_id');
   const BOT_TOKEN = env.TG_Bot_Token;
   if (!fileId || !BOT_TOKEN) return new Response("Params error", { status: 400 });
-  if (url.searchParams.get('k') !== (env.PASSWORD || "sarah")) return new Response("Unauthorized", { status: 401 });
+  if (!(await isAuthed(request, env))) return new Response("Unauthorized", { status: 401 });
   try {
     let cacheItem = urlCache.get(fileId);
     let downloadUrl = "";
@@ -22,7 +24,9 @@ export async function onRequest(context) {
     const fileRes = await fetch(downloadUrl, { headers: range ? { 'Range': range } : {} });
     const headers = new Headers(fileRes.headers);
     headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Cache-Control', 'public, max-age=31536000');
+    // 该响应依赖登录 Cookie，只能进浏览器私有缓存，不能进 CDN 公共缓存
+    headers.set('Cache-Control', 'private, max-age=31536000');
+    headers.set('Vary', 'Cookie');
     if (!headers.has('Content-Type')) {
       headers.set('Content-Type', downloadUrl.toLowerCase().endsWith('.flac') ? 'audio/flac' : 'audio/mpeg');
     }

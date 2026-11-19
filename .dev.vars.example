@@ -1,0 +1,4 @@
+# 复制为 .dev.vars 后填入自己的值（.dev.vars 已在 .gitignore 中）
+TG_Bot_Token = "123456:ABC-your-bot-token"
+TG_Chat_ID = "-1001234567890"
+PASSWORD = "your-password"
