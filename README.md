@@ -47,7 +47,7 @@ cp .dev.vars.example .dev.vars   # 填入自己的 Token / Chat ID / 密码
 npx wrangler pages dev . --d1 DB=sarah-db
 ```
 
-`wrangler.toml` 里的 `database_id` 需要替换成你 D1 库的真实 ID（`npx wrangler d1 list` 可查），仅本地调试时可以随意填。
+本地调试用 `--d1 DB=<库名>` 指定数据库即可。`wrangler.toml` 只用来固定 `compatibility_date`，**不要在里面写 D1 绑定**：D1 请统一在 Cloudflare 控制台（Pages → Settings → Functions → D1 database bindings）配置，写进文件会导致生产构建报 `Invalid database UUID`。
 
 ## ⚠️ 已知限制
 
