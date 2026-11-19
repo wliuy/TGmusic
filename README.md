@@ -32,10 +32,10 @@ npx wrangler login
 打开 `wrangler.toml`，把最后一行换成你自己的 D1 ID：
 
 ```toml
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "你的 D1 数据库 ID"
 ```
 
-> 不改这一行直接部署会报错，这是故意的，防止误连别人的库。
+> 这一行必须填真实的 ID。Cloudflare 的 Git 集成部署不会交互式询问，留占位符会直接报错。
 
 ### 4. 首次部署
 

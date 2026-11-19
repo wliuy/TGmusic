@@ -28,9 +28,13 @@ sed -i 's/v10\.2\.4/v10.2.5/g' index.html
 
 ### 三条不能破的规矩
 
-1. **`database_id` 必须是占位符 `REPLACE_WITH_YOUR_D1_DATABASE_ID`**，绝不能写真实 ID。仓库是 public，别人 fork 走要能绑自己的库。
+1. **`database_id` 必须写真实的 ID，不能用占位符**。Cloudflare Git 集成部署（CI）不会交互式询问，占位符会直接报 `binding DB of type d1 must have a valid database_id specified`。副作用：这个 ID 会公开在仓库里，但 D1 ID 本身不是密钥（没有账号权限读不到数据），风险可接受。
 2. **`keep_vars = true` 不能删**。删了每次 `wrangler deploy` 都会清空控制台的 `PASSWORD` / `TG_Bot_Token` / `TG_Chat_ID` / `SITE_TITLE`。
-3. **`wrangler.toml` 是 Workers 的唯一真相源**。部署时文件里的绑定会覆盖控制台手动绑的，这是官方设计，不是 bug。
+3. **`wrangler.toml` 是 Workers 的唯一真相源**。部署时文件里的绑定会覆盖控制台手动绑的，这是官方设计，不是 bug。删掉 `[[d1_databases]]` 段会导致 D1 绑定被删除（4.81 不支持 `keep_bindings`）。
+
+### `name` 必须和实际 Worker 一致
+
+当前 `name = "tgmusic"`。Cloudflare Git 集成部署会用 `WRANGLER_CI_OVERRIDE_NAME` 覆盖它，但本地 `wrangler deploy` 不会。名字写错会新建一个空 Worker，原 Worker 不受影响，等于白部署。
 
 ## 密码与标题
 
