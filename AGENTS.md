@@ -24,6 +24,12 @@ sed -i 's/v10\.2\.2/v10.2.3/g' index.html
 
 静态资源目录是 `.`，靠 `.assetsignore` 挡住源码。**新增顶层文件或目录时必须同步加进 `.assetsignore`**，否则会被当静态文件公开。当前只上传 9 个文件（`index.html`、`sw.js`、`manifest.json`、`assets/` 下 6 个）。
 
+### 三条不能破的规矩
+
+1. **`database_id` 必须是占位符 `REPLACE_WITH_YOUR_D1_DATABASE_ID`**，绝不能写真实 ID。仓库是 public，别人 fork 走要能绑自己的库。
+2. **`keep_vars = true` 不能删**。删了每次 `wrangler deploy` 都会清空控制台的 `PASSWORD` / `TG_Bot_Token` / `TG_Chat_ID`。
+3. **`wrangler.toml` 是 Workers 的唯一真相源**。部署时文件里的绑定会覆盖控制台手动绑的，这是官方设计，不是 bug。
+
 ## 密码
 
 `env.PASSWORD || "sarah"` 是唯一鉴权方式，由用户在 Cloudflare 控制台设置 `PASSWORD` 环境变量。
