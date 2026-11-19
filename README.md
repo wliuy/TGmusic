@@ -120,9 +120,12 @@ Cloudflare 控制台会拒绝删除，这是[已知问题](https://developers.cl
 ```sh
 npx wrangler login
 ./scripts/delete-pages-deployments.sh <你的项目名>
+npx wrangler pages project delete <你的项目名> -y
 ```
 
-脚本会保留 production 部署，删掉所有 preview 部署。跑完再去控制台删项目就能成功了。
+第一条登录，第二条保留 production 部署、删掉所有 preview 部署，第三条删项目。`-y` 是跳过确认。
+
+也可以不用脚本，直接用 API 分页删除，但部署多的时候很慢。
 
 依赖 `jq`（`brew install jq` 或 `apt install jq`）。
 

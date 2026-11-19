@@ -350,6 +350,12 @@
             .m-info-wrap { height: 46px; }
         }
 
+        /* 移动端触感与滚动：去掉点击高亮、禁止页面橡皮筋、按钮免 300ms 延迟 */
+        html, body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overscroll-behavior: none; }
+        button, .btn-round, [onclick] { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+        .mobile-player-container { overscroll-behavior: contain; }
+        .m-lyrics-panel { -webkit-overflow-scrolling: touch; }
+
         @media (max-width: 768px) { .desktop-container { display: none; } .mobile-player-container { display: flex; } }
     </style>
 </head>
@@ -394,7 +400,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.8</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.9</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -505,7 +511,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.8</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.9</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -525,7 +531,8 @@
         </div>
     </div>
 
-    <div id="ap-hidden" style="display:none"></div>
+    <!-- 音频元素宿主：必须留在文档流里（视觉隐藏即可），display:none 会让移动端息屏后挂起播放 -->
+    <div id="ap-hidden" style="position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden"></div>
     <script src="/assets/js/APlayer.min.js"></script>
     <script>
         let SITE_TITLE = 'TGmusic';
@@ -565,7 +572,12 @@
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
         let globalUploadQueue = [], uploadActiveWorkers = 0;
         // 息屏连播根治：单一 audio 元素 + 整曲 Blob 预载，杜绝第二个 audio 元素带来的电流声
-        let nextBlob = null, warmingAbort = null;
+        let nextBlob = null, warmingAbort = null, lastPositionSync = 0;
+        // 切歌期间置锁，防止 listswitch 回调把 UI 刷成中间态。
+        // 播音频的页面不受定时器深度节流，所以后台也能按时解锁。
+        function releaseSwitchLock() {
+            setTimeout(() => { isPlaylistSwitching = false; }, 200);
+        }
         let renderCount = 20, pageSize = 20, isPlaylistSwitching = false, globalActiveListId = 'fav', favPending = new Set();
         let lastBackgroundUpdateId = null;
 
@@ -876,23 +888,25 @@
             const curAudio = ap.list.audios[ap.list.index];
             const curFid = curAudio ? fidFromUrl(curAudio.url) : null;
             const curTime = ap.audio.currentTime || 0;
-            const wasPlaying = !ap.paused;
+            const wasPlaying = !ap.audio.paused;
             const guard = isPlaylistSwitching;
             isPlaylistSwitching = true;
+            const newIdx = curFid ? trackList.findIndex(a => fidFromUrl(a.url) === curFid) : -1;
             ap.list.clear();
             ap.list.add(trackList);
-            const newIdx = curFid ? trackList.findIndex(a => fidFromUrl(a.url) === curFid) : -1;
             if (newIdx !== -1) {
                 ap.list.switch(newIdx);
                 refreshUIMetaByAudio(ap.list.audios[newIdx]);
-                if (keepPlaying) {
+                if (keepPlaying || wasPlaying) {
                     const restore = () => { if (curTime > 0) ap.audio.currentTime = curTime; };
                     if (ap.audio.readyState >= 1) restore();
                     else ap.audio.addEventListener('loadedmetadata', restore, { once: true });
+                    // list.clear() 内部会调 pause()，这里必须恢复播放。
+                    // 不能判断 document.hidden：息屏切歌单正是最需要续播的场景。
                     if (wasPlaying) ap.play();
                 }
             }
-            if (!guard) setTimeout(() => { isPlaylistSwitching = false; }, 200);
+            if (!guard) releaseSwitchLock();
         }
 
         function setupPlayer() {
@@ -907,6 +921,16 @@
 
 
             ap = new APlayer({ container: document.getElementById('ap-hidden'), lrcType: 1, audio: trackList, volume: lastVolume || 0.7 });
+
+            // 移动端后台播放：audio 必须留在文档里且带 playsinline，否则 iOS/安卓息屏会挂起播放。
+            // preload=auto 让浏览器尽早开始缓冲；不设 muted，避免被当成"静音自动播放"而降权。
+            ap.audio.setAttribute('playsinline', '');
+            ap.audio.setAttribute('webkit-playsinline', '');
+            ap.audio.setAttribute('preload', 'auto');
+            // APlayer 只 createElement 不 appendChild，音频元素游离在 DOM 外，移动端息屏即被挂起。
+            // 挂进宿主后浏览器才把它当"页面媒体"处理，锁屏/切后台可继续播放。
+            const _audioHost = document.getElementById('ap-hidden');
+            if (_audioHost && ap.audio.parentNode !== _audioHost) _audioHost.appendChild(ap.audio);
 
             // 物理级根治点：拦截 APlayer 音频切换，若下一首已预载为 Blob，直接把 Blob URL 喂给唯一 audio 元素，
             // 息屏后不发起任何新网络请求即可无缝连播；全程仍只有一个 audio 元素，不会出现隔几秒电流声。
@@ -995,26 +1019,31 @@
                 if (dur > 0 && cur / dur > 0.5 && ap.list.audios.length > 1) {
                     preloadNextTrack();
                 }
+
+                // 锁屏进度条每秒同步一次即可，调太频繁会被浏览器限流
+                const now = Date.now();
+                if (now - lastPositionSync > 1000) { lastPositionSync = now; updatePositionState(); }
             });
 
             // 兜底：切后台/息屏时若尚未预载，立即补齐 Blob 预载（绝不创建第二个 audio 元素）
             document.addEventListener('visibilitychange', () => {
-                if (document.hidden && ap && !ap.paused && ap.list.audios.length > 1) {
+                // ap.paused 是 APlayer 自己维护的标记，息屏后可能和真实媒体状态不同步
+                if (document.hidden && ap && !ap.audio.paused && ap.list.audios.length > 1) {
                     preloadNextTrack();
                 }
             });
 
-            // 安全网：确保 ended 事件能正确触发下一首
+            // 安全网：APlayer 的 ended 自动切歌在部分移动浏览器息屏后会失效。
+            // 这里只能用 setTimeout —— rAF 在息屏/后台会完全停止，兜底逻辑就永远不跑了。
+            // 播音频的页面不受定时器深度节流，所以后台 setTimeout 仍然会正常触发。
             ap.audio.addEventListener('ended', () => {
                 if (ap.options.loop === 'one') return;
-                // 如果 APlayer 没有自动切换，手动触发
-                if (ap.list.index < ap.list.audios.length - 1 || ap.options.loop === 'all') {
-                    setTimeout(() => {
-                        if (ap && ap.paused && document.hidden) {
-                            handleNext();
-                        }
-                    }, 300);
-                }
+                setTimeout(() => {
+                    // 用真实媒体元素状态判断，ap.paused 只是 APlayer 自己维护的标记
+                    if (!ap || !ap.audio.paused) return;
+                    if (ap.list.audios.length < 2) return;
+                    handleNext();
+                }, 300);
             });
 
             ap.on('listswitch', (data) => { 
@@ -1039,12 +1068,30 @@
             const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'); 
             const song = db[dbIndexMap.get(fileId)] || { title: currentAudio.name, artist: currentAudio.artist, cover: currentAudio.cover };
             navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: SITE_TITLE, artwork: [{ src: authStreamUrl(song.cover) || placeholderCover(), sizes: '512x512', type: 'image/svg+xml' }] }); 
-            navigator.mediaSession.playbackState = ap.paused ? 'paused' : 'playing';
+            navigator.mediaSession.playbackState = ap.audio.paused ? 'paused' : 'playing';
             navigator.mediaSession.setActionHandler('play', () => handlePlayToggle());
             navigator.mediaSession.setActionHandler('pause', () => handlePlayToggle());
             navigator.mediaSession.setActionHandler('previoustrack', () => handlePrev());
             navigator.mediaSession.setActionHandler('nexttrack', () => handleNext());
-            navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.seekTime) ap.seek(details.seekTime); });
+            navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.seekTime != null) ap.seek(details.seekTime); });
+            navigator.mediaSession.setActionHandler('seekbackward', (d) => ap.seek(Math.max(0, ap.audio.currentTime - (d.seekOffset || 10))));
+            navigator.mediaSession.setActionHandler('seekforward', (d) => ap.seek(Math.min(ap.audio.duration || 0, ap.audio.currentTime + (d.seekOffset || 10))));
+            navigator.mediaSession.setActionHandler('stop', () => { ap.pause(); ap.seek(0); });
+            updatePositionState();
+        }
+
+        // 锁屏/通知栏进度条：不设置的话安卓只显示"播放中"，没有可拖动进度
+        function updatePositionState() {
+            if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+            const d = ap && ap.audio.duration;
+            if (!d || !isFinite(d) || d <= 0) return;
+            try {
+                navigator.mediaSession.setPositionState({
+                    duration: d,
+                    playbackRate: ap.audio.playbackRate || 1,
+                    position: Math.min(ap.audio.currentTime || 0, d)
+                });
+            } catch (e) {}
         }
 
         function updateBackground(isForceRandom = false) { 
@@ -1279,7 +1326,7 @@
                 } catch (e) { console.error("Playback fail:", e); }
             }
 
-            setTimeout(() => { isPlaylistSwitching = false; }, 200);
+            releaseSwitchLock();
         }
 
         function toggleMode() { modeIdx = (modeIdx + 1) % modes.length; updateUIModes(); }
@@ -1293,7 +1340,9 @@
             document.getElementById('mode-icon').innerHTML = icons[m]; document.getElementById('m-mode-icon').innerHTML = icons[m];
         }
 
-        function handlePlayToggle() { if (!ap) return; if (ap.paused) ap.play(); else ap.pause(); }
+        // 用真实媒体状态判断：ap.paused 只是 APlayer 的 UI 标记，息屏恢复后可能不同步，
+        // 会导致"按了没反应"或"该停却继续播"。
+        function handlePlayToggle() { if (!ap) return; if (ap.audio.paused) ap.play(); else ap.pause(); }
         function handlePrev() {
             handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length);
         }
@@ -1420,7 +1469,7 @@
             updateBackground(false); 
             // 返回键支持：注入 UI 路由状态
             history.pushState({stage:'drawer'}, '');
-            setTimeout(() => { isPlaylistSwitching = false; }, 200); 
+            releaseSwitchLock(); 
         }
 
         function switchAdminList(t) { currentAdminTab = t; renderAdminPlaylistTabs(); renderAdminSongList(); }
