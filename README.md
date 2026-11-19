@@ -32,40 +32,9 @@
 * **设置环境变量**：进入 **Settings** -> **Environment variables**，添加以下三个变量：
     * `TG_Bot_Token`：你的 Telegram 机器人 Token。
     * `TG_Chat_ID`：你的 Telegram 存储群组 ID。
-    * `PASSWORD`：网站访问密码（不设置则默认为 `sarah`）。**改这个变量会让所有已登录设备立即退出**，可作为"踢掉所有设备"的手段。
+    * `PASSWORD`：网站后台的访问密码（不设置则代码默认密码为 `sarah`）。
 
 ### 5. 重新部署生效
 回到该项目的 **Deployments** 选项卡，找到最新的一条部署记录，点击右侧的 `...` 选择 **Retry deployment**。
 
 部署完成后，打开分配的 `*.pages.dev` 域名，输入密码即可进入你的专属音乐库。
-
-## 🛠 本地开发
-
-```bash
-npm install
-cp .dev.vars.example .dev.vars   # 填入自己的 Token / Chat ID / 密码
-npx wrangler pages dev . --compatibility-date=2024-09-23 --d1 DB=sarah-db
-```
-
-> **本项目不使用 `wrangler.toml`。**
->
-> Cloudflare Pages 里一旦存在这个文件（且带 `pages_build_output_dir`），它就成为项目配置的**唯一来源**：控制台里配好的 D1 绑定和环境变量会被全部忽略，表现为 `env.DB` 或 `env.TG_Bot_Token` 为 undefined，接口返回 500。
->
-> 所有绑定与变量请统一在控制台配置：
-> - D1：**Workers & Pages → 项目 → Settings → Functions → D1 database bindings**，变量名必须是 `DB`
-> - 环境变量：**Settings → Variables and Secrets**，需要 `TG_Bot_Token`、`TG_Chat_ID`、`PASSWORD`
->
-> 本地调试时用命令行参数代替（见上面的命令）。
-
-## ⚠️ 已知限制
-
-Telegram Bot API 的**文件下载上限为 20MB**（上传上限 50MB）。超过 20MB 的音频即使上传成功也无法播放，因此上传时会直接拦下并记录到上传日志。
-
-## 🔐 登录机制
-
-只用一个密码，没有账号体系：
-
-1. 输入密码 → 服务端核对 → 下发一张签名过的会话 Cookie（`HttpOnly`，有效期 30 天）。
-2. 之后所有请求自动携带这张 Cookie，**密码本身不再出现在任何请求或网址里**。
-3. Cookie 由密码派生密钥签名，改 `PASSWORD` 即让全部旧会话失效。
-4. 同一 IP 10 分钟内输错 8 次会被临时锁定。

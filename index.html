@@ -561,18 +561,17 @@
             { bg: '#fff5f7', accent: '#f472b6', deep: '#831843' }
         ];
 
-        // 登录态由 HttpOnly Cookie 承载，页面脚本拿不到密码，同源请求会自动带上 Cookie。
-        function authStreamUrl(u) { return u; }
-
-        function logout() {
-            fetch('/api/check_auth', { method: 'DELETE' }).catch(() => {});
-            try { localStorage.removeItem('sarah_auth'); } catch {}
-            location.reload();
+        function authKey() { try { return localStorage.getItem('sarah_key') || ''; } catch { return ''; } }
+        function authHeaders() { return { 'X-Password': authKey() }; }
+        function authStreamUrl(u) {
+            if (!u || !u.startsWith('/api/stream')) return u;
+            const k = authKey();
+            return u + (u.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(k);
         }
 
         async function dbOp(action, data = {}) {
             try {
-                const res = await fetch('/api/manage', { method: 'POST', body: JSON.stringify({ action, data }) });
+                const res = await fetch('/api/manage', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ action, data }) });
                 const result = await res.json();
                 if (!result.success) console.error("D1 Action Error:", result.error);
                 return result;
@@ -584,40 +583,31 @@
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
-        const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
+        const AUTH_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 
-        // 用服务端的会话 Cookie 判断，客户端不再保存任何密码
-        async function isAuthed() {
+        function isAuthed() {
             try {
-                const res = await fetch('/api/check_auth');
-                return !!(await res.json()).authed;
+                const raw = localStorage.getItem('sarah_auth');
+                if (!raw) return false;
+                const { ts } = JSON.parse(raw);
+                if ((Date.now() - ts) >= AUTH_EXPIRY_MS) return false;
+                return !!localStorage.getItem('sarah_key');
             } catch { return false; }
         }
 
         async function verifyAccess() {
             const pass = document.getElementById('entry-pass').value;
-            let data;
-            try {
-                const res = await fetch('/api/check_auth', { method: 'POST', body: JSON.stringify({ password: pass }) });
-                data = await res.json();
-            } catch (e) {
-                showMsg("网络异常，请重试");
-                return;
+            const res = await fetch('/api/check_auth', { method: 'POST', body: JSON.stringify({ password: pass }) });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.setItem('sarah_auth', JSON.stringify({ ts: Date.now() }));
+                localStorage.setItem('sarah_key', pass);
+                const gate = document.getElementById('auth-gate');
+                gate.style.opacity = '0';
+                setTimeout(() => { gate.style.display = 'none'; init(true); }, 800);
+            } else {
+                showMsg("密码错误");
             }
-            if (!data.success) {
-                showMsg(data.error || "密码错误");
-                return;
-            }
-            // 确认会话真的生效再放行：后端版本不一致时不会下发 Cookie，
-            // 此时若直接淡出登录框，用户会卡在看不见的遮罩后面
-            if (!(await isAuthed())) {
-                showMsg("登录未生效，请强制刷新页面（Ctrl+Shift+R）后重试");
-                return;
-            }
-            localStorage.setItem('sarah_auth', JSON.stringify({ ts: Date.now() }));
-            const gate = document.getElementById('auth-gate');
-            gate.style.opacity = '0';
-            setTimeout(() => { gate.style.display = 'none'; init(true); }, 800);
         }
 
         function applyAuthTheme() {
@@ -650,16 +640,10 @@
             responsiveResizeTimer = setTimeout(applyResponsiveLayout, 150);
         });
 
-        function showAuthGate() {
-            const gate = document.getElementById('auth-gate');
-            gate.style.display = 'flex';
-            gate.style.opacity = '1';
-            applyAuthTheme();
-        }
-
         async function init(isForce = false) {
-            if (!(await isAuthed())) {
-                showAuthGate();
+            if (!isAuthed()) {
+                document.getElementById('auth-gate').style.display = 'flex';
+                applyAuthTheme();
                 return;
             }
             if (isForce) document.getElementById('auth-gate').style.display = 'none';
@@ -679,15 +663,15 @@
                 }).catch(() => {});
             }
             try {
-                const res = await fetch('/api/songs');
+                const res = await fetch('/api/songs', { headers: authHeaders() });
                 if (res.status === 401) {
-                    localStorage.removeItem('sarah_auth');
+                    localStorage.removeItem('sarah_auth'); localStorage.removeItem('sarah_key');
                     const gate = document.getElementById('auth-gate');
                     gate.style.display = 'flex'; applyAuthTheme();
                     return;
                 }
                 const raw = await res.json();
-                if (raw.error) { console.error("D1 Loader Error:", raw.error); showMsg("曲库读取失败：" + raw.error); return; }
+                if (raw.error) { console.error("D1 Loader Error"); return; }
                 libState = raw; db = libState.songs;
                 buildIndexMap(); renderCustomTabs(); 
                 setupPlayer(); 
@@ -725,15 +709,36 @@
 
         async function silentRefresh() {
             try {
-                const res = await fetch('/api/songs'); const raw = await res.json();
-                if (raw.error) { showMsg("曲库同步失败：" + raw.error); return; }
-                libState = raw; db = libState.songs;
-                buildIndexMap();
-                if (ap) rebuildPlayerList(buildTrackList(listIdsFor(globalActiveListId)), true);
-                if (document.getElementById('admin-panel').classList.contains('active')) {
-                    renderAdminPlaylistTabs(); renderAdminSongList();
-                }
-            } catch (e) { console.error(e); }
+            const res = await fetch('/api/songs', { headers: authHeaders() }); const raw = await res.json();
+            if (raw.error) return;
+            let curFid = null;
+            if(ap && ap.list.audios[ap.list.index]) {
+                curFid = new URL(ap.list.audios[ap.list.index].url, window.location.origin).searchParams.get('file_id');
+            }
+            libState = raw; db = libState.songs;
+            buildIndexMap();
+            if(ap) {
+              let ids = [];
+              const sourceId = globalActiveListId; 
+              if(sourceId === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
+              else if(sourceId === 'fav') ids = libState.favorites;
+              else ids = libState.playlists.find(p => p.id === sourceId)?.ids || [];
+
+              const newList = ids.map(id => {
+                const s = db[dbIndexMap.get(id)];
+                return s ? { name: s.title, artist: s.artist, cover: authStreamUrl(s.cover) || placeholderCover(), url: authStreamUrl('/api/stream?file_id=' + s.file_id), lrc: s.lrc || '[00:00.00]暂无歌词' } : null;
+              }).filter(Boolean);
+              
+              ap.list.audios = newList;
+              if (curFid) {
+                  const newIndex = ids.indexOf(curFid);
+                  if (newIndex !== -1) { ap.list.index = newIndex; }
+              }
+            }
+            if(document.getElementById('admin-panel').classList.contains('active')) {
+              renderAdminPlaylistTabs(); renderAdminSongList();
+            }
+          } catch (e) { console.error(e); }
         }
 
         function buildIndexMap() { dbIndexMap.clear(); for(let j = 0; j < db.length; j++) dbIndexMap.set(db[j].file_id, j); }
@@ -774,58 +779,33 @@
                 .finally(() => { if (warmingFid === nextFid) { warmingFid = null; warmingAbort = null; } });
         }
 
-        function listIdsFor(listId) {
-            if (listId === 'all') return libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
-            if (listId === 'fav') return libState.favorites;
-            return libState.playlists.find(p => p.id === listId)?.ids || [];
-        }
-
-        function buildTrackList(ids) {
-            return ids.map(id => {
-                const s = db[dbIndexMap.get(id)];
-                if (!s) return null;
-                return {
-                    name: s.title, artist: s.artist,
-                    cover: authStreamUrl(s.cover) || placeholderCover(),
-                    url: authStreamUrl('/api/stream?file_id=' + s.file_id),
-                    lrc: s.lrc || '[00:00.00]暂无歌词',
-                    type: 'normal'
-                };
-            }).filter(Boolean);
-        }
-
-        // 必须走 list.clear()/add() 重建：直接改 ap.list.audios 会让 APlayer 内部列表 DOM 与数组长度脱节，
-        // 之后 switch() 越界抛错，表现为"点了歌没反应"。重建后还原当前曲目与播放进度。
-        function rebuildPlayerList(trackList, keepPlaying) {
-            const curAudio = ap.list.audios[ap.list.index];
-            const curFid = curAudio ? fidFromUrl(curAudio.url) : null;
-            const curTime = ap.audio.currentTime || 0;
-            const wasPlaying = !ap.paused;
-            const guard = isPlaylistSwitching;
-            isPlaylistSwitching = true;
-            ap.list.clear();
-            ap.list.add(trackList);
-            const newIdx = curFid ? trackList.findIndex(a => fidFromUrl(a.url) === curFid) : -1;
-            if (newIdx !== -1) {
-                ap.list.switch(newIdx);
-                refreshUIMetaByAudio(ap.list.audios[newIdx]);
-                if (keepPlaying) {
-                    const restore = () => { if (curTime > 0) ap.audio.currentTime = curTime; };
-                    if (ap.audio.readyState >= 1) restore();
-                    else ap.audio.addEventListener('loadedmetadata', restore, { once: true });
-                    if (wasPlaying) ap.play();
-                }
-            }
-            if (!guard) setTimeout(() => { isPlaylistSwitching = false; }, 200);
-        }
-
         function setupPlayer() {
-            const trackList = buildTrackList(listIdsFor(globalActiveListId));
+            let ids = [];
+            const sourceId = globalActiveListId;
+            if(sourceId === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
+            else if(sourceId === 'fav') ids = libState.favorites;
+            else ids = libState.playlists.find(p => p.id === currentTab)?.ids || [];
+            
+            const trackList = ids.map(id => {
+              const s = db[dbIndexMap.get(id)];
+              if (!s) return null;
+              return { 
+                name: s.title, artist: s.artist, 
+                cover: authStreamUrl(s.cover) || placeholderCover(), 
+                url: authStreamUrl('/api/stream?file_id=' + s.file_id), 
+                lrc: s.lrc || '[00:00.00]暂无歌词',
+                type: 'normal'
+              };
+            }).filter(Boolean);
 
             if (ap) {
+                // 物理级优化：增量更新列表，而不是无脑 clear()
                 const currentTrackUrls = ap.list.audios.map(a => a.url);
                 const newTrackUrls = trackList.map(a => a.url);
-                if (JSON.stringify(currentTrackUrls) !== JSON.stringify(newTrackUrls)) rebuildPlayerList(trackList, false);
+                if (JSON.stringify(currentTrackUrls) !== JSON.stringify(newTrackUrls)) {
+                    ap.list.clear();
+                    ap.list.add(trackList);
+                }
                 return;
             }
 
@@ -1173,34 +1153,34 @@
         async function handleTrackSwitch(idx, fid) {
             if(!ap) return;
             isPlaylistSwitching = true;
-
-            let targetIdx = fid ? ap.list.audios.findIndex(a => fidFromUrl(a.url) === fid) : idx;
-            if (fid && targetIdx === -1) {
-                // 目标曲目不在当前播放队列里（说明浏览的歌单已切换），按当前歌单重建后再找
+            if (fid && globalActiveListId !== currentTab) {
                 globalActiveListId = currentTab;
-                rebuildPlayerList(buildTrackList(listIdsFor(currentTab)), false);
-                targetIdx = ap.list.audios.findIndex(a => fidFromUrl(a.url) === fid);
+                setupPlayer();
             }
-
-            const target = ap.list.audios[targetIdx];
-            if (target) {
-                // 上一首/下一首只传索引，fid 必须从目标曲目反推，否则状态会被写成 undefined
-                const targetFid = fid || fidFromUrl(target.url);
-                globalPlayingId = targetFid;
+            
+            let targetIdx = idx;
+            if (fid) { 
+                const foundIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fid)); 
+                if (foundIdx !== -1) targetIdx = foundIdx; 
+            }
+            
+            // 安全指令：确保索引有效后同步执行播放动作
+            if (targetIdx !== -1 && ap.list.audios[targetIdx]) {
+                globalPlayingId = fid;
+                // 物理重置进度：切歌瞬间强行归零播放条与缓存条，防止旧数据残留视觉。
                 ['prog-bar', 'm-prog-bar', 'prog-buffer', 'm-prog-buffer'].forEach(id => {
                     const el = document.getElementById(id);
                     if(el) el.style.width = "0%";
                 });
                 try {
-                    ap.list.switch(targetIdx);
+                    ap.list.switch(targetIdx); 
                     ap.play();
-                    const dbIdx = dbIndexMap.get(targetFid);
+                    const dbIdx = dbIndexMap.get(fid);
                     if(dbIdx !== undefined) refreshUIMetaAt(dbIdx);
-                    else refreshUIMetaByAudio(target);
-                    updateHighlights(targetFid, true);
+                    updateHighlights(fid, true);
                 } catch (e) { console.error("Playback fail:", e); }
             }
-
+            
             setTimeout(() => { isPlaylistSwitching = false; }, 200);
         }
 
@@ -1317,31 +1297,17 @@
             }); 
         }
 
-        function syncPlayerToList(listId) {
-            if (!ap) return;
-            const cur = ap.list.audios[ap.list.index];
-            const curFid = cur ? fidFromUrl(cur.url) : null;
-            const ids = listIdsFor(listId);
-            // 队列为空时必须重建，否则"下一首"没有可跳转的曲目；
-            // 队列非空时仅在新歌单包含当前曲目时才切换，避免翻歌单就把音乐打断
-            if (!curFid || ids.includes(curFid)) {
-                globalActiveListId = listId;
-                rebuildPlayerList(buildTrackList(ids), true);
-            }
-        }
-
-        function switchList(t) {
-            isPlaylistSwitching = true;
-            currentTab = t;
-            renderCount = pageSize;
+        function switchList(t) { 
+            isPlaylistSwitching = true; 
+            currentTab = t; 
+            renderCount = pageSize; 
             renderAllLists();
             const container = document.getElementById(window.innerWidth <= 768 ? 'm-list-view' : 'list-view');
             if (container) container.scrollTop = 0;
-            syncPlayerToList(t);
-            updateBackground(false);
+            updateBackground(false); 
             // 返回键支持：注入 UI 路由状态
             history.pushState({stage:'drawer'}, '');
-            setTimeout(() => { isPlaylistSwitching = false; }, 200);
+            setTimeout(() => { isPlaylistSwitching = false; }, 200); 
         }
 
         function switchAdminList(t) { currentAdminTab = t; renderAdminPlaylistTabs(); renderAdminSongList(); }
@@ -1425,8 +1391,8 @@
                 <div class="px-4 py-2 bg-white/5 rounded-xl mb-1 flex items-center justify-between border border-white/5 ${isFail ? 'bg-red-500/5' : ''}">
                     <div class="flex items-center gap-2 truncate flex-1">
                         <div class="w-1.5 h-1.5 rounded-full ${isFail ? 'bg-red-400 shadow-[0_0_5px_#f87171]' : 'bg-emerald-400 shadow-[0_0_5px_#34d399]'}"></div>
-                        <span class="text-[11px] font-bold text-white/80 truncate">${escapeHtml(log.filename)}</span>
-                        ${isFail ? '<span class="text-[9px] text-red-400/60 ml-2 italic truncate">(' + escapeHtml(log.reason || '失败') + ')</span>' : ''}
+                        <span class="text-[11px] font-bold text-white/80 truncate">${log.filename}</span>
+                        ${isFail ? '<span class="text-[9px] text-red-400/60 ml-2 italic truncate">(' + (log.reason || '失败') + ')</span>' : ''}
                     </div>
                     <span class="text-[9px] text-white/20 font-mono ml-4 flex-shrink-0">${dateStr}</span>
                 </div>`;
@@ -1652,32 +1618,27 @@
             }
             const files = Array.from(inp.files); document.getElementById('file-count-tip').innerText = `已选 ${files.length} 首`;
             const container = document.getElementById('upload-preview-list');
-            const batch = [];
-            let pending = 0;
-            const finishOne = () => { if (--pending === 0) setTimeout(() => handleUp(batch), 500); };
             files.forEach((f, i) => {
                 const pId = "up-p-" + Date.now() + i;
-                const oversized = f.size > MAX_AUDIO_BYTES;
-                container.insertAdjacentHTML('beforeend', `<div class="upload-preview-item" id="${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">${escapeHtml(f.name)}</span><div id="${pId}-s" class="preview-status-dot${oversized ? ' error' : ''}"></div></div><div class="preview-prog-container" id="${pId}-w"><div class="preview-prog-fill" id="${pId}-f"></div></div></div>`);
-                if (oversized) return;
-                batch.push({ f, pId });
-                pending++;
+                container.innerHTML += `<div class="upload-preview-item" id="${pId}"><div class="flex items-center justify-between"><span class="text-xs text-white truncate w-2/3">${f.name}</span><div id="${pId}-s" class="preview-status-dot"></div></div><div class="preview-prog-container" id="${pId}-w"><div class="preview-prog-fill" id="${pId}-f"></div></div></div>`;
                 jsmediatags.read(f, { onSuccess: (t) => {
                     const { title, artist, picture, lyrics } = t.tags; let blob = null;
                     if (picture) { const { data, format } = picture; blob = new Blob([new Uint8Array(data)], { type: format }); }
                     tempMetaMap.set(f.name, { title: title || f.name.replace(/\.[^/.]+$/, ""), artist: artist || "未知", coverBlob: blob, lrc: lyrics?.lyrics || "" });
-                    finishOne();
-                }, onError: () => { finishOne(); }});
+                    if(i === files.length - 1) setTimeout(() => handleUp(files), 500);
+                }, onError: () => { if(i === files.length - 1) setTimeout(() => handleUp(files), 500); }});
             });
-            if (files.some(f => f.size > MAX_AUDIO_BYTES)) showMsg(`有 ${files.filter(f => f.size > MAX_AUDIO_BYTES).length} 首超过 20MB，已跳过`);
-            if (!pending) return;
         }
 
         async function handleUp(batchFiles) {
             if(!batchFiles.length) return;
             const btn = document.querySelector("#upload-area button"); if(btn) btn.disabled = true;
             const targetPid = (currentAdminTab !== 'all' && currentAdminTab !== 'fav' && currentAdminTab !== 'logs') ? currentAdminTab : null;
-            batchFiles.forEach(({ f, pId }) => { globalUploadQueue.push({ f, pId, targetPid }); });
+            Array.from(batchFiles).forEach((f, i) => {
+                const listItems = document.querySelectorAll(".upload-preview-item");
+                const pId = listItems[listItems.length - batchFiles.length + i].id;
+                globalUploadQueue.push({ f, pId, targetPid });
+            });
             const worker = async () => {
                 while(globalUploadQueue.length > 0) {
                     const item = globalUploadQueue.shift();
@@ -1689,19 +1650,16 @@
                     if (meta.coverBlob) fd.append('cover', meta.coverBlob, 'cover.jpg');
                     if (item.targetPid) fd.append('target_playlist', item.targetPid);
                     const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/upload');
+                    xhr.setRequestHeader('X-Password', authKey());
                     xhr.upload.onprogress = e => { if(e.lengthComputable && pFill) pFill.style.width = (e.loaded/e.total*100) + '%'; };
                     await new Promise(r => {
-                        xhr.onload = () => {
-                            let res = {};
-                            try { res = JSON.parse(xhr.responseText || '{}'); } catch (e) {}
+                        xhr.onload = () => { 
+                            const res = JSON.parse(xhr.responseText || '{}');
                             if(xhr.status === 200 && res.success) { if(sDot) sDot.className = "preview-status-dot success"; }
-                            else {
-                                if(sDot) sDot.className = "preview-status-dot error";
-                                showMsg(`${item.f.name} 上传失败：${res.error || ('HTTP ' + xhr.status)}`);
-                            }
-                            r();
+                            else { if(sDot) sDot.className = "preview-status-dot error"; }
+                            r(); 
                         };
-                        xhr.onerror = () => { if(sDot) sDot.className = "preview-status-dot error"; showMsg(`${item.f.name} 上传失败：网络错误`); r(); };
+                        xhr.onerror = () => { if(sDot) sDot.className = "preview-status-dot error"; r(); };
                         xhr.send(fd);
                     });
                 }
