@@ -279,7 +279,7 @@
             .browser-tab { min-width: 60px; max-width: 100px; padding: 0 8px; cursor: pointer; }
         }
 
-        #msg-box { position: fixed; top: 30px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--dynamic-accent); color: white; padding: 15px 50px; border-radius: 100px; font-weight: 900; z-index: 5000; transition: 0.5s; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1); }
+        #msg-box { position: fixed; top: 30px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--dynamic-accent); color: white; padding: 15px 50px; border-radius: 100px; font-weight: 900; z-index: 10000; transition: 0.5s; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1); }
         #msg-box.active { transform: translateX(-50%) translateY(0); }
         .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
@@ -595,18 +595,47 @@
             } catch { return false; }
         }
 
+        let authPending = false;
         async function verifyAccess() {
-            const pass = document.getElementById('entry-pass').value;
-            const res = await fetch('/api/check_auth', { method: 'POST', body: JSON.stringify({ password: pass }) });
-            const data = await res.json();
-            if (data.success) {
-                localStorage.setItem('sarah_auth', JSON.stringify({ ts: Date.now() }));
-                localStorage.setItem('sarah_key', pass);
-                const gate = document.getElementById('auth-gate');
-                gate.style.opacity = '0';
-                setTimeout(() => { gate.style.display = 'none'; init(true); }, 800);
-            } else {
-                showMsg("密码错误");
+            if (authPending) return;
+            const input = document.getElementById('entry-pass');
+            const btn = document.querySelector('.auth-btn');
+            const pass = (input.value || '').trim();
+            if (!pass) { showMsg("请输入密码"); input.focus(); return; }
+            authPending = true;
+            if (btn) { btn.disabled = true; btn.textContent = '验证中...'; }
+            try {
+                const res = await fetch('/api/check_auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pass })
+                });
+                let data = null;
+                try { data = await res.json(); } catch (e) { data = null; }
+                if (data && data.success) {
+                    try {
+                        localStorage.setItem('sarah_auth', JSON.stringify({ ts: Date.now() }));
+                        localStorage.setItem('sarah_key', pass);
+                    } catch (e) {
+                        showMsg("浏览器禁止保存登录状态，请关闭无痕模式后重试");
+                        return;
+                    }
+                    const gate = document.getElementById('auth-gate');
+                    gate.style.opacity = '0';
+                    setTimeout(() => {
+                        gate.style.display = 'none';
+                        init(true).catch(() => showMsg("曲库加载失败，请刷新重试"));
+                    }, 800);
+                } else {
+                    showMsg("密码错误");
+                    input.value = '';
+                    input.focus();
+                }
+            } catch (e) {
+                showMsg("网络异常，请重试");
+            } finally {
+                authPending = false;
+                if (btn) { btn.disabled = false; btn.textContent = '进入'; }
             }
         }
 
@@ -665,13 +694,23 @@
             try {
                 const res = await fetch('/api/songs', { headers: authHeaders() });
                 if (res.status === 401) {
-                    localStorage.removeItem('sarah_auth'); localStorage.removeItem('sarah_key');
+                    try { localStorage.removeItem('sarah_auth'); localStorage.removeItem('sarah_key'); } catch (e) {}
                     const gate = document.getElementById('auth-gate');
-                    gate.style.display = 'flex'; applyAuthTheme();
+                    gate.style.opacity = '1';
+                    gate.style.display = 'flex';
+                    applyAuthTheme();
+                    showMsg("登录状态已失效，请重新输入密码");
                     return;
                 }
                 const raw = await res.json();
-                if (raw.error) { console.error("D1 Loader Error"); return; }
+                if (raw.error) {
+                    const gate = document.getElementById('auth-gate');
+                    gate.style.opacity = '1';
+                    gate.style.display = 'flex';
+                    applyAuthTheme();
+                    showMsg("曲库加载失败：" + raw.error);
+                    return;
+                }
                 libState = raw; db = libState.songs;
                 buildIndexMap(); renderCustomTabs(); 
                 setupPlayer(); 
@@ -1699,7 +1738,10 @@
         }
 
         function showMsg(txt) { const b = document.getElementById('msg-box'); b.innerText = txt; b.classList.add('active'); setTimeout(() => b.classList.remove('active'), 3000); }
-        window.onload = init;
+        window.onload = () => init().catch(() => {
+            const gate = document.getElementById('auth-gate');
+            if (gate) { gate.style.display = 'flex'; applyAuthTheme(); }
+        });
     </script>
 </body>
 </html>
