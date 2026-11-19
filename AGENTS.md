@@ -6,12 +6,23 @@ Cloudflare Pages + D1 + Telegram Bot API 的私有音乐库。前端单文件 `i
 
 推送前把 `index.html` 里的版本号**最后一位加 1**。版本号出现在两处，必须同时改：
 
-- 约第 395 行：`<p class="brand-sub">Premium Music Hub | v10.2.1</p>`
-- 约第 506 行：`<span ...>v10.2.1</span>`
+- 约第 395 行：`<p class="brand-sub">Premium Music Hub | v10.2.2</p>`
+- 约第 506 行：`<span ...>v10.2.2</span>`
 
 ```
-sed -i 's/v10\.2\.1/v10.2.2/g' index.html
+sed -i 's/v10\.2\.2/v10.2.3/g' index.html
 ```
+
+## 双部署（Pages + Workers）
+
+同一套代码同时支持两种部署，互不干扰：
+
+- **Pages**：靠 `functions/` 目录自动路由，`wrangler.toml` 因缺少 `pages_build_output_dir` 被忽略，配置仍由控制台管理。
+- **Workers**：`worker/index.js` 把 5 个 `onRequest` 按路径分发，`wrangler.toml` 里 `main` + `assets` + D1 绑定。
+
+`wrangler.toml` 绝不能加 `pages_build_output_dir`，否则会接管 Pages 配置、覆盖控制台的 D1 绑定和环境变量。
+
+静态资源目录是 `.`，靠 `.assetsignore` 挡住源码。**新增顶层文件或目录时必须同步加进 `.assetsignore`**，否则会被当静态文件公开。当前只上传 9 个文件（`index.html`、`sw.js`、`manifest.json`、`assets/` 下 6 个）。
 
 ## 密码
 

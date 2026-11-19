@@ -1,0 +1,14 @@
+functions
+worker
+node_modules
+.wrangler
+.git
+.dev.vars
+AGENTS.md
+README.md
+package.json
+package-lock.json
+wrangler.toml
+.assetsignore
+.gitignore
+assets/css/tailwind.input.css
