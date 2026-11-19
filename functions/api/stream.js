@@ -14,7 +14,7 @@ export async function onRequest(context) {
     } else {
       const getFileUrl = "https://api.telegram.org/bot" + BOT_TOKEN + "/getFile?file_id=" + fileId;
       const fileInfo = await (await fetch(getFileUrl)).json();
-      if (!fileInfo.ok) return new Response("TG API Fault", { status: 400 });
+      if (!fileInfo.ok) return new Response("TG API Fault: " + (fileInfo.description || "unknown"), { status: 400 });
       downloadUrl = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + fileInfo.result.file_path;
       urlCache.set(fileId, { url: downloadUrl, expiry: Date.now() + 1800000 });
     }
