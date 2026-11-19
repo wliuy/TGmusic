@@ -44,10 +44,16 @@
 ```bash
 npm install
 cp .dev.vars.example .dev.vars   # 填入自己的 Token / Chat ID / 密码
-npx wrangler pages dev . --d1 DB=sarah-db
+npx wrangler pages dev . --compatibility-date=2024-09-23 --d1 DB=sarah-db
 ```
 
-本地调试用 `--d1 DB=<库名>` 指定数据库即可。`wrangler.toml` 只用来固定 `compatibility_date`，**不要在里面写 D1 绑定**：D1 请统一在 Cloudflare 控制台（Pages → Settings → Functions → D1 database bindings）配置，写进文件会导致生产构建报 `Invalid database UUID`。
+本项目**不使用 `wrangler.toml`**。Cloudflare Pages 里一旦存在这个文件，它就会成为配置的唯一来源，控制台里配好的 D1 绑定会被忽略（表现为 `env.DB` 为 undefined，接口返回 500）。所有绑定与变量请在控制台配置：Pages → Settings → Functions。
+
+本地调试时用命令行参数代替：
+
+```bash
+npx wrangler pages dev . --compatibility-date=2024-09-23 --d1 DB=sarah-db
+```
 
 ## ⚠️ 已知限制
 
