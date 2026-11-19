@@ -1,0 +1,8 @@
+name = "sarah-music"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sarah-db"
+database_id = "48ca5684-559f-45e3-ba7f-2f95e60cc7c5"
