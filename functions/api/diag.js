@@ -31,6 +31,13 @@ export async function onRequest(context) {
       body.tg_getFile = gf.ok ? { ok: true, path: gf.result?.file_path } : { ok: false, code: gf.error_code, desc: gf.description };
     } catch (e) { body.tg_getFile = { thrown: String(e) }; }
   }
+
+  if (env.TG_Chat_ID) {
+    try {
+      const gc = await (await fetch(`https://api.telegram.org/bot${env.TG_Bot_Token}/getChat?chat_id=${encodeURIComponent(env.TG_Chat_ID)}`)).json();
+      body.tg_getChat = gc.ok ? { ok: true, title: gc.result?.title, type: gc.result?.type } : { ok: false, code: gc.error_code, desc: gc.description };
+    } catch (e) { body.tg_getChat = { thrown: String(e) }; }
+  }
   return new Response(JSON.stringify(body, null, 2), {
     headers: { 'Content-Type': 'application/json' }
   });
