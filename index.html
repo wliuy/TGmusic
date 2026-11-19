@@ -818,35 +818,61 @@
                 .finally(() => { if (warmingFid === nextFid) { warmingFid = null; warmingAbort = null; } });
         }
 
-        function setupPlayer() {
-            let ids = [];
-            const sourceId = globalActiveListId;
-            if(sourceId === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
-            else if(sourceId === 'fav') ids = libState.favorites;
-            else ids = libState.playlists.find(p => p.id === currentTab)?.ids || [];
-            
-            const trackList = ids.map(id => {
+        function listIdsFor(listId) {
+            if (listId === 'all') return libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
+            if (listId === 'fav') return libState.favorites;
+            return libState.playlists.find(p => p.id === listId)?.ids || [];
+        }
+
+        function buildTrackList(ids) {
+            return ids.map(id => {
               const s = db[dbIndexMap.get(id)];
               if (!s) return null;
-              return { 
-                name: s.title, artist: s.artist, 
-                cover: authStreamUrl(s.cover) || placeholderCover(), 
-                url: authStreamUrl('/api/stream?file_id=' + s.file_id), 
+              return {
+                name: s.title, artist: s.artist,
+                cover: authStreamUrl(s.cover) || placeholderCover(),
+                url: authStreamUrl('/api/stream?file_id=' + s.file_id),
                 lrc: s.lrc || '[00:00.00]暂无歌词',
                 type: 'normal'
               };
             }).filter(Boolean);
+        }
+
+        // 必须走 list.clear()/add() 重建：直接改 ap.list.audios 会让 APlayer 内部列表 DOM 与数组长度脱节，
+        // 之后 switch() 越界抛错，表现为"点了歌没反应"。重建后还原当前曲目与播放进度。
+        function rebuildPlayerList(trackList, keepPlaying) {
+            const curAudio = ap.list.audios[ap.list.index];
+            const curFid = curAudio ? fidFromUrl(curAudio.url) : null;
+            const curTime = ap.audio.currentTime || 0;
+            const wasPlaying = !ap.paused;
+            const guard = isPlaylistSwitching;
+            isPlaylistSwitching = true;
+            ap.list.clear();
+            ap.list.add(trackList);
+            const newIdx = curFid ? trackList.findIndex(a => fidFromUrl(a.url) === curFid) : -1;
+            if (newIdx !== -1) {
+                ap.list.switch(newIdx);
+                refreshUIMetaByAudio(ap.list.audios[newIdx]);
+                if (keepPlaying) {
+                    const restore = () => { if (curTime > 0) ap.audio.currentTime = curTime; };
+                    if (ap.audio.readyState >= 1) restore();
+                    else ap.audio.addEventListener('loadedmetadata', restore, { once: true });
+                    if (wasPlaying) ap.play();
+                }
+            }
+            if (!guard) setTimeout(() => { isPlaylistSwitching = false; }, 200);
+        }
+
+        function setupPlayer() {
+            const trackList = buildTrackList(listIdsFor(globalActiveListId));
 
             if (ap) {
-                // 物理级优化：增量更新列表，而不是无脑 clear()
                 const currentTrackUrls = ap.list.audios.map(a => a.url);
                 const newTrackUrls = trackList.map(a => a.url);
-                if (JSON.stringify(currentTrackUrls) !== JSON.stringify(newTrackUrls)) {
-                    ap.list.clear();
-                    ap.list.add(trackList);
-                }
+                if (JSON.stringify(currentTrackUrls) !== JSON.stringify(newTrackUrls)) rebuildPlayerList(trackList, false);
                 return;
             }
+
 
             ap = new APlayer({ container: document.getElementById('ap-hidden'), lrcType: 1, audio: trackList, volume: lastVolume || 0.7 });
 
@@ -1192,34 +1218,35 @@
         async function handleTrackSwitch(idx, fid) {
             if(!ap) return;
             isPlaylistSwitching = true;
-            if (fid && globalActiveListId !== currentTab) {
+
+            let targetIdx = fid ? ap.list.audios.findIndex(a => fidFromUrl(a.url) === fid) : idx;
+            if (fid && targetIdx === -1) {
+                // 目标曲目不在当前播放队列里（说明浏览的歌单已切换），按当前歌单重建后再找
                 globalActiveListId = currentTab;
-                setupPlayer();
+                rebuildPlayerList(buildTrackList(listIdsFor(currentTab)), false);
+                targetIdx = ap.list.audios.findIndex(a => fidFromUrl(a.url) === fid);
             }
-            
-            let targetIdx = idx;
-            if (fid) { 
-                const foundIdx = ap.list.audios.findIndex(a => a.url.includes('file_id=' + fid)); 
-                if (foundIdx !== -1) targetIdx = foundIdx; 
-            }
-            
-            // 安全指令：确保索引有效后同步执行播放动作
-            if (targetIdx !== -1 && ap.list.audios[targetIdx]) {
-                globalPlayingId = fid;
+
+            const target = ap.list.audios[targetIdx];
+            if (target) {
+                // 上一首/下一首只传索引，fid 必须从目标曲目反推，否则状态会被写成 undefined
+                const targetFid = fid || fidFromUrl(target.url);
+                globalPlayingId = targetFid;
                 // 物理重置进度：切歌瞬间强行归零播放条与缓存条，防止旧数据残留视觉。
                 ['prog-bar', 'm-prog-bar', 'prog-buffer', 'm-prog-buffer'].forEach(id => {
                     const el = document.getElementById(id);
                     if(el) el.style.width = "0%";
                 });
                 try {
-                    ap.list.switch(targetIdx); 
+                    ap.list.switch(targetIdx);
                     ap.play();
-                    const dbIdx = dbIndexMap.get(fid);
+                    const dbIdx = dbIndexMap.get(targetFid);
                     if(dbIdx !== undefined) refreshUIMetaAt(dbIdx);
-                    updateHighlights(fid, true);
+                    else refreshUIMetaByAudio(target);
+                    updateHighlights(targetFid, true);
                 } catch (e) { console.error("Playback fail:", e); }
             }
-            
+
             setTimeout(() => { isPlaylistSwitching = false; }, 200);
         }
 
@@ -1336,6 +1363,20 @@
             }); 
         }
 
+        function syncPlayerToList(listId) {
+            if (!ap) return;
+            const cur = ap.list.audios[ap.list.index];
+            const curFid = cur ? fidFromUrl(cur.url) : null;
+            const ids = listIdsFor(listId);
+            // 队列为空时必须重建，否则"下一首"没有可跳转的曲目；
+            // 队列非空时仅在新歌单包含当前曲目时才切换，避免翻歌单就把音乐打断
+            if (!curFid || ids.includes(curFid)) {
+                globalActiveListId = listId;
+                rebuildPlayerList(buildTrackList(ids), true);
+            }
+        }
+
+
         function switchList(t) { 
             isPlaylistSwitching = true; 
             currentTab = t; 
@@ -1343,6 +1384,7 @@
             renderAllLists();
             const container = document.getElementById(window.innerWidth <= 768 ? 'm-list-view' : 'list-view');
             if (container) container.scrollTop = 0;
+            syncPlayerToList(t);
             updateBackground(false); 
             // 返回键支持：注入 UI 路由状态
             history.pushState({stage:'drawer'}, '');
