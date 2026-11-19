@@ -1,6 +1,10 @@
+import { isAuthed } from '../_auth.js';
+
+const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
+
 export async function onRequest(context) {
   const { request, env } = context;
-  if (request.headers.get('X-Password') !== (env.PASSWORD || "sarah")) return new Response("Unauthorized", { status: 401 });
+  if (!(await isAuthed(request, env))) return new Response("Unauthorized", { status: 401 });
   const BOT_TOKEN = env.TG_Bot_Token;
   const CHAT_ID = env.TG_Chat_ID;
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS upload_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, status TEXT, reason TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
@@ -11,6 +15,12 @@ export async function onRequest(context) {
     const coverFile = formData.get('cover');
     const targetPlaylist = formData.get('target_playlist');
     filename = audioFile.name || "Unknown";
+    // Bot API 下载上限 20MB（上传上限 50MB），超出后能存进去却永远播不了，必须提前拦下
+    if (audioFile.size > MAX_AUDIO_BYTES) {
+      const errorMsg = `文件 ${(audioFile.size / 1048576).toFixed(1)}MB 超过 Telegram 下载上限 20MB，无法播放`;
+      await env.DB.prepare("INSERT INTO upload_logs (filename, status, reason) VALUES (?, 'FAIL', ?)").bind(filename, errorMsg).run();
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 413 });
+    }
     const meta = JSON.parse(formData.get('meta') || '{}');
     let finalCoverUrl = "";
     if (coverFile) {

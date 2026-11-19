@@ -32,9 +32,32 @@
 * **设置环境变量**：进入 **Settings** -> **Environment variables**，添加以下三个变量：
     * `TG_Bot_Token`：你的 Telegram 机器人 Token。
     * `TG_Chat_ID`：你的 Telegram 存储群组 ID。
-    * `PASSWORD`：网站后台的访问密码（不设置则代码默认密码为 `sarah`）。
+    * `PASSWORD`：网站访问密码（不设置则默认为 `sarah`）。**改这个变量会让所有已登录设备立即退出**，可作为"踢掉所有设备"的手段。
 
 ### 5. 重新部署生效
 回到该项目的 **Deployments** 选项卡，找到最新的一条部署记录，点击右侧的 `...` 选择 **Retry deployment**。
 
 部署完成后，打开分配的 `*.pages.dev` 域名，输入密码即可进入你的专属音乐库。
+
+## 🛠 本地开发
+
+```bash
+npm install
+cp .dev.vars.example .dev.vars   # 填入自己的 Token / Chat ID / 密码
+npx wrangler pages dev . --d1 DB=sarah-db
+```
+
+`wrangler.toml` 里的 `database_id` 需要替换成你 D1 库的真实 ID（`npx wrangler d1 list` 可查），仅本地调试时可以随意填。
+
+## ⚠️ 已知限制
+
+Telegram Bot API 的**文件下载上限为 20MB**（上传上限 50MB）。超过 20MB 的音频即使上传成功也无法播放，因此上传时会直接拦下并记录到上传日志。
+
+## 🔐 登录机制
+
+只用一个密码，没有账号体系：
+
+1. 输入密码 → 服务端核对 → 下发一张签名过的会话 Cookie（`HttpOnly`，有效期 30 天）。
+2. 之后所有请求自动携带这张 Cookie，**密码本身不再出现在任何请求或网址里**。
+3. Cookie 由密码派生密钥签名，改 `PASSWORD` 即让全部旧会话失效。
+4. 同一 IP 10 分钟内输错 8 次会被临时锁定。
