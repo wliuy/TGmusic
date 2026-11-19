@@ -1,6 +1,6 @@
 {
-  "name": "Sarah Music",
-  "short_name": "Sarah",
+  "name": "TGmusic",
+  "short_name": "TGmusic",
   "description": "Cloud Music Hub",
   "start_url": "/",
   "display": "standalone",
@@ -8,9 +8,29 @@
   "theme_color": "#4d7c5f",
   "orientation": "portrait",
   "icons": [
-    { "src": "https://tc.ayang.cc.cd/file/logo/tgmusic.png", "sizes": "144x144", "type": "image/png", "purpose": "any maskable" },
-    { "src": "https://tc.ayang.cc.cd/file/logo/tgmusic.png", "sizes": "152x152", "type": "image/png", "purpose": "any maskable" },
-    { "src": "https://tc.ayang.cc.cd/file/logo/tgmusic.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "https://tc.ayang.cc.cd/file/logo/tgmusic.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "https://tc.ayang.cc.cd/file/logo/tgmusic.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://tc.ayang.cc.cd/file/logo/tgmusic.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://tc.ayang.cc.cd/file/logo/tgmusic.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://tc.ayang.cc.cd/file/logo/tgmusic.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
