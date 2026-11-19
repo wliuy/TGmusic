@@ -6,10 +6,10 @@
     <meta name="theme-color" content="#4d7c5f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Sarah">
+    <meta name="apple-mobile-web-app-title" content="TGmusic" id="app-title-meta">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" sizes="192x192" href="https://tc.ayang.cc.cd/file/logo/tgmusic.png">
-    <title>Sarah</title>
+    <title>TGmusic</title>
     <link rel="icon" type="image/png" sizes="192x192" href="https://tc.ayang.cc.cd/file/logo/tgmusic.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -359,7 +359,7 @@
     <!-- 访问认证层 -->
     <div id="auth-gate" style="display:none">
         <div class="auth-card">
-            <h2 class="auth-title">Sarah Music</h2>
+            <h2 class="auth-title" id="auth-title">TGmusic</h2>
             <p class="auth-subtitle">请输入访问密码以继续</p>
             <input type="password" id="entry-pass" class="auth-input" placeholder="请输入密码" onkeydown="if(event.key==='Enter')verifyAccess()">
             <button onclick="verifyAccess()" class="auth-btn">进入</button>
@@ -391,8 +391,8 @@
 
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
-            <h1 class="brand-title">Sarah</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.3</p>
+            <h1 class="brand-title" id="brand-title">TGmusic</h1>
+            <p class="brand-sub">Premium Music Hub | v10.2.4</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -453,7 +453,7 @@
     <div id="m-player" class="mobile-player-container">
         <header class="m-header">
             <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-transparent"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4.2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div>
-            <h1 class="text-xl font-black text-white">Sarah</h1>
+            <h1 class="text-xl font-black text-white" id="m-brand-title">TGmusic</h1>
             <div onclick="toggleAdmin(true)" class="btn-round !bg-transparent flex items-center justify-center p-0">
                 <!-- 移动端图标同步重构：Sliders 图标 -->
                 <svg class="w-6 h-6 flex-shrink-0" style="shape-rendering: crispEdges;" fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -503,7 +503,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.3</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.4</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -526,6 +526,36 @@
     <div id="ap-hidden" style="display:none"></div>
     <script src="/assets/js/APlayer.min.js"></script>
     <script>
+        let SITE_TITLE = 'TGmusic';
+
+        function applySiteTitle(name) {
+            if (!name) return;
+            SITE_TITLE = name;
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            document.title = name;
+            set('auth-title', name);
+            set('brand-title', name);
+            set('m-brand-title', name);
+            const meta = document.getElementById('app-title-meta');
+            if (meta) meta.setAttribute('content', name);
+        }
+
+        (function loadSiteTitle() {
+            const cacheKey = 'tgmusic_site_title';
+            try {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) applySiteTitle(cached);
+            } catch (e) {}
+            fetch('/api/site', { cache: 'no-store' })
+                .then((r) => (r.ok ? r.json() : null))
+                .then((d) => {
+                    if (!d || !d.title) return;
+                    applySiteTitle(d.title);
+                    try { localStorage.setItem(cacheKey, d.title); } catch (e) {}
+                })
+                .catch(() => {});
+        })();
+
         let ap = null, db = [], lrcLines = [], currentTab = 'fav', tempMetaMap = new Map(), globalPlayingId = null;
         let modeIdx = 2, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
         let currentThemeIdx = -1, sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false;
@@ -1006,7 +1036,7 @@
             const currentAudio = ap.list.audios[ap.list.index]; if (!('mediaSession' in navigator) || !currentAudio) return; 
             const fileId = new URLSearchParams(currentAudio.url.split('?')[1]).get('file_id'); 
             const song = db[dbIndexMap.get(fileId)] || { title: currentAudio.name, artist: currentAudio.artist, cover: currentAudio.cover };
-            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: 'Sarah Music', artwork: [{ src: authStreamUrl(song.cover) || placeholderCover(), sizes: '512x512', type: 'image/svg+xml' }] }); 
+            navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: SITE_TITLE, artwork: [{ src: authStreamUrl(song.cover) || placeholderCover(), sizes: '512x512', type: 'image/svg+xml' }] }); 
             navigator.mediaSession.playbackState = ap.paused ? 'paused' : 'playing';
             navigator.mediaSession.setActionHandler('play', () => handlePlayToggle());
             navigator.mediaSession.setActionHandler('pause', () => handlePlayToggle());
