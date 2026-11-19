@@ -37,6 +37,15 @@ export async function onRequest(context) {
       const gc = await (await fetch(`https://api.telegram.org/bot${env.TG_Bot_Token}/getChat?chat_id=${encodeURIComponent(env.TG_Chat_ID)}`)).json();
       body.tg_getChat = gc.ok ? { ok: true, title: gc.result?.title, type: gc.result?.type } : { ok: false, code: gc.error_code, desc: gc.description };
     } catch (e) { body.tg_getChat = { thrown: String(e) }; }
+
+    // 关键：bot 是否仍是该频道成员。被踢出后，频道内所有 file_id 都会报
+    // "wrong file_id or the file is temporarily unavailable"
+    try {
+      const me = await (await fetch(`https://api.telegram.org/bot${env.TG_Bot_Token}/getMe`)).json();
+      const botId = me.result?.id;
+      const gm = await (await fetch(`https://api.telegram.org/bot${env.TG_Bot_Token}/getChatMember?chat_id=${encodeURIComponent(env.TG_Chat_ID)}&user_id=${botId}`)).json();
+      body.tg_botInChannel = gm.ok ? { status: gm.result?.status, is_member: gm.result?.is_member } : { ok: false, code: gm.error_code, desc: gm.description };
+    } catch (e) { body.tg_botInChannel = { thrown: String(e) }; }
   }
   return new Response(JSON.stringify(body, null, 2), {
     headers: { 'Content-Type': 'application/json' }
