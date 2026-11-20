@@ -438,7 +438,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.27</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.28</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -545,7 +545,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.27</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.28</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="speed-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">倍速</span><div class="flex gap-1.5" id="speed-buttons"></div><span id="speed-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -608,7 +608,7 @@
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
         let globalUploadQueue = [], uploadActiveWorkers = 0;
         // 息屏连播根治：单一 audio 元素 + 整曲 Blob 预载，杜绝第二个 audio 元素带来的电流声
-        let nextBlob = null, warmingAbort = null, lastPositionSync = 0;
+        let nextBlob = null, lastPositionSync = 0;
         // 切歌期间置锁，防止 listswitch 回调把 UI 刷成中间态。
         // 播音频的页面不受定时器深度节流，所以后台也能按时解锁。
         function releaseSwitchLock() {
@@ -1021,12 +1021,18 @@
             nextBlob = { fid: st.fid, url: URL.createObjectURL(blob) };
         }
 
-        // 每次 timeupdate 调一次：按当前带宽状况推进到该走的阶段。
+        // 每次 timeupdate 调一次：推进下一首的预载。
         async function advanceNextPreload() {
             if (!canTouchNext()) return;                 // 当前没在播，不碰下一首
-            if (nextBlob) return;                        // 整首已到手
+            const next = nextTrackInfo();
+            if (!next) return;
+            if (nextBlob && nextBlob.fid === next.fid) return;    // 整首已到手
+            // 跳过某首歌后，之前预载的 Blob 不属于新的「下一首」。若不在这里丢弃，
+            // 上面的提前返回会一直命中它，导致之后所有曲目都不再预载。
+            if (nextBlob) { URL.revokeObjectURL(nextBlob.url); nextBlob = null; }
             if (!nextStream && Date.now() < nextRetryAt) return;  // 刚失败过，等会儿再试
-            const st = nextStream && !nextStream.done ? nextStream : await openNextStream();
+            const st = nextStream && !nextStream.done && nextStream.fid === next.fid
+                ? nextStream : await openNextStream();
             if (!st || st.done) return;
             await pumpNextStream(Infinity);              // 一路读到整首完
         }
@@ -1225,7 +1231,7 @@
                     updateHighlights(fid, false);
                 }
                 updateMediaSession();
-                // 换曲了：把上一首遗留的下载流丢掉，从头按新曲目重新走三阶段。
+                // 换曲了：把上一首遗留的下载流丢掉，等新曲目播起来再按新曲目重新预载。
                 dropNextStream();
             });
 
@@ -1254,8 +1260,8 @@
 
                 syncLyrics(cur);
 
-                // 按当前带宽状况推进下一首预载：当前没播就不动；在播了就先读一点点；
-                // 当前缓冲够安全了才继续读完。内部自带去重与并发保护。
+                // 按当前带宽状况推进下一首预载：当前没播就不动；在播了就一路读到整首完。
+                // 内部自带去重与并发保护。
                 advanceNextPreload();
 
                 // 锁屏进度条每秒同步一次即可，调太频繁会被浏览器限流
