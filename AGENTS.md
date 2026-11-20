@@ -67,3 +67,18 @@ pages.dev 域名如果还活着，属于历史残留。删 Pages 项目前若部
 - APlayer 列表不能直接改 `ap.list.audios`，必须走 `list.clear()`/`add()` 重建，否则 `switch()` 越界，表现为"点了歌没反应"。
 - Service Worker 用网络优先。缓存优先会导致代码更新后刷新仍是旧版。
 - 新增 API 时**两个地方都要加**：`functions/api/xxx.js` 建文件 + `worker/index.js` 的 `ROUTES` 注册。只加前者的话 Pages 能用、Worker 404。
+
+## 移动端主题 / PWA 要点
+
+- **状态栏不能和内容顶部撞色**：`.mobile-player-container` 的 background 第一层必须是
+  `linear-gradient(180deg, var(--m-deep) 0%, var(--m-deep) 18%, transparent 42%)`，
+  用不透明纯 deep 盖住下方光晕；光晕中心放 `at 50% 46%`（唱片区），不能放 `50% 0%`。
+  JS 里 `updateBackground()` 的 `newGrad` 必须同款，否则 bg-stage 透明处露馅。
+- **PWA 启动闪屏颜色只认 manifest.json** 的 `background_color` / `theme_color`，
+  HTML 的 `<meta name="theme-color">` 管不到启动画面。
+- **图标**：`icon.svg` 内容占比 76%（r=389/1024），四周留安全边距；
+  `icon-maskable.svg` 是满铺矩形 + 图形 62%，供 Android 圆形裁切。
+  改了 svg 必须重新生成 180/192/512 三个 png，并把新文件加进 sw.js 预缓存。
+- **tailwind.css 是预编译产物**（`npm run build:css`）。改 index.html 的 class 后
+  必须重新编译，否则新类名不存在。`focus:border-[var(--x)]/50` 这种「CSS 变量 + /透明度」
+  组合 tailwind 编译不出来，要手写规则。
