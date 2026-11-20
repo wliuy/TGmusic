@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tgmusic-v4';
+const CACHE_NAME = 'tgmusic-v5';
 const PRECACHE = [
   '/',
   '/manifest.json',
@@ -53,15 +53,43 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname.startsWith('/api/')) return;
 
   // 页面与静态资源：网络优先，离线才用缓存。缓存优先会导致改了代码刷新还是旧版。
+  // 弱网下纯等网络会白屏很久，所以超过 3 秒就先用缓存顶上，网络结果回来再写缓存。
+  const network = fetch(request)
+    .then((res) => {
+      if (res.ok && url.origin === self.location.origin) {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(request, copy));
+      }
+      return res;
+    });
+
   e.respondWith(
-    fetch(request)
-      .then((res) => {
-        if (res.ok && url.origin === self.location.origin) {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(request, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
+    new Promise((resolve) => {
+      let settled = false;
+      const fallback = () => {
+        if (settled) return;
+        caches.match(request).then((cached) => {
+          const hit = cached || null;
+          if (hit && !settled) { settled = true; resolve(hit); }
+        });
+      };
+      const timer = setTimeout(fallback, 3000);
+      network
+        .then((res) => {
+          clearTimeout(timer);
+          if (!settled) { settled = true; resolve(res); }
+        })
+        .catch(() => {
+          clearTimeout(timer);
+          fallback();
+          // 缓存也没有（首次访问 + 断网）就回首页兜底
+          caches.match(request).then((cached) => {
+            if (!cached && !settled) {
+              settled = true;
+              resolve(caches.match('/').then((r) => r || Response.error()));
+            }
+          });
+        });
+    })
   );
 });

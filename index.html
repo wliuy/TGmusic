@@ -13,24 +13,34 @@
     <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/assets/icon-512.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://tc.ayang.cc.cd">
+    <!--
+        字体策略：原方案从 Google Fonts 拉 Noto Sans SC 三个字重 + Playfair Display。
+        中文（CJK）字体单字重就 2-8MB，且 Playfair Display 全站零使用，
+        移动网络下会把首屏拖到十几秒。改用系统字体栈，零请求、零 FOIT。
+    -->
     <link rel="stylesheet" href="/assets/css/tailwind.css">
     <link rel="stylesheet" href="/assets/css/APlayer.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
     <style>
         :root {
             --dynamic-accent: #d97706; --solara-text: #1e293b; --glass-blur: blur(40px);
             --main-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
             --inner-glass: rgba(255, 255, 255, 0.15); --glass-border: rgba(255, 255, 255, 0.25);
             --m-green: #4d7c5f; --btn-icon-color: #ffffff;
+            /* 移动端主题：由 updateBackground() 按当前配色写入 */
+            --m-deep: #0f2e22; --m-deep-2: #06120d; --m-accent: #34d399;
+            --m-glow: rgba(52, 211, 153, 0.35);
         }
 
-        body { color: var(--solara-text); font-family: 'Noto Sans SC', sans-serif; height: 100vh; height: 100dvh; margin: 0; overflow: hidden; background: #fdf2f2; transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* 首屏底色用中性深色：updateBackground() 跑起来前不会白屏闪烁。
+           注意这里只能用 background-color，不能用 background 简写，否则会覆盖后面的主题设置。 */
+        body { color: var(--solara-text); font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans CJK SC', sans-serif; height: 100vh; height: 100dvh; margin: 0; overflow: hidden; background-color: #10151c; transition: background-color 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
         #bg-stage { position: fixed; inset: 0; z-index: -2; transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
         #bg-overlay { position: fixed; inset: 0; z-index: -1; opacity: 0; transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; }
 
+        @media (min-width: 769px) {
+            /* 桌面端是浅色玻璃拟态，首屏底色跟着走，避免加载时闪一下深色 */
+            body { background-color: #eef2f7; }
+        }
         .desktop-container { 
             width: 96%; max-width: 1350px; height: 82vh; 
             max-height: calc(100dvh - 24px); min-height: 0; 
@@ -112,7 +122,17 @@
         .cover-placeholder { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; background: linear-gradient(135deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.08) 55%, rgba(255,255,255,0.22) 100%); backdrop-filter: blur(30px) saturate(1.4); -webkit-backdrop-filter: blur(30px) saturate(1.4); border: 1px solid rgba(255,255,255,0.35); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45); transition: background 0.6s ease; }
         .cover-placeholder svg { fill: var(--dynamic-accent); opacity: 0.7; }
 
-        .mobile-player-container { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px; background: var(--m-green); }
+        .mobile-player-container {
+            display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column;
+            padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px;
+            /* 主题底色：深色渐变 + 强调色柔光，比单一灰绿有层次 */
+            background:
+                radial-gradient(120% 70% at 50% 0%, var(--m-glow) 0%, transparent 58%),
+                radial-gradient(90% 55% at 50% 100%, var(--m-glow) 0%, transparent 62%),
+                linear-gradient(165deg, var(--m-deep) 0%, var(--m-deep-2) 100%);
+            background-color: var(--m-deep-2);
+            transition: background 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+        }
         .m-header { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: transparent; border: 0; }
         .m-header .btn-round { background: transparent !important; border: 0 !important; box-shadow: none !important; width: 44px; height: 44px; color: white !important; z-index: 210; }
 
@@ -120,33 +140,41 @@
         .m-controls-capsule { background: transparent; border: 0; padding: 0 15px 45px 15px; width: 100%; flex-shrink: 0; }
         #m-scrubber-wrap { position: relative; height: 32px; display: flex; align-items: center; cursor: pointer; touch-action: none; margin-bottom: -4px; z-index: 10; }
         #m-scrubber-wrap .rail { width: 100%; height: 4px; border-radius: 10px; }
+        /* 移动端进度条用主题色，和按钮呼应 */
+        #m-prog-bar.fill { background: var(--m-accent) !important; box-shadow: 0 0 12px var(--m-glow); }
+        #m-prog-bar .dot { background: #fff !important; box-shadow: 0 0 10px var(--m-glow) !important; }
 
         @keyframes disc-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .m-disc-container { width: 72vw; max-width: 280px; aspect-ratio: 1/1; position: relative; flex-shrink: 0; background: transparent !important; border-radius: 50% !important; isolation: isolate; margin: 0px 0; }
         .m-disc-shadow-layer { position: absolute; inset: -45px; border-radius: 50%; background: radial-gradient(circle at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.15) 45%, transparent 72%); z-index: 0; pointer-events: none; }
-        .m-disc-clipping { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50% !important; overflow: hidden !important; border: 6px solid rgba(255,255,255,0.12); clip-path: circle(50% at 50% 50%); -webkit-mask-image: -webkit-radial-gradient(white, black); z-index: 5; animation: disc-rotate 25s linear infinite; animation-play-state: paused; }
+        .m-disc-clipping { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50% !important; overflow: hidden !important; border: 6px solid rgba(255,255,255,0.14); clip-path: circle(50% at 50% 50%); -webkit-mask-image: -webkit-radial-gradient(white, black); z-index: 5; animation: disc-rotate 25s linear infinite; animation-play-state: paused; }
+        /* 唱片外圈光晕：跟随主题强调色，播放时更亮 */
+        .m-disc-container::after { content: ''; position: absolute; inset: -14px; border-radius: 50%; pointer-events: none; z-index: 4; box-shadow: 0 0 0 1px var(--m-glow), 0 0 46px var(--m-glow); opacity: 0.55; transition: opacity 0.6s ease, box-shadow 0.6s ease; }
+        .m-disc-container.playing::after { opacity: 1; box-shadow: 0 0 0 1px var(--m-glow), 0 0 70px var(--m-glow); }
         .m-disc-container.playing .m-disc-clipping { animation-play-state: running; }
         .m-disc-clipping img { width: 100%; height: 100%; object-fit: cover; border-radius: 50% !important; }
 
         .m-lyrics-panel { flex: 1; width: 100%; height: auto !important; position: relative; display: flex; flex-direction: column; align-items: center; overflow-y: auto; scroll-behavior: smooth; mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%); pointer-events: none; background: transparent !important; margin-bottom: 0px; margin-top: 10px; }
         .m-lyrics-panel::-webkit-scrollbar { display: none; }
         .m-lyrics-panel .lrc-line { background: transparent !important; text-align: center; color: white; opacity: 0.3; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); border: 0 !important; padding: 6px 10px; font-size: 14px; width: 90%; transform: scale(0.95); flex-shrink: 0; transform-origin: center; }
-        .m-lyrics-panel .lrc-line.active { display: block !important; font-size: 1.15rem; opacity: 1; font-weight: 900; transform: scale(1.08); color: white; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
+        .m-lyrics-panel .lrc-line.active { display: block !important; font-size: 1.15rem; opacity: 1; font-weight: 900; transform: scale(1.08); color: #fff; text-shadow: 0 0 22px var(--m-glow), 0 2px 10px rgba(0,0,0,0.45); }
 
-        .m-info-wrap { width: 100%; text-align: center; color: white; flex-shrink: 0; height: 60px; margin-top: 0; margin-bottom: 0; }
-        .m-song-title { font-size: 1.25rem; font-weight: 900; letter-spacing: 0.05em; margin-bottom: 0px; }
-        .m-artist-row { display: flex; align-items: center; justify-content: center; gap: 8px; opacity: 0.6; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; }
+        .m-info-wrap { width: 100%; text-align: center; color: white; flex-shrink: 0; height: 60px; margin-top: 0; margin-bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+        .m-song-title { font-size: 1.25rem; font-weight: 900; letter-spacing: 0.03em; margin-bottom: 0px; text-shadow: 0 2px 14px rgba(0,0,0,0.4); }
+        .m-artist-row { display: flex; align-items: center; justify-content: center; gap: 8px; opacity: 0.62; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; }
         
         .m-controls { width: 100%; flex-shrink: 0; }
         .m-time-row { display: flex; justify-content: space-between; width: 100%; padding: 8px 2px 0 2px; margin-top: -4px; }
         .m-time-text { font-size: 10px; font-weight: 900; opacity: 0.5; color: white; }
         
         .m-btn-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding-top: 15px; }
-        .m-btn-row .btn-round { width: 50px; height: 50px; background: white !important; color: var(--m-green) !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); border: 0 !important; display: grid; place-items: center; flex-shrink: 0; }
+        .m-btn-row .btn-round { width: 50px; height: 50px; background: white !important; color: var(--m-accent) !important; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.28); border: 0 !important; display: grid; place-items: center; flex-shrink: 0; transition: transform 0.15s ease, box-shadow 0.25s ease; }
+        .m-btn-row .btn-round:active { transform: scale(0.92); }
+        .m-btn-row .btn-main { box-shadow: 0 10px 34px var(--m-glow), 0 6px 18px rgba(0,0,0,0.3); }
         .m-btn-row .btn-main { width: 68px !important; height: 68px !important; }
 
         #m-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999; display: none; }
-        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: #4d7c5f; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
+        .m-drawer { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80vh; background: linear-gradient(170deg, var(--m-deep) 0%, var(--m-deep-2) 100%); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); z-index: 1000; border-radius: 32px 32px 0 0; transition: 0.45s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); }
         .m-drawer.active { bottom: 0; }
         
         #m-pl-cards { display: flex; gap: 0px; overflow-x: auto; padding: 15px 20px 0 20px; flex-shrink: 0; border-bottom: 1.5px solid rgba(255, 255, 255, 0.1); }
@@ -276,7 +304,7 @@
         .upload-hint span { font-size: 11px; font-weight: 900; color: white; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
 
         @media (max-width: 768px) { 
-            #admin-box { width: 90% !important; max-width: 440px; background: #4d7c5f !important; border-radius: 30px; height: 85vh; } 
+            #admin-box { width: 90% !important; max-width: 440px; background: linear-gradient(170deg, var(--m-deep) 0%, var(--m-deep-2) 100%) !important; border-radius: 30px; height: 85vh; } 
             .admin-header { padding: 12px 15px; flex-direction: row; justify-content: space-between; align-items: center; gap: 0; height: auto; min-height: 60px; flex-wrap: wrap; }
             #admin-header-center { flex: none; width: 100%; order: 10; padding: 10px 0; }
             .browser-tab { min-width: 60px; max-width: 100px; padding: 0 8px; cursor: pointer; }
@@ -381,11 +409,11 @@
             <h4 id="dialog-title" class="text-white font-black text-xl mb-2 text-center tracking-tight">提示</h4>
             <p id="dialog-msg" class="text-white/60 text-xs mb-8 text-center leading-relaxed px-4"></p>
             <div id="dialog-input-wrap" class="hidden mb-8">
-                <input id="dialog-input" class="w-full bg-white/5 p-4 rounded-2xl text-white text-sm outline-none border border-white/10 focus:border-[#4d7c5f]/50 focus:bg-white/10 transition-all shadow-inner" placeholder="请输入...">
+                <input id="dialog-input" class="w-full bg-white/5 p-4 rounded-2xl text-white text-sm outline-none border border-white/10 focus:border-[var(--m-accent)]/50 focus:bg-white/10 transition-all shadow-inner" placeholder="请输入...">
             </div>
             <div class="flex gap-3">
                 <button id="dialog-cancel" onclick="closeSarahDialog()" class="flex-1 py-4 bg-white/5 text-white/50 hover:text-white hover:bg-white/10 rounded-2xl text-[11px] font-black transition-all active:scale-95">取消</button>
-                <button id="dialog-confirm" class="flex-1 py-4 bg-[#4d7c5f] hover:bg-[#5a8f6e] text-white rounded-2xl text-[11px] font-black shadow-lg transition-all active:scale-95">确认</button>
+                <button id="dialog-confirm" class="flex-1 py-4 bg-[var(--m-accent)] hover:brightness-110 text-white rounded-2xl text-[11px] font-black shadow-lg transition-all active:scale-95">确认</button>
             </div>
         </div>
     </div>
@@ -401,7 +429,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.13</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.14</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -481,17 +509,17 @@
                     <div id="m-scrubber-wrap" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd(event)">
                         <div id="m-scrubber" class="rail !bg-white/10">
                             <div class="buffer-fill !bg-white/25" id="m-prog-buffer"></div>
-                            <div class="fill !bg-white" id="m-prog-bar"><div class="dot !right-[-8px] !w-[16px] !h-[16px] !border-[2px] !border-white !bg-[#4d7c5f]"></div></div>
+                            <div class="fill !bg-white" id="m-prog-bar"><div class="dot !right-[-8px] !w-[16px] !h-[16px] !border-[2px] !border-white !bg-[var(--m-accent)]"></div></div>
                         </div>
                     </div>
                     <div class="m-time-row"><span id="m-cur-time" class="m-time-text">00:00</span><span id="m-total-time" class="m-time-text">00:00</span></div>
                 </div>
                 <div class="m-btn-row">
-                    <div id="m-mode-btn" onclick="toggleMode()" class="btn-round !bg-white !text-[#4d7c5f]"><svg id="m-mode-icon" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
-                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[#4d7c5f]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
-                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[#4d7c5f]"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
-                    <div onclick="handleNext()" class="btn-round !bg-white !text-[#4d7c5f]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
-                    <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-white !text-[#4d7c5f]"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4.2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></div>
+                    <div id="m-mode-btn" onclick="toggleMode()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg id="m-mode-icon" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
+                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
+                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[var(--m-accent)]"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
+                    <div onclick="handleNext()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
+                    <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4.2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></div>
                 </div>
             </div>
         </footer>
@@ -512,7 +540,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.13</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.14</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="speed-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">倍速</span><div class="flex gap-1.5" id="speed-buttons"></div><span id="speed-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -607,6 +635,15 @@
             { bg: '#f5f3ff', accent: '#8b5cf6', deep: '#2e1065' },
             { bg: '#fff5f7', accent: '#f472b6', deep: '#831843' }
         ];
+
+        // 把 #rrggbb 转成 rgba()，用于主题柔光。深色主题需要低透明度叠色才有层次。
+        function hexToRgba(hex, alpha) {
+            const h = String(hex || '').replace('#', '');
+            const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+            const n = parseInt(full, 16);
+            if (!isFinite(n) || full.length !== 6) return `rgba(255,255,255,${alpha})`;
+            return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+        }
 
         function authKey() { try { return localStorage.getItem('sarah_key') || ''; } catch { return ''; } }
         function authHeaders() { return { 'X-Password': authKey() }; }
@@ -1222,7 +1259,10 @@
         function updateBackground(isForceRandom = false) { 
             const isMob = window.innerWidth <= 768; 
             if (isForceRandom) { let nextIdx; do { nextIdx = Math.floor(Math.random() * solaraTheme.length); } while (nextIdx === currentThemeIdx && solaraTheme.length > 1); currentThemeIdx = nextIdx; } 
-            const theme = solaraTheme[currentThemeIdx]; const finalBg = isMob ? '#4d7c5f' : theme.bg;
+            const theme = solaraTheme[currentThemeIdx];
+            // 移动端用深色渐变（theme.deep 打底 + accent 柔光），桌面端用浅色 theme.bg。
+            // 以前这里写死 '#4d7c5f'，导致 16 套配色在手机上一套都用不上。
+            const finalBg = isMob ? theme.deep : theme.bg;
             
             // 物理染色：同步状态栏与 meta theme-color
             const metaTheme = document.querySelector('meta[name="theme-color"]'); 
@@ -1230,7 +1270,9 @@
             document.body.style.backgroundColor = finalBg;
             
             const stage = document.getElementById('bg-stage'), overlay = document.getElementById('bg-overlay');
-            const newGrad = isMob ? '#4d7c5f' : `linear-gradient(135deg, ${theme.bg} 0%, ${theme.deep} 100%)`;
+            const newGrad = isMob
+                ? `radial-gradient(120% 70% at 50% 0%, ${hexToRgba(theme.accent, 0.3)} 0%, transparent 58%), radial-gradient(90% 55% at 50% 100%, ${hexToRgba(theme.accent, 0.22)} 0%, transparent 62%), linear-gradient(165deg, ${theme.deep} 0%, #000000 100%)`
+                : `linear-gradient(135deg, ${theme.bg} 0%, ${theme.deep} 100%)`;
             
             if (isForceRandom) {
                 overlay.style.background = newGrad; overlay.style.opacity = '1';
@@ -1242,6 +1284,12 @@
             if(!isMob) { const mainUI = document.getElementById('main-ui'); if(mainUI) mainUI.style.background = `linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%)`; }
 
             document.documentElement.style.setProperty('--dynamic-accent', isMob ? '#ffffff' : theme.accent);
+            // 移动端主题变量：CSS 里的渐变、按钮图标色、光晕都读这几个值
+            const root = document.documentElement.style;
+            root.setProperty('--m-deep', theme.deep);
+            root.setProperty('--m-deep-2', '#000000');
+            root.setProperty('--m-accent', theme.accent);
+            root.setProperty('--m-glow', hexToRgba(theme.accent, 0.35));
             const listTabs = document.querySelectorAll('#tabs-scroll div, .m-pl-card');
             listTabs.forEach(el => {
                 const tabId = el.getAttribute('id') || ''; 
@@ -1255,7 +1303,7 @@
                     el.style.cssText = "color:white !important; border: 1px solid rgba(255,255,255,0.25) !important; background: rgba(255,255,255,0.15) !important;";
                     return;
                 }
-                if(!el.classList.contains('!bg-white/10') && !el.parentElement.classList.contains('m-header') && !el.closest('#admin-panel')) { el.style.background = isMob ? '#ffffff' : theme.accent; el.style.color = isMob ? '#4d7c5f' : 'white'; }
+                if(!el.classList.contains('!bg-white/10') && !el.parentElement.classList.contains('m-header') && !el.closest('#admin-panel')) { el.style.background = isMob ? '#ffffff' : theme.accent; el.style.color = isMob ? theme.accent : 'white'; }
             });
             renderAdminPlaylistTabs();
         }
@@ -1407,7 +1455,7 @@
                     ? `<span class="resume-badge" title="上次听到 ${fmtTime(resumeAt)}">▶ ${fmtTime(resumeAt)}</span>`
                     : '';
                 return `<div data-id="${safeId}" onclick="handleTrackSwitch(-1, '${safeId}')" class="song-item group ${isActive ? 'active' : ''}">
-                    <img src="${authStreamUrl(s.cover) || placeholderCover()}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
+                    <img src="${authStreamUrl(s.cover) || placeholderCover()}" class="w-10 h-10 rounded-lg object-cover shadow-sm" loading="lazy" decoding="async">
                     <div class="flex-1 truncate"><div class="song-title-text truncate">${safeTitle}${resumeTag}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">${safeArtist}</div></div>
                     <div class="song-actions">
                         <div class="action-btn ${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('${safeId}')" title="收藏">
@@ -2066,10 +2114,17 @@
         }
 
         function showMsg(txt) { const b = document.getElementById('msg-box'); b.innerText = txt; b.classList.add('active'); setTimeout(() => b.classList.remove('active'), 3000); }
-        window.onload = () => init().catch(() => {
+        // 用 DOMContentLoaded 而不是 onload：onload 要等全部图片下载完，
+        // 移动网络下会让首屏白屏多等好几秒。脚本在 body 末尾，此时 DOM 已就绪。
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => init().catch(showGateFallback));
+        } else {
+            init().catch(showGateFallback);
+        }
+        function showGateFallback() {
             const gate = document.getElementById('auth-gate');
             if (gate) { gate.style.display = 'flex'; applyAuthTheme(); }
-        });
+        }
     </script>
 </body>
 </html>
