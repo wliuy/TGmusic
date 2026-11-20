@@ -82,3 +82,15 @@ pages.dev 域名如果还活着，属于历史残留。删 Pages 项目前若部
 - **tailwind.css 是预编译产物**（`npm run build:css`）。改 index.html 的 class 后
   必须重新编译，否则新类名不存在。`focus:border-[var(--x)]/50` 这种「CSS 变量 + /透明度」
   组合 tailwind 编译不出来，要手写规则。
+
+## 音频播放要点
+
+- **APlayer `list.clear()` 会执行 `audio.src = ""`**。空字符串被浏览器解析成
+  「当前页面 URL」，会拿 HTML 当音频解码 → 切歌瞬间爆一声电流杂音。
+  `setupPlayer()` 里装了持久的 src/currentTime 守卫丢弃空值，**不要删除**。
+- `freezeAudio()` 只切换 `isFreezingAudio` 标志位。**不要在里面临时
+  `Object.defineProperty` + `delete`**，否则会把持久守卫一并删掉。
+- 唱片转圈由 `syncDiscSpin(cur)` 依据 `currentTime` 是否真的推进来驱动，
+  **不要在 `ap.on('play')` 里直接加 `.playing`**——play 只代表请求播放，
+  加载中/卡缓冲时转圈会骗人。
+- 播放进度记忆功能已按用户要求移除，不要加回来。
