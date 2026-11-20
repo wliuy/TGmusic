@@ -1,3 +1,5 @@
+import { checkPassword, unauthorized } from '../_lib/auth.js';
+
 let urlCache = new Map();
 export async function onRequest(context) {
   const { request, env } = context;
@@ -5,7 +7,7 @@ export async function onRequest(context) {
   const fileId = url.searchParams.get('file_id');
   const BOT_TOKEN = env.TG_Bot_Token;
   if (!fileId || !BOT_TOKEN) return new Response("Params error", { status: 400 });
-  if (url.searchParams.get('k') !== (env.PASSWORD || "sarah")) return new Response("Unauthorized", { status: 401 });
+  if (!checkPassword(env, url.searchParams.get('k'))) return unauthorized();
   try {
     let cacheItem = urlCache.get(fileId);
     let downloadUrl = "";

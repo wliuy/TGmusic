@@ -1,3 +1,5 @@
+import { checkHeader, unauthorized } from '../_lib/auth.js';
+
 const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS songs (file_id TEXT PRIMARY KEY, title TEXT, artist TEXT, cover TEXT, lrc TEXT)",
   "CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT, sort_order INTEGER)",
@@ -24,7 +26,7 @@ async function readLibrary(env) {
 
 export async function onRequest(context) {
   const { request, env } = context;
-  if (request.headers.get('X-Password') !== (env.PASSWORD || "sarah")) return new Response("Unauthorized", { status: 401 });
+  if (!checkHeader(env, request)) return unauthorized();
   try {
     let res;
     try {

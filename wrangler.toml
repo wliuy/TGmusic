@@ -7,6 +7,12 @@ main = "./worker/index.js"
 # 不写这行，部署时会把它们清空。
 keep_vars = true
 
+# PASSWORD 是可选的，故意不给默认值：
+#   不设 → 站点完全公开，谁都能访问（默认行为）
+#   设了 → 访问需要密码
+# 设置命令：npx wrangler secret put PASSWORD
+# 千万不要写在这个文件里——这是公开仓库。
+
 [assets]
 directory = "."
 binding = "ASSETS"

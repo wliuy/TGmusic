@@ -40,8 +40,16 @@ pages.dev 域名如果还活着，属于历史残留。删 Pages 项目前若部
 
 ## 密码与标题
 
-`env.PASSWORD || "sarah"` 是唯一鉴权方式，由用户在 Cloudflare 控制台设置 `PASSWORD` 环境变量。
-代码里的 `"sarah"` 只是默认值，不要修改。鉴权入口共 5 处：`check_auth.js`、`songs.js`、`stream.js`、`upload.js`、`manage.js`。
+`env.PASSWORD` 是唯一鉴权方式，**故意没有默认密码**：
+
+- **不设 `PASSWORD`** → 站点完全公开，谁都能访问（这是默认行为）
+- **设了 `PASSWORD`** → 访问需要密码
+
+不给默认密码是有意的：默认密码等于把钥匙插在门上，公开仓库里人人可见，比不设密码更糟（会让人误以为有保护）。要开密码保护，用 `npx wrangler secret put PASSWORD`。
+
+鉴权逻辑集中在 `functions/_lib/auth.js`（`authRequired` / `checkPassword` / `checkHeader`），5 个入口全部走它：`check_auth.js`、`songs.js`、`stream.js`、`upload.js`、`manage.js`。**改鉴权只改这一个文件**，不要在各处重复判断。
+
+`check_auth.js` 的 `GET` 返回 `{ required }`，前端 `init()` 靠它决定要不要弹登录框；免密时直接进，`showGateFallback()` 也不会弹框（没密码可输会把用户卡死）。
 
 `env.SITE_TITLE || "TGmusic"` 控制全站显示名称，由 `functions/api/site.js` 提供，前端脚本加载时拉取并写入 DOM。默认值 `TGmusic`。
 
