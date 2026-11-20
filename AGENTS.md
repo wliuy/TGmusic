@@ -155,3 +155,29 @@ pages.dev 域名如果还活着，属于历史残留。删 Pages 项目前若部
 - 改完用浏览器量三件事：内容占框比例、bbox 中心是否 (12,12)、
   prev/next 是否镜像。拿 `canvas` 把 SVG 画出来读像素最准。
 - 三角形天生左右不对称（约 50%），这是形状决定的，不是 bug。
+
+## 密钥管理（2026-11 事故后的硬规则）
+
+**永远不要把真实密钥写进任何被 git 跟踪的文件。**
+`.dev.vars`、`setup.js`、`wrangler.toml`、`index.html` 都曾被写进真 token。
+
+- 运行时密钥只走 `npx wrangler secret put <NAME>` 或 Cloudflare 控制台
+- `.gitignore` 必须含 `.dev.vars`、`.wrangler/`（当前已含）
+- 提交前扫一遍：`git diff --cached | grep -E "[0-9]{8,10}:AA[A-Za-z0-9_-]{33}"`
+
+### 历史泄露不是改历史就能解决
+
+`git filter-repo` 重写 + `push --force` 之后，**GitHub 上旧 commit 仍可通过
+SHA 直链匿名读取**（实测 `api.github.com/repos/.../contents/.dev.vars?ref=<旧sha>`
+返回 200 且含明文）。只有两种情况才会真消失：
+
+1. 让密钥本身失效（BotFather `/revoke`、改密码）—— **唯一可靠的办法**
+2. 提工单让 GitHub Support 清理缓存，或删库重建
+
+所以顺序永远是：**先撤销密钥，再谈清理历史。**
+
+### D1 数据库
+
+`database_name = "tgmusic"`，`database_id = "48ca5684-..."`。
+`database_name` 只是 Cloudflare 上的显示标签，改它不影响数据；
+**真正指向数据的是 `database_id`，绝不可改。**
