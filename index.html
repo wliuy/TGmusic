@@ -438,7 +438,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.16</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.17</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -477,9 +477,9 @@
         <footer class="footer-bar">
             <div class="flex items-center gap-2">
                 <div id="mode-btn" onclick="toggleMode()" class="btn-round"><svg id="mode-icon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
-                <div id="prev-btn" onclick="handlePrev()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
-                <div id="play-btn" onclick="handlePlayToggle()" class="btn-round btn-main"><svg id="p-icon" class="w-8 h-8" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
-                <div id="next-btn" onclick="handleNext()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
+                <div id="prev-btn" onclick="handlePrev()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 5v14M15.5 6.2L6.8 12l8.7 5.8V6.2z"/></svg></div>
+                <div id="play-btn" onclick="handlePlayToggle()" class="btn-round btn-main"><svg id="p-icon" class="w-8 h-8" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M7.5 4.8v14.4l12-7.2z"></path></svg></div>
+                <div id="next-btn" onclick="handleNext()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5v14M8.5 6.2L17.2 12l-8.7 5.8V6.2z"/></svg></div>
             </div>
             <div class="scrubber-area">
                 <span id="cur-time" class="font-bold opacity-30 text-xs">00:00</span>
@@ -525,9 +525,9 @@
                 </div>
                 <div class="m-btn-row">
                     <div id="m-mode-btn" onclick="toggleMode()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg id="m-mode-icon" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
-                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h3v12H6V6zm4.5 6l8.5 6V6l-8.5 6z"/></svg></div>
-                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[var(--m-accent)]"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>
-                    <div onclick="handleNext()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM15 6v12h3V6h-3z"/></svg></div>
+                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 5v14M15.5 6.2L6.8 12l8.7 5.8V6.2z"/></svg></div>
+                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[var(--m-accent)]"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M7.5 4.8v14.4l12-7.2z"></path></svg></div>
+                    <div onclick="handleNext()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5v14M8.5 6.2L17.2 12l-8.7 5.8V6.2z"/></svg></div>
                     <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4.2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></div>
                 </div>
             </div>
@@ -549,7 +549,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.16</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.17</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="speed-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">倍速</span><div class="flex gap-1.5" id="speed-buttons"></div><span id="speed-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -606,7 +606,7 @@
         })();
 
         let ap = null, db = [], lrcLines = [], currentTab = 'fav', tempMetaMap = new Map(), globalPlayingId = null;
-        let modeIdx = 2, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
+        let modeIdx = 0, dbIndexMap = new Map(), lastVolume = 0.7, isMuted = false, currentAdminTab = 'all';
         let currentThemeIdx = -1, sleepEndTime = null, sleepTimerInt = null, isScrubbing = false, isDraggingVol = false;
         let lastActiveFileId = null, longPressTimer = null, initialTouchY = 0, currentDraggedEl = null, dragPlaceholder = null; 
         let libState = { songs: [], favorites: [], playlists: [], all_order: [] };
@@ -899,24 +899,70 @@
             try { return new URLSearchParams((u || '').split('?')[1] || '').get('file_id'); } catch (e) { return null; }
         }
 
-        // 在"当前曲目开始播放"的黄金前台窗口期下载下一首整曲为 Blob；
-        // 切歌瞬间把 Blob URL 直接喂给唯一 audio 元素，彻底绕开息屏后的网络节流，无需联网即可无缝连播。
+        // 当前曲目已经缓冲多少秒「还没听」的内容。跨 buffer 区间取命中当前播放位置的那段。
+        function bufferedAhead() {
+            const a = ap.audio;
+            if (!a.buffered || !a.buffered.length) return 0;
+            for (let i = 0; i < a.buffered.length; i++) {
+                if (a.buffered.start(i) <= a.currentTime && a.currentTime <= a.buffered.end(i)) {
+                    return a.buffered.end(i) - a.currentTime;
+                }
+            }
+            return 0;
+        }
+
+        // 只有当「当前这首」缓冲已经够安全时才允许预载下一首。
+        // 否则两首歌抢同一条带宽，当前这首反而被拖慢 —— 这正是之前"加载慢"的由来：
+        // 旧逻辑在 play 事件里立刻整曲下载下一首，和正在听的这首硬抢。
+        function preloadGateOpen() {
+            const a = ap.audio;
+            if (a.paused) return false;
+            const ahead = bufferedAhead();
+            const dur = a.duration || 0;
+            if (ahead >= 12) return true;
+            if (dur > 0 && ahead >= 5 && ahead / dur >= 0.15) return true;
+            return false;
+        }
+
+        // 头部预热：只取开头一小段塞进浏览器 HTTP 缓存（服务端支持 Range）。
+        // 这样真正切歌时首字节立刻可用，不用等首包往返。
+        const HEAD_WARM_BYTES = 1.2 * 1024 * 1024;
+        let headWarmedFid = null, preloadStartedFid = null;
+        function warmHead(url, fid) {
+            if (!url || !fid || headWarmedFid === fid) return;
+            headWarmedFid = fid;
+            fetch(url, {
+                credentials: 'same-origin',
+                headers: { Range: 'bytes=0-' + (HEAD_WARM_BYTES - 1) }
+            }).then(r => { if (r && r.body) r.body.cancel(); }).catch(() => {});
+        }
+
+        function nextTrackInfo() {
+            if (!ap || !ap.list || ap.list.audios.length <= 1) return null;
+            if (ap.options.loop === 'one') return null;
+            let nextIdx;
+            try { nextIdx = ap.nextIndex(); } catch (e) { nextIdx = (ap.list.index + 1) % ap.list.audios.length; }
+            const audio = ap.list.audios[nextIdx];
+            if (!audio || !audio.url) return null;
+            const fid = fidFromUrl(audio.url);
+            return fid ? { fid, url: audio.url } : null;
+        }
+
+        // 按当前播放模式（列表/随机/单曲）取"下一首"，整曲下载成 Blob。
+        // 切歌瞬间把 Blob URL 直接喂给唯一 audio 元素，无需联网即可无缝连播。
         // 全程只有一个 audio 元素，不会触发此前"隔几秒电流声"的多元素后台缓冲干扰。
         function preloadNextTrack() {
             if (!ap || !ap.list || ap.list.audios.length <= 1) return;
             if (ap.options.loop === 'one') return;
-            let nextIdx;
-            try { nextIdx = ap.nextIndex(); } catch (e) { nextIdx = (ap.list.index + 1) % ap.list.audios.length; }
-            const nextAudio = ap.list.audios[nextIdx];
-            if (!nextAudio || !nextAudio.url) return;
-            const nextFid = fidFromUrl(nextAudio.url);
-            if (!nextFid) return;
+            const next = nextTrackInfo();
+            if (!next) return;
+            const nextFid = next.fid;
             if (nextBlob && nextBlob.fid === nextFid) return;
             if (warmingFid === nextFid) return;
             if (warmingAbort) warmingAbort.abort();
             warmingFid = nextFid;
             const controller = warmingAbort = new AbortController();
-            fetch(nextAudio.url, { credentials: 'same-origin', signal: controller.signal })
+            fetch(next.url, { credentials: 'same-origin', signal: controller.signal })
                 .then(async (res) => {
                     if (!res || !res.ok || !res.body) return;
                     const total = Number(res.headers.get('Content-Length') || 0);
@@ -1106,7 +1152,7 @@
             });
 
             ap.on('play', () => { 
-                const s = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>'; 
+                const s = '<path d="M7.4 4.6h3.2v14.8H7.4zM13.4 4.6h3.2v14.8h-3.2z"></path>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 // 唱片转圈不在这里启动：play 事件只代表「请求播放」，
                 // 此时音频可能还在加载、读秒没动。改由 syncDiscSpin 依真实读秒驱动。
@@ -1125,12 +1171,15 @@
                     updateHighlights(fid, false);
                 }
                 updateMediaSession();
-                // 黄金前台窗口期：曲目一开始就预载下一首整曲为 Blob，息屏后无需联网即可连播
-                preloadNextTrack();
+                // 立刻只预热下一首的头部（1.2MB，抢不了多少带宽），
+                // 整曲预载要等当前这首缓冲到安全水位才放行（见 preloadGateOpen）。
+                const nxt = nextTrackInfo();
+                if (nxt) { headWarmedFid = null; warmHead(nxt.url, nxt.fid); }
+                preloadStartedFid = null;
             });
 
             ap.on('pause', () => { 
-                const s = '<path d="M8 5v14l11-7z"></path>'; 
+                const s = '<path d="M7.5 4.8v14.4l12-7.2z"></path>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 document.getElementById('m-disc-wrapper').classList.remove('playing');
                 updateMediaSession();
@@ -1153,9 +1202,14 @@
 
                 syncLyrics(cur);
 
-                // 兜底：50% 进度时若尚未预载，立即补齐 Blob 预载
-                if (dur > 0 && cur / dur > 0.5 && ap.list.audios.length > 1) {
-                    preloadNextTrack();
+                // 当前这首缓冲到安全水位后再预载下一首，避免两首歌抢带宽。
+                // 每首只触发一次，之后由 preloadNextTrack 自己的去重逻辑兜住。
+                if (preloadStartedFid !== globalPlayingId && preloadGateOpen()) {
+                    const nxt = nextTrackInfo();
+                    if (nxt && !(nextBlob && nextBlob.fid === nxt.fid)) {
+                        preloadStartedFid = globalPlayingId;
+                        preloadNextTrack();
+                    }
                 }
 
                 // 锁屏进度条每秒同步一次即可，调太频繁会被浏览器限流
@@ -1485,7 +1539,20 @@
                     if(el) el.style.width = "0%";
                 });
                 try {
-                    ap.list.switch(targetIdx);
+                    // 目标曲目若已预载成 Blob，先把它塞进去，避免切歌时重新走一遍网络。
+                    // 之前只有 APlayer 内部自动切歌才会命中 nextBlob，手动点「下一首」
+                    // 明明已经下载好了却照样重新请求，这就是「切过去一点没缓冲」的由来。
+                    if (nextBlob && targetFid === nextBlob.fid) {
+                        const blobUrl = nextBlob.url;
+                        nextBlob = null;
+                        const origUrl = target.url;
+                        target.url = blobUrl;
+                        ap.list.switch(targetIdx);
+                        target.url = origUrl;
+                        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                    } else {
+                        ap.list.switch(targetIdx);
+                    }
                     ap.play();
                     const dbIdx = dbIndexMap.get(targetFid);
                     if(dbIdx !== undefined) refreshUIMetaAt(dbIdx);
@@ -1500,10 +1567,15 @@
         function toggleMode() { modeIdx = (modeIdx + 1) % modes.length; updateUIModes(); }
         function updateUIModes() {
             const m = modes[modeIdx]; if (ap) { ap.options.loop = m === 'single' ? 'one' : 'all'; ap.options.order = m === 'random' ? 'random' : 'list'; }
+            // 三个图标统一：24 网格、坐标全部落在 3.5~20.5，给 2.5 描边留出余量。
+            // 旧版 list/single 用 y=1~23 的坐标，描边被视口裁掉，且「列表」画成了循环箭头。
             const icons = {
-                list: '<path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>',
-                single: '<path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path><path d="M11 9h1v6"></path><path d="M10 15h3"></path>',
-                random: '<path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path>'
+                // 列表：三行 + 向右箭头，读作「按顺序往下放」
+                list: '<path d="M3.5 6.5h9.5M3.5 12h9.5M3.5 17.5h9.5M16.5 8.5l3.5 3.5-3.5 3.5"/>',
+                // 单曲循环：环形双箭头 + 中间一个 1
+                single: '<path d="m16.2 3.6 3.4 3.4-3.4 3.4"/><path d="M4.4 11.2v-.8a3.4 3.4 0 0 1 3.4-3.4h11.8"/><path d="m7.8 20.4-3.4-3.4 3.4-3.4"/><path d="M19.6 12.8v.8a3.4 3.4 0 0 1-3.4 3.4H4.4"/><path d="M12.6 9.6v5.2M11.3 10.9l1.3-1.3"/>',
+                // 随机：交叉的双箭头
+                random: '<path d="M3.6 6.8h1.5c1.3 0 2.5.8 3.1 1.9"/><path d="M3.6 17.2h1.5c1.1 0 2.1-.5 2.8-1.4l5.2-7.3c.7-.9 1.7-1.4 2.8-1.4h3.1"/><path d="m16.9 3.7 3.4 3.4-3.4 3.4"/><path d="M20.5 17.2h-3.5c-1.1 0-2.1-.5-2.8-1.4l-.6-.8"/><path d="m16.9 13.8 3.4 3.4-3.4 3.4"/>'
             };
             document.getElementById('mode-icon').innerHTML = icons[m]; document.getElementById('m-mode-icon').innerHTML = icons[m];
         }
@@ -1528,13 +1600,13 @@
         function handlePrev() {
             handleTrackSwitch((ap.list.index - 1 + ap.list.audios.length) % ap.list.audios.length);
         }
+        // 必须用 APlayer 自己的 nextIndex()：随机模式下它按 randomOrder 走，
+        // 自己 Math.random() 出来的曲子既不在 randomOrder 里，也和预载的下一首对不上，
+        // 表现为「切过去完全没缓冲」。
         function handleNext() {
-            if (modes[modeIdx] === 'random' && ap.list.audios.length > 1) {
-                let nextIdx; do { nextIdx = Math.floor(Math.random() * ap.list.audios.length); } while (nextIdx === ap.list.index);
-                handleTrackSwitch(nextIdx);
-            } else {
-                handleTrackSwitch((ap.list.index + 1) % ap.list.audios.length);
-            }
+            let nextIdx;
+            try { nextIdx = ap.nextIndex(); } catch (e) { nextIdx = (ap.list.index + 1) % ap.list.audios.length; }
+            handleTrackSwitch(nextIdx);
         }
 
         function handleMouseSeekStart(e) { isScrubbing = true; handleMouseSeekMove(e); window.addEventListener('mousemove', handleMouseSeekMove); window.addEventListener('mouseup', handleMouseSeekEnd); }
@@ -1558,7 +1630,11 @@
                 ap.volume(0, true); updateVolUI(0); isMuted = true;
             }
         }
-        function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>'); }
+        function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0
+            ? '<path d="M11 5.5L6.5 9.5H3.5v5h3l4.5 4V5.5z"/><path d="m15.5 9.5 5 5m0-5-5 5"/>'
+            : (p < 0.5
+                ? '<path d="M11 5.5L6.5 9.5H3.5v5h3l4.5 4V5.5z"/><path d="M15 9a4 4 0 0 1 0 6"/>'
+                : '<path d="M11 5.5L6.5 9.5H3.5v5h3l4.5 4V5.5z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M17.8 6.5a7.5 7.5 0 0 1 0 11"/>'); }
 
         function adjustVolume(delta) {
             if (!ap) return;
