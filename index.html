@@ -400,7 +400,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.9</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.10</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -511,7 +511,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.9</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.10</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -884,26 +884,66 @@
 
         // 必须走 list.clear()/add() 重建：直接改 ap.list.audios 会让 APlayer 内部列表 DOM 与数组长度脱节，
         // 之后 switch() 越界抛错，表现为"点了歌没反应"。重建后还原当前曲目与播放进度。
-        function rebuildPlayerList(trackList, keepPlaying) {
+        // 重建队列时 APlayer 会连着做三件打断播放的事：clear() 里 pause() 并清空
+        // audio.src、add() 在空队列上自动 switch(0)、switch() 里 setAudio() 重新赋值
+        // src 再 seek(0)。三者叠加就是把正在播的歌从第 0 字节重下一遍 —— 听感就是明显停顿。
+        // 冻结期间这些写操作全部丢弃，音频元素保持原状继续播；列表 DOM 和内部数组
+        // 仍由 APlayer 自己维护，不会和后续的上一首/下一首错位。
+        function freezeAudio(fn) {
+            const audio = ap.audio;
+            const srcDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+            const ctDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime');
+            const origPause = audio.pause;
+            Object.defineProperty(audio, 'src', {
+                configurable: true,
+                get() { return srcDesc.get.call(audio); },
+                set() {}
+            });
+            Object.defineProperty(audio, 'currentTime', {
+                configurable: true,
+                get() { return ctDesc.get.call(audio); },
+                set() {}
+            });
+            audio.pause = function () {};
+            try { return fn(); }
+            finally {
+                delete audio.src;
+                delete audio.currentTime;
+                audio.pause = origPause;
+            }
+        }
+
+        function rebuildPlayerList(trackList) {
             const curAudio = ap.list.audios[ap.list.index];
             const curFid = curAudio ? fidFromUrl(curAudio.url) : null;
-            const curTime = ap.audio.currentTime || 0;
             const wasPlaying = !ap.audio.paused;
             const guard = isPlaylistSwitching;
-            isPlaylistSwitching = true;
             const newIdx = curFid ? trackList.findIndex(a => fidFromUrl(a.url) === curFid) : -1;
-            ap.list.clear();
-            ap.list.add(trackList);
+            isPlaylistSwitching = true;
+
+            // 队列空时 add() 自己会 switch(0)，无需再调一次
+            const apply = () => {
+                ap.list.clear();
+                ap.list.add(trackList);
+                if (newIdx !== -1) ap.list.switch(newIdx);
+            };
+            // 当前曲目还在新队列里 → 冻结音频，重建过程不碰真实播放
+            if (newIdx !== -1) freezeAudio(apply);
+            else apply();
+
             if (newIdx !== -1) {
-                ap.list.switch(newIdx);
-                refreshUIMetaByAudio(ap.list.audios[newIdx]);
-                if (keepPlaying || wasPlaying) {
-                    const restore = () => { if (curTime > 0) ap.audio.currentTime = curTime; };
-                    if (ap.audio.readyState >= 1) restore();
-                    else ap.audio.addEventListener('loadedmetadata', restore, { once: true });
-                    // list.clear() 内部会调 pause()，这里必须恢复播放。
-                    // 不能判断 document.hidden：息屏切歌单正是最需要续播的场景。
-                    if (wasPlaying) ap.play();
+                refreshUIMetaByAudio(trackList[newIdx]);
+                // clear() 里的 pause() 会把 APlayer 的 UI 标记打成暂停，
+                // 声音其实没停，这里把图标状态纠正回来。
+                if (wasPlaying && ap.paused) ap.play();
+                // setAudio 里被挡掉的 seek(0) 会把进度条和歌词重置到开头，
+                // 这里立刻按真实播放位置校正，避免肉眼可见的闪一下。
+                const cur = ap.audio.currentTime || 0;
+                const dur = ap.audio.duration || 0;
+                if (dur > 0) {
+                    ap.bar.set('played', cur / dur, 'width');
+                    ap.template.ptime.innerHTML = fmtTime(cur);
+                    if (ap.lrc) ap.lrc.update(cur);
                 }
             }
             if (!guard) releaseSwitchLock();
@@ -915,7 +955,7 @@
             if (ap) {
                 const currentTrackUrls = ap.list.audios.map(a => a.url);
                 const newTrackUrls = trackList.map(a => a.url);
-                if (JSON.stringify(currentTrackUrls) !== JSON.stringify(newTrackUrls)) rebuildPlayerList(trackList, false);
+                if (JSON.stringify(currentTrackUrls) !== JSON.stringify(newTrackUrls)) rebuildPlayerList(trackList);
                 return;
             }
 
@@ -1302,7 +1342,7 @@
             if (fid && targetIdx === -1) {
                 // 目标曲目不在当前播放队列里（说明浏览的歌单已切换），按当前歌单重建后再找
                 globalActiveListId = currentTab;
-                rebuildPlayerList(buildTrackList(listIdsFor(currentTab)), false);
+                rebuildPlayerList(buildTrackList(listIdsFor(currentTab)));
                 targetIdx = ap.list.audios.findIndex(a => fidFromUrl(a.url) === fid);
             }
 
@@ -1389,7 +1429,8 @@
             } 
         }
 
-        function fmtTime(s) { if (isNaN(s) || s < 0) return "00:00"; const m = Math.floor(s/60), sec = Math.floor(s%60); return (m<10?"0"+m:m)+":"+(sec<10?"0"+sec:sec); }
+        // 超过一小时的曲目（现场版、播客）要显示小时位，否则会变成 61:40
+        function fmtTime(s) { if (isNaN(s) || s < 0) return "00:00"; const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = Math.floor(s%60), p2 = n => n<10?"0"+n:""+n; return (h>0 ? h+":"+p2(m) : p2(m)) + ":" + p2(sec); }
         
         async function handleLikeToggle() { 
             const cur = ap.list.audios[ap.list.index]; if(!cur) return; 
@@ -1453,7 +1494,7 @@
             // 队列非空时仅在新歌单包含当前曲目时才切换，避免翻歌单就把音乐打断
             if (!curFid || ids.includes(curFid)) {
                 globalActiveListId = listId;
-                rebuildPlayerList(buildTrackList(ids), true);
+                rebuildPlayerList(buildTrackList(ids));
             }
         }
 
