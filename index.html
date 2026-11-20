@@ -62,6 +62,7 @@
         .song-item { padding: 12px 16px; margin: 3px 8px; border-radius: 10px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; position: relative; padding-right: 110px; }
         .song-item.active { background: rgba(255, 255, 255, 0.3); color: var(--dynamic-accent); font-weight: 900; }
         .song-item:hover:not(.active) { background: rgba(255, 255, 255, 0.15); }
+        .resume-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 5px; background: rgba(16,185,129,0.22); color: #34d399; letter-spacing: 0.02em; vertical-align: middle; }
         .song-title-text { font-size: 13px !important; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .song-artist-text { font-size: 11px !important; opacity: 0.5; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .song-actions { position: absolute; right: 12px; display: flex; gap: 8px; opacity: 0; transition: 0.2s; pointer-events: auto; }
@@ -400,7 +401,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.12</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.13</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -511,13 +512,15 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.12</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.13</span>
                 </div>
                 <div id="admin-header-center">
+                    <div id="speed-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">倍速</span><div class="flex gap-1.5" id="speed-buttons"></div><span id="speed-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
                     <div id="upload-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><input type="file" id="f-in" multiple onchange="previewTag(this)" style="display:none"><label for="f-in" class="upload-card"><div class="upload-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1M12 4v12M16 8l-4-4-4 4"/></svg><span id="file-count-tip">点击/拖拽同步</span></div></label><button onclick="switchAdminList('logs')" class="bg-white/15 text-white px-5 py-2.5 rounded-xl font-black text-[11px] hover:bg-white/20 transition-all">上传日志</button></div></div>
                 </div>
                 <div class="admin-action-bar">
+                    <button onclick="toggleSpeedArea()" class="admin-btn-icon" title="播放速度"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 1 8-8"/><path d="M12 12l4-3"/><path d="M20 12h2"/></svg></button>
                     <button onclick="toggleSleepArea()" class="admin-btn-icon" title="定时暂停"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
                     <button onclick="toggleUploadArea()" class="admin-btn-icon" title="同步音乐"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1M12 4v12M16 8l-4-4-4 4"/></svg></button>
                     <button onclick="toggleAdmin(false)" class="admin-btn-icon !bg-white/20" title="关闭设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
@@ -759,8 +762,34 @@
                 buildIndexMap(); renderCustomTabs(); 
                 setupPlayer(); 
                 renderAllLists(); 
+                // APlayer 会从 localStorage 恢复上次音量，UI 必须跟着它走，
+                // 否则刷新后音量条显示 70%，实际却是上次调过的值。
+                if (ap) lastVolume = ap.audio.muted ? lastVolume : ap.volume();
+                // 恢复上次选的倍速。audio 元素换 src 不会重置 playbackRate，
+                // 但页面重开是新的 audio，必须重新设置。
+                try {
+                    const sp = parseFloat(localStorage.getItem('sarah_speed'));
+                    if (ap && isFinite(sp) && sp > 0) ap.audio.playbackRate = sp;
+                } catch (e) {}
                 updateUIModes(); updateVolUI(lastVolume); 
-                window.addEventListener('keydown', (e) => { if (e.code === 'Space') { const activeEl = document.activeElement; if (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA') { e.preventDefault(); handlePlayToggle(); } } });
+                window.addEventListener('keydown', (e) => {
+                    const el = document.activeElement;
+                    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+                    if (e.ctrlKey || e.metaKey || e.altKey) return;
+                    // 有弹窗/设置面板开着时不要抢按键
+                    const modal = document.querySelector('#admin-panel.active, #playlist-selector-modal:not(.hidden), #sarah-dialog:not(.hidden)');
+                    if (modal) return;
+                    switch (e.code) {
+                        case 'Space': e.preventDefault(); handlePlayToggle(); break;
+                        case 'ArrowRight': e.preventDefault(); ap && ap.seek(Math.min(ap.audio.duration || 0, ap.audio.currentTime + 5)); break;
+                        case 'ArrowLeft': e.preventDefault(); ap && ap.seek(Math.max(0, ap.audio.currentTime - 5)); break;
+                        case 'ArrowUp': e.preventDefault(); adjustVolume(0.05); break;
+                        case 'ArrowDown': e.preventDefault(); adjustVolume(-0.05); break;
+                        case 'KeyN': handleNext(); break;
+                        case 'KeyB': handlePrev(); break;
+                        case 'KeyM': toggleMute(); break;
+                    }
+                });
                 
                 // 移动端返回键优化：注入初始伪路由
                 history.replaceState({stage:'main'}, '');
@@ -882,6 +911,37 @@
         // src 再 seek(0)。三者叠加就是把正在播的歌从第 0 字节重下一遍 —— 听感就是明显停顿。
         // 冻结期间这些写操作全部丢弃，音频元素保持原状继续播；列表 DOM 和内部数组
         // 仍由 APlayer 自己维护，不会和后续的上一首/下一首错位。
+        // 每首歌的播放位置。长播客/现场版听到一半关掉页面，下次能接着听。
+        const POS_KEY = 'sarah_positions';
+        const POS_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
+        function readPositions() {
+            try { return JSON.parse(localStorage.getItem(POS_KEY)) || {}; } catch { return {}; }
+        }
+        function savePosition(fid, t, dur) {
+            if (!fid || !isFinite(t) || t < 5) return;
+            // 快播完就当听过了，别再记位置
+            if (isFinite(dur) && dur > 0 && dur - t < 10) { clearPosition(fid); return; }
+            try {
+                const all = readPositions();
+                all[fid] = { t, ts: Date.now() };
+                // 顺手清理过期记录，避免 localStorage 无限膨胀
+                const now = Date.now();
+                for (const k in all) if (now - (all[k].ts || 0) > POS_KEEP_MS) delete all[k];
+                localStorage.setItem(POS_KEY, JSON.stringify(all));
+            } catch (e) {}
+        }
+        function clearPosition(fid) {
+            try {
+                const all = readPositions();
+                if (all[fid]) { delete all[fid]; localStorage.setItem(POS_KEY, JSON.stringify(all)); }
+            } catch (e) {}
+        }
+        function getPosition(fid) {
+            const p = readPositions()[fid];
+            if (!p || Date.now() - (p.ts || 0) > POS_KEEP_MS) return 0;
+            return p.t || 0;
+        }
+
         let isFreezingAudio = false;
         function freezeAudio(fn) {
             const audio = ap.audio;
@@ -1075,10 +1135,18 @@
 
             // 兜底：切后台/息屏时若尚未预载，立即补齐 Blob 预载（绝不创建第二个 audio 元素）
             document.addEventListener('visibilitychange', () => {
-                // ap.paused 是 APlayer 自己维护的标记，息屏后可能和真实媒体状态不同步
-                if (document.hidden && ap && !ap.audio.paused && ap.list.audios.length > 1) {
-                    preloadNextTrack();
+                if (document.hidden && ap) {
+                    // 移动端切后台可能直接被系统回收，先把进度落盘
+                    const cur = ap.list.audios[ap.list.index];
+                    if (cur && !ap.audio.paused) savePosition(fidFromUrl(cur.url), ap.audio.currentTime, ap.audio.duration);
+                    // ap.paused 是 APlayer 自己维护的标记，息屏后可能和真实媒体状态不同步
+                    if (!ap.audio.paused && ap.list.audios.length > 1) preloadNextTrack();
                 }
+            });
+            // pagehide 在 iOS 上比 unload 可靠
+            window.addEventListener('pagehide', () => {
+                const cur = ap && ap.list.audios[ap.list.index];
+                if (cur && !ap.audio.paused) savePosition(fidFromUrl(cur.url), ap.audio.currentTime, ap.audio.duration);
             });
 
             // 安全网：APlayer 的 ended 自动切歌在部分移动浏览器息屏后会失效。
@@ -1088,6 +1156,9 @@
             // 这里再 handleNext() 就会一首结束连跳两首。所以先记下结束时的曲目，
             // 300ms 后只有"还停在同一首且真的没在播"才兜底。
             ap.audio.addEventListener('ended', () => {
+                // 听完了，下次从头开始，别接着播
+                const done = ap.list.audios[ap.list.index];
+                if (done) clearPosition(fidFromUrl(done.url));
                 if (ap.options.loop === 'one') return;
                 const endedFid = ap.list.audios[ap.list.index] ? fidFromUrl(ap.list.audios[ap.list.index].url) : null;
                 setTimeout(() => {
@@ -1318,6 +1389,9 @@
             if (q) listData = listData.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
 
             const visibleData = listData.slice(0, renderCount);
+            // 渲染循环里每首歌都读一次 localStorage 会反复 JSON.parse，
+            // 这里一次性读出来复用
+            const posSnapshot = readPositions();
             const currentAudio = ap ? ap.list.audios[ap.list.index] : null;
             const currentSelectedId = currentAudio ? new URL(currentAudio.url, window.location.origin).searchParams.get('file_id') : null;
 
@@ -1327,9 +1401,14 @@
                 const safeId = escapeHtml(s.file_id);
                 const safeTitle = escapeHtml(s.title);
                 const safeArtist = escapeHtml(s.artist);
+                const posRec = posSnapshot[s.file_id];
+                const resumeAt = (posRec && Date.now() - (posRec.ts || 0) <= POS_KEEP_MS) ? (posRec.t || 0) : 0;
+                const resumeTag = resumeAt > 0
+                    ? `<span class="resume-badge" title="上次听到 ${fmtTime(resumeAt)}">▶ ${fmtTime(resumeAt)}</span>`
+                    : '';
                 return `<div data-id="${safeId}" onclick="handleTrackSwitch(-1, '${safeId}')" class="song-item group ${isActive ? 'active' : ''}">
                     <img src="${authStreamUrl(s.cover) || placeholderCover()}" class="w-10 h-10 rounded-lg object-cover shadow-sm">
-                    <div class="flex-1 truncate"><div class="song-title-text truncate">${safeTitle}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">${safeArtist}</div></div>
+                    <div class="flex-1 truncate"><div class="song-title-text truncate">${safeTitle}${resumeTag}</div><div class="song-artist-text truncate uppercase opacity-50 text-[10px]">${safeArtist}</div></div>
                     <div class="song-actions">
                         <div class="action-btn ${isFavorited ? 'is-fav' : ''}" onclick="event.stopPropagation(); toggleLikeById('${safeId}')" title="收藏">
                             <svg class="w-4 h-4" fill="${isFavorited ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
@@ -1373,6 +1452,12 @@
 
             let targetIdx = fid ? ap.list.audios.findIndex(a => fidFromUrl(a.url) === fid) : idx;
 
+            // 切走之前把当前曲目听到哪了记下来
+            const leaving = ap.list.audios[ap.list.index];
+            if (leaving && !ap.audio.paused) {
+                savePosition(fidFromUrl(leaving.url), ap.audio.currentTime, ap.audio.duration);
+            }
+
             const target = ap.list.audios[targetIdx];
             if (target) {
                 // 上一首/下一首只传索引，fid 必须从目标曲目反推，否则状态会被写成 undefined
@@ -1386,6 +1471,16 @@
                 try {
                     ap.list.switch(targetIdx);
                     ap.play();
+                    // 这首歌之前听过一半就接着放。setAudio 已把进度归零，这里覆盖回去。
+                    const resumeAt = getPosition(targetFid);
+                    if (resumeAt > 0) {
+                        const apply = () => ap.seek(resumeAt);
+                        apply();
+                        // 元数据可能还没到，duration 未知时 seek 会被夹到 0，稍后重试一次
+                        setTimeout(() => {
+                            if (Math.abs((ap.audio.currentTime || 0) - resumeAt) > 2) apply();
+                        }, 600);
+                    }
                     const dbIdx = dbIndexMap.get(targetFid);
                     if(dbIdx !== undefined) refreshUIMetaAt(dbIdx);
                     else refreshUIMetaByAudio(target);
@@ -1434,8 +1529,25 @@
         function handleTouchMove(e) { if (!isScrubbing) return; if(e.cancelable) e.preventDefault(); const rect = document.getElementById('m-scrubber-wrap').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width)); document.getElementById('m-prog-bar').style.width = (p * 100) + '%'; document.getElementById('m-cur-time').innerText = fmtTime(p * (ap.audio.duration || 0)); }
         function handleTouchEnd(e) { if (!isScrubbing) return; const rect = document.getElementById('m-scrubber-wrap').getBoundingClientRect(); const p = Math.max(0, Math.min(1, (e.changedTouches[0].clientX - rect.left) / rect.width)); ap.seek(p * (ap.audio.duration || 0)); isScrubbing = false; }
 
-        function toggleMute() { if (isMuted) { ap.volume(lastVolume, true); updateVolUI(lastVolume); isMuted = false; } else { lastVolume = ap.audio.volume; ap.volume(0, true); updateVolUI(0); isMuted = true; } }
+        function toggleMute() {
+            if (isMuted) {
+                ap.volume(lastVolume, true); updateVolUI(lastVolume); isMuted = false;
+            } else {
+                // 已经是 0 就别覆盖 lastVolume，否则取消静音后还是没声音
+                if (ap.audio.volume > 0) lastVolume = ap.audio.volume;
+                ap.volume(0, true); updateVolUI(0); isMuted = true;
+            }
+        }
         function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM22 9l-6 6m0-6l6 6"></path>' : (p < 0.5 ? '<path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"></path>' : '<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>'); }
+
+        function adjustVolume(delta) {
+            if (!ap) return;
+            const next = Math.max(0, Math.min(1, (ap.audio.volume || 0) + delta));
+            ap.volume(next, true);
+            lastVolume = next;
+            isMuted = next === 0;
+            updateVolUI(next);
+        }
 
         function handleSearch() { renderCount = pageSize; renderAllLists(); }
         function clearSearch(id) { document.getElementById(id).value = ""; renderCount = pageSize; renderAllLists(); }
@@ -1549,8 +1661,36 @@
                 cleanupAdminDragState();
             } 
         }
-        function toggleUploadArea() { document.getElementById('sleep-area').classList.add('hidden'); document.getElementById('upload-area').classList.toggle('hidden'); }
-        function toggleSleepArea() { document.getElementById('upload-area').classList.add('hidden'); document.getElementById('sleep-area').classList.toggle('hidden'); }
+        function toggleUploadArea() { document.getElementById('sleep-area').classList.add('hidden'); document.getElementById('speed-area').classList.add('hidden'); document.getElementById('upload-area').classList.toggle('hidden'); }
+        const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
+        function renderSpeedButtons() {
+            const wrap = document.getElementById('speed-buttons');
+            if (!wrap) return;
+            const cur = ap ? (ap.audio.playbackRate || 1) : 1;
+            wrap.innerHTML = SPEEDS.map(s =>
+                `<button onclick="setSpeed(${s})" class="px-3 py-1.5 rounded-lg text-[11px] font-bold ${Math.abs(s - cur) < 0.01 ? 'bg-emerald-500/30 text-emerald-300' : 'bg-white/10'}">${s}×</button>`
+            ).join('');
+            const st = document.getElementById('speed-status');
+            if (st) st.innerText = Math.abs(cur - 1) < 0.01 ? '' : cur + '×';
+        }
+        function setSpeed(s) {
+            if (!ap) return;
+            ap.audio.playbackRate = s;
+            try { localStorage.setItem('sarah_speed', String(s)); } catch (e) {}
+            renderSpeedButtons();
+            updatePositionState();
+        }
+        function toggleSpeedArea() {
+            document.getElementById('upload-area').classList.add('hidden');
+            document.getElementById('sleep-area').classList.add('hidden');
+            renderSpeedButtons();
+            document.getElementById('speed-area').classList.toggle('hidden');
+        }
+        function toggleSleepArea() {
+            document.getElementById('upload-area').classList.add('hidden');
+            document.getElementById('speed-area').classList.add('hidden');
+            document.getElementById('sleep-area').classList.toggle('hidden');
+        }
 
         function showSarahDialog(title, msg, isInput, def, cb) { 
             const ov = document.getElementById('sarah-dialog'); 
