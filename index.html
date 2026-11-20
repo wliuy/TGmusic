@@ -400,7 +400,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.11</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.12</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -511,7 +511,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.11</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.12</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="sleep-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">定时</span><div class="flex gap-1.5"><button onclick="setSleep(15)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">15</button><button onclick="setSleep(30)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">30</button><button onclick="setSleep(60)" class="bg-white/10 px-3 py-1.5 rounded-lg text-[11px] font-bold">60</button><button onclick="setSleep(0)" class="bg-red-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-300">取消</button></div><span id="sleep-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -801,22 +801,15 @@
             libState = raw; db = libState.songs;
             buildIndexMap();
             if(ap) {
-              let ids = [];
-              const sourceId = globalActiveListId; 
-              if(sourceId === 'all') ids = libState.all_order.length ? libState.all_order : db.map(s => s.file_id);
-              else if(sourceId === 'fav') ids = libState.favorites;
-              else ids = libState.playlists.find(p => p.id === sourceId)?.ids || [];
-
-              const newList = ids.map(id => {
-                const s = db[dbIndexMap.get(id)];
-                return s ? { name: s.title, artist: s.artist, cover: authStreamUrl(s.cover) || placeholderCover(), url: authStreamUrl('/api/stream?file_id=' + s.file_id), lrc: s.lrc || '[00:00.00]暂无歌词' } : null;
-              }).filter(Boolean);
-              
-              ap.list.audios = newList;
-              if (curFid) {
-                  const newIndex = ids.indexOf(curFid);
-                  if (newIndex !== -1) { ap.list.index = newIndex; }
-              }
+              // 必须走 rebuildPlayerList，不能直接赋值 ap.list.audios：
+              // APlayer 的列表 DOM、randomOrder、listCurs 都挂在内部状态上，
+              // 只换数组会让它们和队列脱节，之后切歌会抛 TypeError。
+              const newList = buildTrackList(listIdsFor(globalActiveListId));
+              const oldList = ap.list.audios;
+              const changed = oldList.length !== newList.length ||
+                oldList.some((a, i) => !newList[i] || a.url !== newList[i].url);
+              // 队列没变就别动播放，单纯的元数据刷新不该打断音乐
+              if (changed) rebuildPlayerList(newList, { keepAudio: !!curFid });
             }
             if(document.getElementById('admin-panel').classList.contains('active')) {
               renderAdminPlaylistTabs(); renderAdminSongList();
@@ -889,6 +882,7 @@
         // src 再 seek(0)。三者叠加就是把正在播的歌从第 0 字节重下一遍 —— 听感就是明显停顿。
         // 冻结期间这些写操作全部丢弃，音频元素保持原状继续播；列表 DOM 和内部数组
         // 仍由 APlayer 自己维护，不会和后续的上一首/下一首错位。
+        let isFreezingAudio = false;
         function freezeAudio(fn) {
             const audio = ap.audio;
             const srcDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
@@ -905,17 +899,22 @@
                 set() {}
             });
             audio.pause = function () {};
+            isFreezingAudio = true;
             try { return fn(); }
             finally {
+                isFreezingAudio = false;
                 delete audio.src;
                 delete audio.currentTime;
                 audio.pause = origPause;
             }
         }
 
-        // keepAudio=false 用于"重建后马上就要换曲"的场景：此时冻结音频反而会让
-        // 后续 switch() 写不进 src，所以只重建队列数据。
-        function rebuildPlayerList(trackList, keepAudio = true) {
+        // keepAudio：当前曲目还在新队列里时是否保住不中断（冻结音频）。
+        // deferSelect：调用方紧接着会自己 switch 到目标曲目，此时不要做中间切换，
+        //   否则 add() 在空队列上自动 switch(0) 会白下载一次。
+        // 两者必须分开：删除当前歌曲时既要重建队列（keepAudio=false），
+        // 又需要 APlayer 选一首出来，否则播放器会卡在空状态。
+        function rebuildPlayerList(trackList, { keepAudio = true, deferSelect = false } = {}) {
             const curAudio = ap.list.audios[ap.list.index];
             const curFid = curAudio ? fidFromUrl(curAudio.url) : null;
             const wasPlaying = !ap.audio.paused;
@@ -925,13 +924,11 @@
 
             const apply = () => {
                 ap.list.clear();
-                if (keepAudio) {
+                if (!deferSelect) {
                     ap.list.add(trackList);
                     if (newIdx !== -1) ap.list.switch(newIdx);
                     return;
                 }
-                // 马上就要切到用户点的那首，add() 在空队列上自动 switch(0) 纯属
-                // 白下载一次，先按住；中间的 switch(newIdx) 也没必要做。
                 const origSwitch = ap.list.switch;
                 ap.list.switch = () => {};
                 try { ap.list.add(trackList); } finally { ap.list.switch = origSwitch; }
@@ -985,6 +982,8 @@
             // 息屏后不发起任何新网络请求即可无缝连播；全程仍只有一个 audio 元素，不会出现隔几秒电流声。
             const _origSetAudio = ap.setAudio.bind(ap);
             ap.setAudio = (audioObj) => {
+                // 冻结期间音频并未真正切换，此时消耗预载 Blob 等于白丢一次缓冲
+                if (isFreezingAudio) return _origSetAudio(audioObj);
                 if (!audioObj || !audioObj.url || audioObj.url.startsWith('blob:')) {
                     return _origSetAudio(audioObj);
                 }
@@ -1085,12 +1084,18 @@
             // 安全网：APlayer 的 ended 自动切歌在部分移动浏览器息屏后会失效。
             // 这里只能用 setTimeout —— rAF 在息屏/后台会完全停止，兜底逻辑就永远不跑了。
             // 播音频的页面不受定时器深度节流，所以后台 setTimeout 仍然会正常触发。
+            // 注意：APlayer 内置的 ended 处理在 loop=all 时会自己 skipForward()，
+            // 这里再 handleNext() 就会一首结束连跳两首。所以先记下结束时的曲目，
+            // 300ms 后只有"还停在同一首且真的没在播"才兜底。
             ap.audio.addEventListener('ended', () => {
                 if (ap.options.loop === 'one') return;
+                const endedFid = ap.list.audios[ap.list.index] ? fidFromUrl(ap.list.audios[ap.list.index].url) : null;
                 setTimeout(() => {
-                    // 用真实媒体元素状态判断，ap.paused 只是 APlayer 自己维护的标记
                     if (!ap || !ap.audio.paused) return;
                     if (ap.list.audios.length < 2) return;
+                    const nowFid = ap.list.audios[ap.list.index] ? fidFromUrl(ap.list.audios[ap.list.index].url) : null;
+                    // 内置逻辑已经切走了，说明兜底不需要介入
+                    if (endedFid && nowFid && endedFid !== nowFid) return;
                     handleNext();
                 }, 300);
             });
@@ -1229,7 +1234,7 @@
             const renderL = (id) => {
                 const el = document.getElementById(id); if(!el) return;
                 if (!lrcLines.length) { el.innerHTML = '<div class="lrc-line active !opacity-30">暂无歌词</div>'; el.classList.add('justify-center'); }
-                else { el.classList.remove('justify-center'); el.innerHTML = '<div style="height:65px;flex-shrink:0;"></div>' + lrcLines.map((l, i) => `<div class="lrc-line" id="${id}-lrc-${i}" onclick="ap.seek(${l.t})">${l.text}</div>`).join('') + '<div style="height:65px;flex-shrink:0;"></div>'; }
+                else { el.classList.remove('justify-center'); el.innerHTML = '<div style="height:65px;flex-shrink:0;"></div>' + lrcLines.map((l, i) => `<div class="lrc-line" id="${id}-lrc-${i}" onclick="ap.seek(${l.t})">${escapeHtml(l.text)}</div>`).join('') + '<div style="height:65px;flex-shrink:0;"></div>'; }
             };
             renderL('lrc-view'); renderL('m-lrc-flow');
         }
@@ -1362,7 +1367,7 @@
                 if (!inQueue || globalActiveListId !== currentTab) {
                     globalActiveListId = currentTab;
                     // 紧接着就要换曲，不能让 freezeAudio 挡住 switch 写 src
-                    rebuildPlayerList(buildTrackList(listIdsFor(currentTab)), false);
+                    rebuildPlayerList(buildTrackList(listIdsFor(currentTab)), { keepAudio: false, deferSelect: true });
                 }
             }
 
