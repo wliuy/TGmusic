@@ -59,7 +59,7 @@ npx wrangler secret put PASSWORD
 |---|---|---|
 | `TG_Bot_Token` | 是 | Telegram 机器人 Token |
 | `TG_Chat_ID` | 是 | Telegram 存储群组 ID |
-| `PASSWORD` | 否 | 访问密码（不设则默认 `sarah`） |
+| `PASSWORD` | 否 | 访问密码。**不设则站点完全公开**（谁都能访问） |
 | `SITE_TITLE` | 否 | 网站标题（不设则默认 `TGmusic`） |
 
 ### 6. 之后每次部署
