@@ -438,11 +438,11 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.20</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.21</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
-                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(0.199 0.199) scale(0.9834)"><path d="M19.73 10.96A7.80 7.80 0 0 1 19.73 13.04L17.88 14.27A6.30 6.30 0 0 1 17.76 14.55L18.20 16.73A7.80 7.80 0 0 1 16.73 18.20L14.55 17.76A6.30 6.30 0 0 1 14.27 17.88L13.04 19.73A7.80 7.80 0 0 1 10.96 19.73L9.73 17.88A6.30 6.30 0 0 1 9.45 17.76L7.27 18.20A7.80 7.80 0 0 1 5.80 16.73L6.24 14.55A6.30 6.30 0 0 1 6.12 14.27L4.27 13.04A7.80 7.80 0 0 1 4.27 10.96L6.12 9.73A6.30 6.30 0 0 1 6.24 9.45L5.80 7.27A7.80 7.80 0 0 1 7.27 5.80L9.45 6.24A6.30 6.30 0 0 1 9.73 6.12L10.96 4.27A7.80 7.80 0 0 1 13.04 4.27L14.27 6.12A6.30 6.30 0 0 1 14.55 6.24L16.73 5.80A7.80 7.80 0 0 1 18.20 7.27L17.76 9.45A6.30 6.30 0 0 1 17.88 9.73ZM9.25 12.00 A2.75 2.75 0 1 0 14.75 12.00 A2.75 2.75 0 1 0 9.25 12.00 Z" fill-rule="evenodd" opacity=".55"/><circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" stroke-width="1.7"/></g></svg>
+                    <svg class="w-[18px] h-[18px] flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M10.07 5.69L10.69 3.70L13.31 3.70L13.93 5.69L15.10 6.17L16.94 5.20L18.80 7.06L17.83 8.90L18.31 10.07L20.30 10.69L20.30 13.31L18.31 13.93L17.83 15.10L18.80 16.94L16.94 18.80L15.10 17.83L13.93 18.31L13.31 20.30L10.69 20.30L10.07 18.31L8.90 17.83L7.06 18.80L5.20 16.94L6.17 15.10L5.69 13.93L3.70 13.31L3.70 10.69L5.69 10.07L6.17 8.90L5.20 7.06L7.06 5.20L8.90 6.17ZM12 7.00A5.0 5.0 0 1 0 12 17.00A5.0 5.0 0 1 0 12 7.00Z"/></svg>
                 </div>
             </div>
         </header>
@@ -475,9 +475,9 @@
         <footer class="footer-bar">
             <div class="flex items-center gap-2">
                 <div id="mode-btn" onclick="toggleMode()" class="btn-round"><svg id="mode-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"></svg></div>
-                <div id="prev-btn" onclick="handlePrev()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(-3.298 -2.382) scale(1.1985)"><path d="M16.9 5.6h.7a1.25 1.25 0 0 1 1.25 1.25v10.3a1.25 1.25 0 0 1-1.25 1.25h-.7z"/><path d="M15.00 8.28A1.50 1.50 0 0 1 12.71 7.01L6.68 10.72A1.50 1.50 0 0 1 6.68 13.28L12.71 16.99A1.50 1.50 0 0 1 15.00 15.72Z"/></g></svg></div>
-                <div id="play-btn" onclick="handlePlayToggle()" class="btn-round btn-main"><svg id="p-icon" class="w-[30px] h-[30px]" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(-5.286 -5.300) scale(1.4492)"><path d="M7.30 8.12A1.60 1.60 0 0 0 9.68 6.72L16.68 10.60A1.60 1.60 0 0 0 16.68 13.40L9.68 17.28A1.60 1.60 0 0 0 7.30 15.88Z"/></g></svg></div>
-                <div id="next-btn" onclick="handleNext()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(-1.465 -2.382) scale(1.1985)"><g transform="translate(24 0) scale(-1 1)"><path d="M16.9 5.6h.7a1.25 1.25 0 0 1 1.25 1.25v10.3a1.25 1.25 0 0 1-1.25 1.25h-.7z"/><path d="M15.00 8.28A1.50 1.50 0 0 1 12.71 7.01L6.68 10.72A1.50 1.50 0 0 1 6.68 13.28L12.71 16.99A1.50 1.50 0 0 1 15.00 15.72Z"/></g></g></svg></div>
+                <div id="prev-btn" onclick="handlePrev()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="3.70" y="5.40" width="2.60" height="13.20" rx="1.30"/><path d="M18.20 6.10 7.60 12l10.60 5.9z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
+                <div id="play-btn" onclick="handlePlayToggle()" class="btn-round btn-main"><svg id="p-icon" class="w-[30px] h-[30px]" fill="currentColor" viewBox="0 0 24 24"><path d="M7.2 5.6 17.4 12 7.2 18.4z" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"/></svg></div>
+                <div id="next-btn" onclick="handleNext()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="17.70" y="5.40" width="2.60" height="13.20" rx="1.30"/><path d="M5.80 6.10 16.40 12 5.80 17.9z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
             </div>
             <div class="scrubber-area">
                 <span id="cur-time" class="font-bold opacity-30 text-xs">00:00</span>
@@ -488,7 +488,7 @@
                 <span id="total-time" class="font-bold opacity-30 text-xs">00:00</span>
             </div>
             <div class="volume-control">
-                <div id="vol-trigger" onclick="toggleMute()" class="opacity-40 cursor-pointer"><svg id="v-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(1.682 0.851) scale(0.9291)"><path d="M11.4 5.6a1 1 0 0 0-1.62-.79L5.9 8.1H4.15A1.3 1.3 0 0 0 2.85 9.4v5.2a1.3 1.3 0 0 0 1.3 1.3H5.9l3.88 3.29a1 1 0 0 0 1.62-.79z"/><path d="M14.4 9.5a3.6 3.6 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17.2 7a7.2 7.2 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".45"/></g></svg></div>
+                <div id="vol-trigger" onclick="toggleMute()" class="opacity-40 cursor-pointer"><svg id="v-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.15 6.4v11.2l-4.0-3.3H5.25A1.2 1.2 0 0 1 4.05 13.1v-2.2A1.2 1.2 0 0 1 5.25 9.7h2.9z"/><path d="M15.15 10.0a3.1 3.1 0 0 1 0 4.0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M17.95 7.9a6.6 6.6 0 0 1 0 8.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" opacity=".45"/></svg></div>
                 <div id="pc-vol-rail" class="volume-rail" onmousedown="handleMouseVolStart(event)"><div class="fill" id="vol-bar" style="width: 70%"><div class="dot !w-3 !h-3 !-right-1.5" id="vol-dot" style="box-shadow:none !important"></div></div></div>
             </div>
         </footer>
@@ -500,7 +500,7 @@
             <h1 class="text-xl font-black text-white" id="m-brand-title">TGmusic</h1>
             <div onclick="toggleAdmin(true)" class="btn-round !bg-transparent flex items-center justify-center p-0">
                 <!-- 移动端图标同步重构：Sliders 图标 -->
-                <svg class="w-[26px] h-[26px] flex-shrink-0" fill="white" viewBox="0 0 24 24"><g transform="translate(0.199 0.199) scale(0.9834)"><path d="M19.73 10.96A7.80 7.80 0 0 1 19.73 13.04L17.88 14.27A6.30 6.30 0 0 1 17.76 14.55L18.20 16.73A7.80 7.80 0 0 1 16.73 18.20L14.55 17.76A6.30 6.30 0 0 1 14.27 17.88L13.04 19.73A7.80 7.80 0 0 1 10.96 19.73L9.73 17.88A6.30 6.30 0 0 1 9.45 17.76L7.27 18.20A7.80 7.80 0 0 1 5.80 16.73L6.24 14.55A6.30 6.30 0 0 1 6.12 14.27L4.27 13.04A7.80 7.80 0 0 1 4.27 10.96L6.12 9.73A6.30 6.30 0 0 1 6.24 9.45L5.80 7.27A7.80 7.80 0 0 1 7.27 5.80L9.45 6.24A6.30 6.30 0 0 1 9.73 6.12L10.96 4.27A7.80 7.80 0 0 1 13.04 4.27L14.27 6.12A6.30 6.30 0 0 1 14.55 6.24L16.73 5.80A7.80 7.80 0 0 1 18.20 7.27L17.76 9.45A6.30 6.30 0 0 1 17.88 9.73ZM9.25 12.00 A2.75 2.75 0 1 0 14.75 12.00 A2.75 2.75 0 1 0 9.25 12.00 Z" fill-rule="evenodd" opacity=".55"/><circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" stroke-width="1.7"/></g></svg>
+                <svg class="w-[26px] h-[26px] flex-shrink-0" fill="white" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M10.07 5.69L10.69 3.70L13.31 3.70L13.93 5.69L15.10 6.17L16.94 5.20L18.80 7.06L17.83 8.90L18.31 10.07L20.30 10.69L20.30 13.31L18.31 13.93L17.83 15.10L18.80 16.94L16.94 18.80L15.10 17.83L13.93 18.31L13.31 20.30L10.69 20.30L10.07 18.31L8.90 17.83L7.06 18.80L5.20 16.94L6.17 15.10L5.69 13.93L3.70 13.31L3.70 10.69L5.69 10.07L6.17 8.90L5.20 7.06L7.06 5.20L8.90 6.17ZM12 7.00A5.0 5.0 0 1 0 12 17.00A5.0 5.0 0 1 0 12 7.00Z"/></svg>
             </div>
         </header>
         <main class="m-main">
@@ -521,9 +521,9 @@
                 </div>
                 <div class="m-btn-row">
                     <div id="m-mode-btn" onclick="toggleMode()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg id="m-mode-icon" class="w-[26px] h-[26px]" fill="currentColor" viewBox="0 0 24 24"></svg></div>
-                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-[26px] h-[26px]" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(-3.298 -2.382) scale(1.1985)"><path d="M16.9 5.6h.7a1.25 1.25 0 0 1 1.25 1.25v10.3a1.25 1.25 0 0 1-1.25 1.25h-.7z"/><path d="M15.00 8.28A1.50 1.50 0 0 1 12.71 7.01L6.68 10.72A1.50 1.50 0 0 1 6.68 13.28L12.71 16.99A1.50 1.50 0 0 1 15.00 15.72Z"/></g></svg></div>
-                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[var(--m-accent)]"><svg id="m-p-icon" class="w-[38px] h-[38px]" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(-4.394 -4.408) scale(1.3672)"><path d="M7.30 8.12A1.60 1.60 0 0 0 9.68 6.72L16.68 10.60A1.60 1.60 0 0 0 16.68 13.40L9.68 17.28A1.60 1.60 0 0 0 7.30 15.88Z"/></g></svg></div>
-                    <div onclick="handleNext()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-[26px] h-[26px]" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(-1.465 -2.382) scale(1.1985)"><g transform="translate(24 0) scale(-1 1)"><path d="M16.9 5.6h.7a1.25 1.25 0 0 1 1.25 1.25v10.3a1.25 1.25 0 0 1-1.25 1.25h-.7z"/><path d="M15.00 8.28A1.50 1.50 0 0 1 12.71 7.01L6.68 10.72A1.50 1.50 0 0 1 6.68 13.28L12.71 16.99A1.50 1.50 0 0 1 15.00 15.72Z"/></g></g></svg></div>
+                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-[26px] h-[26px]" fill="currentColor" viewBox="0 0 24 24"><rect x="3.70" y="5.40" width="2.60" height="13.20" rx="1.30"/><path d="M18.20 6.10 7.60 12l10.60 5.9z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
+                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[var(--m-accent)]"><svg id="m-p-icon" class="w-[38px] h-[38px]" fill="currentColor" viewBox="0 0 24 24"><path d="M7.2 5.6 17.4 12 7.2 18.4z" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"/></svg></div>
+                    <div onclick="handleNext()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-[26px] h-[26px]" fill="currentColor" viewBox="0 0 24 24"><rect x="17.70" y="5.40" width="2.60" height="13.20" rx="1.30"/><path d="M5.80 6.10 16.40 12 5.80 17.9z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
                     <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4.2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></div>
                 </div>
             </div>
@@ -545,7 +545,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.20</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.21</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="speed-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">倍速</span><div class="flex gap-1.5" id="speed-buttons"></div><span id="speed-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -1148,7 +1148,7 @@
             });
 
             ap.on('play', () => { 
-                const s = '<g transform="translate(-0.740 -0.740) scale(1.0616)"><path d="M8.3 5.2h1.3a1.6 1.6 0 0 1 1.6 1.6v10.4a1.6 1.6 0 0 1-1.6 1.6H8.3a1.6 1.6 0 0 1-1.6-1.6V6.8a1.6 1.6 0 0 1 1.6-1.6z"/><path d="M14.4 5.2h1.3a1.6 1.6 0 0 1 1.6 1.6v10.4a1.6 1.6 0 0 1-1.6 1.6h-1.3a1.6 1.6 0 0 1-1.6-1.6V6.8a1.6 1.6 0 0 1 1.6-1.6z"/></g>'; 
+                const s = '<rect x="7.20" y="4.90" width="3.70" height="14.20" rx="1.70"/><rect x="13.10" y="4.90" width="3.70" height="14.20" rx="1.70"/>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 // 唱片转圈不在这里启动：play 事件只代表「请求播放」，
                 // 此时音频可能还在加载、读秒没动。改由 syncDiscSpin 依真实读秒驱动。
@@ -1175,7 +1175,7 @@
             });
 
             ap.on('pause', () => { 
-                const s = '<g transform="translate(-4.394 -4.408) scale(1.3672)"><path d="M7.30 8.12A1.60 1.60 0 0 0 9.68 6.72L16.68 10.60A1.60 1.60 0 0 0 16.68 13.40L9.68 17.28A1.60 1.60 0 0 0 7.30 15.88Z"/></g>'; 
+                const s = '<path d="M7.2 5.6 17.4 12 7.2 18.4z" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"/>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 document.getElementById('m-disc-wrapper').classList.remove('playing');
                 updateMediaSession();
@@ -1568,11 +1568,10 @@
             // 也和按钮「圆润 + 阴影」的语言对得上。
             // 坐标全部落在 3~21，描边/圆角不会被 24 视口裁掉。
             const icons = {
-                // 手绘实心图标：圆角 + 双色调。已按实测 bbox 归一化到
-                // 统一占框 68%、中心 (12,12)，所以三个模式图标大小一致
-                list: '<g transform="translate(0.135 -0.321) scale(1.0100)"><circle cx="5.85" cy="6.95" r="1.3" opacity=".5"/><rect x="8.75" y="5.80" width="10.2" height="2.3" rx="1.15"/><circle cx="5.85" cy="12.20" r="1.3" opacity=".5"/><rect x="8.75" y="11.05" width="10.2" height="2.3" rx="1.15"/><circle cx="5.85" cy="17.45" r="1.3" opacity=".5"/><rect x="8.75" y="16.30" width="10.2" height="2.3" rx="1.15"/></g>',
-                single: '<g transform="translate(0.910 0.910) scale(0.9241)"><path d="M18.5 8.2a7 7 0 0 0-12-1.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5.5 15.8a7 7 0 0 0 12 1.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19.1 3.7v4.2h-4.2z" opacity=".5"/><path d="M4.9 20.3v-4.2h4.2z" opacity=".5"/><rect x="11.2" y="9.3" width="1.65" height="5.9" rx=".82"/><rect x="9.6" y="9.3" width="3.2" height="1.45" rx=".72"/></g>',
-                random: '<g transform="translate(1.108 0.536) scale(0.9205)"><path d="M3.5 7.6h2.2c1.4 0 2.8.8 3.5 2l3.6 6.3c.7 1.2 2 2 3.5 2h1.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.5 16.4h2.2c1.4 0 2.8-.8 3.5-2l3.6-6.3c.7-1.2 2-2 3.5-2h1.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".45"/><path d="M15.8 5.3a1.05 1.05 0 0 1 1.68-.19l2.4 2.5a1.05 1.05 0 0 1 0 1.44l-2.4 2.5a1.05 1.05 0 0 1-1.68-1.44l1.5-1.56-1.5-1.56a1.05 1.05 0 0 1 0-1.69z"/><path d="M15.8 13.5a1.05 1.05 0 0 1 1.68-.19l2.4 2.5a1.05 1.05 0 0 1 0 1.44l-2.4 2.5a1.05 1.05 0 0 1-1.68-1.44l1.5-1.56-1.5-1.56a1.05 1.05 0 0 1 0-1.69z"/></g>'
+                // 手绘实心图标，24 网格，不缩放不平移
+                list: '<circle cx="5.8" cy="6.9" r="1.35" opacity=".45"/><path d="M9.4 6.9h9.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="5.8" cy="12.0" r="1.35" opacity=".45"/><path d="M9.4 12.0h9.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="5.8" cy="17.1" r="1.35" opacity=".45"/><path d="M9.4 17.1h9.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+                single: '<circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10.3 10.9 11.9 9.7v5.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+                random: '<path d="M4.6 7.4h2.3c1.5 0 2.9.8 3.7 2.1l3.1 5c.8 1.3 2.2 2.1 3.7 2.1h1.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4.6 16.6h2.3c1.5 0 2.9-.8 3.7-2.1l3.1-5c.8-1.3 2.2-2.1 3.7-2.1h1.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".45"/><path d="M16.9 4.9 19.9 7.4 16.9 9.9z"/><path d="M16.9 14.1 19.9 16.6 16.9 19.1z" opacity=".45"/>'
             };
             document.getElementById('mode-icon').innerHTML = icons[m]; document.getElementById('m-mode-icon').innerHTML = icons[m];
         }
@@ -1627,23 +1626,12 @@
                 ap.volume(0, true); updateVolUI(0); isMuted = true;
             }
         }
-        function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; // 实心圆角喇叭 + 声波。喇叭主体带圆角，和按钮的圆润语言统一；
-            // 声波用 stroke 但加粗并圆头，弱的那道降透明度做层次。
-            const spk = '<g transform="translate(1 0)"><path d="M11.6 4.9a1.1 1.1 0 0 0-1.78-.87L5.5 7.5H3.4A1.4 1.4 0 0 0 2 8.9v6.2a1.4 1.4 0 0 0 1.4 1.4h2.1l4.32 3.47A1.1 1.1 0 0 0 11.6 19.1z"/></g>';
-            if(vIcon) vIcon.innerHTML = p === 0
-                ? spk + '<path d="m15.4 9.6 5.2 4.8m0-4.8-5.2 4.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/>'
-                : (p < 0.5
-                    ? spk + '<path d="M14.9 9.2a4.2 4.2 0 0 1 0 5.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/>'
-                    : spk + '<path d="M14.9 9.2a4.2 4.2 0 0 1 0 5.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/>'
-                        + '<path d="M17.9 6.6a8 8 0 0 1 0 10.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none" opacity=".45"/>'); }
-
-        function adjustVolume(delta) {
-            if (!ap) return;
-            const next = Math.max(0, Math.min(1, (ap.audio.volume || 0) + delta));
-            ap.volume(next, true);
-            lastVolume = next;
-            isMuted = next === 0;
-            updateVolUI(next);
+        function updateVolUI(p) {
+            const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon');
+            if (vBar) vBar.style.width = (p * 100) + '%';
+            // 三档：静音叉号 / 单道声波 / 双道声波（外道降透明度做层次）
+            const ICON = { off: '<path d="M12.15 6.4v11.2l-4.0-3.3H5.25A1.2 1.2 0 0 1 4.05 13.1v-2.2A1.2 1.2 0 0 1 5.25 9.7h2.9z"/><path d="M15.45 10.4 19.65 14.6M19.65 10.4 15.45 14.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', lo: '<path d="M12.15 6.4v11.2l-4.0-3.3H5.25A1.2 1.2 0 0 1 4.05 13.1v-2.2A1.2 1.2 0 0 1 5.25 9.7h2.9z"/><path d="M15.15 10.0a3.1 3.1 0 0 1 0 4.0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>', hi: '<path d="M12.15 6.4v11.2l-4.0-3.3H5.25A1.2 1.2 0 0 1 4.05 13.1v-2.2A1.2 1.2 0 0 1 5.25 9.7h2.9z"/><path d="M15.15 10.0a3.1 3.1 0 0 1 0 4.0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M17.95 7.9a6.6 6.6 0 0 1 0 8.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" opacity=".45"/>' };
+            if (vIcon) vIcon.innerHTML = p === 0 ? ICON.off : (p < 0.5 ? ICON.lo : ICON.hi);
         }
 
         function handleSearch() { renderCount = pageSize; renderAllLists(); }
