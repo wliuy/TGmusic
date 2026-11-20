@@ -438,7 +438,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.22</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.23</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -488,7 +488,7 @@
                 <span id="total-time" class="font-bold opacity-30 text-xs">00:00</span>
             </div>
             <div class="volume-control">
-                <div id="vol-trigger" onclick="toggleMute()" class="opacity-40 cursor-pointer"><svg id="v-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.15 6.4v11.2l-4.0-3.3H5.25A1.2 1.2 0 0 1 4.05 13.1v-2.2A1.2 1.2 0 0 1 5.25 9.7h2.9z"/><path d="M15.15 10.0a3.1 3.1 0 0 1 0 4.0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M17.95 7.9a6.6 6.6 0 0 1 0 8.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" opacity=".45"/></svg></div>
+                <div id="vol-trigger" onclick="toggleMute()" class="opacity-40 cursor-pointer"><svg id="v-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.15 6.4v11.2l-4.0-3.3H5.25A1.2 1.2 0 0 1 4.05 13.1v-2.2A1.2 1.2 0 0 1 5.25 9.7h2.9z"/><path d="M15.15 10.0a3.1 3.1 0 0 1 0 4.0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M17.95 7.9a6.6 6.6 0 0 1 0 8.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" opacity=".45"/></svg></div>
                 <div id="pc-vol-rail" class="volume-rail" onmousedown="handleMouseVolStart(event)"><div class="fill" id="vol-bar" style="width: 70%"><div class="dot !w-3 !h-3 !-right-1.5" id="vol-dot" style="box-shadow:none !important"></div></div></div>
             </div>
         </footer>
@@ -545,7 +545,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.22</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.23</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="speed-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">倍速</span><div class="flex gap-1.5" id="speed-buttons"></div><span id="speed-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -890,22 +890,45 @@
 
         function buildIndexMap() { dbIndexMap.clear(); for(let j = 0; j < db.length; j++) dbIndexMap.set(db[j].file_id, j); }
         
-        let warmingFid = null;
         function fidFromUrl(u) {
             try { return new URLSearchParams((u || '').split('?')[1] || '').get('file_id'); } catch (e) { return null; }
         }
 
-        // 听满 2 秒就开始缓冲下一首。真正的瓶颈是连接（DNS/TLS → Worker →
-        // Telegram getFile → 首包），不是下载速度；歌又都小，所以提前两秒动手，
-        // 切歌时整首已经在内存里，直接出声、零等待。
-        const NEXT_PRELOAD_AFTER = 2;
+        // ── 下一首预载 ──────────────────────────────────────
+        // 当前歌的缓冲不用操心：能出声就说明浏览器已经囤了 1~2 分钟，
+        // 播放过程中不会卡。唯一会卡的是切歌那一下——那一下要重新建连接
+        // （DNS/TLS → Worker → Telegram getFile → 首包），这才是真正的瓶颈。
+        // 所以只有两条规则：
+        //   1) 当前歌没在播 → 一个字节都不碰下一首。
+        //   2) 当前歌播起来了 → 把下一首整首下完存内存，切歌零网络、零等待。
 
-        let preloadStartedFid = null;
+        const NEXT_RETRY_MS = 15000;     // 下载失败后隔一会儿再试，别每次心跳都重连
+        const PROGRESS_WINDOW_MS = 1500; // 读秒在这么久内动过，才算「真的在播」
 
-        function preloadGateOpen() {
+        let nextStream = null;   // { fid, url, chunks, received, reader, done, type }
+        let openingNext = false;
+        let nextRetryAt = 0;
+
+        // 判断「真的在播」不能只看 paused：网卡或等数据时 paused 仍是 false，
+        // 但秒数不涨。所以记录上一次读秒，看它最近有没有真的往前走。
+        let lastCt = -1, lastCtAt = 0;
+
+        function noteProgress() {
             const a = ap.audio;
-            if (a.paused) return false;
-            return a.currentTime >= NEXT_PRELOAD_AFTER;
+            if (!a) return;
+            if (a.currentTime !== lastCt) { lastCt = a.currentTime; lastCtAt = performance.now(); }
+        }
+
+        function isReallyPlaying() {
+            const a = ap.audio;
+            if (!a || a.paused || a.ended) return false;
+            if (a.currentTime <= 0) return false;
+            return (performance.now() - lastCtAt) < PROGRESS_WINDOW_MS;
+        }
+
+        // 只要当前歌在真正播放（有读秒），就和下一首同时缓冲。
+        function canTouchNext() {
+            return isReallyPlaying();
         }
 
         function nextTrackInfo() {
@@ -919,32 +942,75 @@
             return fid ? { fid, url: audio.url } : null;
         }
 
-        // 按当前播放模式（列表/随机/单曲）取"下一首"，整曲下载成 Blob。
-        // 切歌瞬间把 Blob URL 直接喂给唯一 audio 元素，无需联网即可无缝连播。
-        // 全程只有一个 audio 元素，不会触发此前"隔几秒电流声"的多元素后台缓冲干扰。
-        function preloadNextTrack() {
-            if (!ap || !ap.list || ap.list.audios.length <= 1) return;
-            if (ap.options.loop === 'one') return;
+        function dropNextStream() {
+            const st = nextStream;
+            nextStream = null;
+            if (st && st.reader) { try { st.reader.cancel(); } catch (e) {} }
+        }
+
+        // 打开下一首的下载流。先同步占位再 await，避免并发触发开出两条连接。
+        async function openNextStream() {
             const next = nextTrackInfo();
-            if (!next) return;
-            const nextFid = next.fid;
-            if (nextBlob && nextBlob.fid === nextFid) return;
-            if (warmingFid === nextFid) return;
-            if (warmingAbort) warmingAbort.abort();
-            warmingFid = nextFid;
-            const controller = warmingAbort = new AbortController();
-            fetch(next.url, { credentials: 'same-origin', signal: controller.signal })
-                .then(async (res) => {
-                    if (!res || !res.ok || !res.body) return;
-                    const total = Number(res.headers.get('Content-Length') || 0);
-                    if (total > 40 * 1024 * 1024) { res.body.cancel(); return; }
-                    const blob = await res.blob();
-                    if (warmingFid !== nextFid) return;
-                    if (nextBlob) URL.revokeObjectURL(nextBlob.url);
-                    nextBlob = { fid: nextFid, url: URL.createObjectURL(blob) };
-                })
-                .catch(() => {})
-                .finally(() => { if (warmingFid === nextFid) { warmingFid = null; warmingAbort = null; } });
+            if (!next) return null;
+            if (nextBlob && nextBlob.fid === next.fid) return null;      // 整首已在手
+            if (nextStream && nextStream.fid === next.fid) return nextStream;
+            if (openingNext) return null;
+            dropNextStream();
+            const st = { fid: next.fid, url: next.url, chunks: [], received: 0,
+                         reader: null, done: false, type: 'audio/mpeg' };
+            nextStream = st;
+            openingNext = true;
+            try {
+                const res = await fetch(next.url, { credentials: 'same-origin' });
+                if (!res || !res.ok || !res.body) { dropNextStream(); nextRetryAt = Date.now() + NEXT_RETRY_MS; return null; }
+                const total = Number(res.headers.get('Content-Length') || 0);
+                if (total > 40 * 1024 * 1024) { dropNextStream(); return null; }  // 超大文件不预载
+                st.type = res.headers.get('Content-Type') || st.type;
+                st.reader = res.body.getReader();
+                nextRetryAt = 0;
+            } catch (e) { dropNextStream(); nextRetryAt = Date.now() + NEXT_RETRY_MS; return null; }
+            finally { openingNext = false; }
+            return nextStream === st ? st : null;
+        }
+
+        // 把流读到 targetBytes 就停手（不读完也停），停读即对网络施压、带宽自动让出。
+        async function pumpNextStream(targetBytes) {
+            const st = nextStream;
+            if (!st || st.done || !st.reader) return;
+            if (st.reading) return;
+            st.reading = true;
+            try {
+                while (st.received < targetBytes) {
+                    const { done, value } = await st.reader.read();
+                    if (nextStream !== st) return;          // 期间换曲了，丢弃
+                    if (done) { st.done = true; break; }
+                    st.chunks.push(value);
+                    st.received += value.byteLength;
+                }
+            } catch (e) { dropNextStream(); nextRetryAt = Date.now() + NEXT_RETRY_MS; return; }
+            finally { if (nextStream === st) st.reading = false; }
+            if (nextStream === st && st.done) finishNextStream();
+        }
+
+        // 读完后拼成 Blob，切歌时直接喂给唯一的 audio 元素，零网络、零等待。
+        function finishNextStream() {
+            const st = nextStream;
+            if (!st) return;
+            nextStream = null;
+            if (!st.chunks.length) return;
+            if (nextBlob) URL.revokeObjectURL(nextBlob.url);
+            const blob = new Blob(st.chunks, { type: st.type });
+            nextBlob = { fid: st.fid, url: URL.createObjectURL(blob) };
+        }
+
+        // 每次 timeupdate 调一次：按当前带宽状况推进到该走的阶段。
+        async function advanceNextPreload() {
+            if (!canTouchNext()) return;                 // 当前没在播，不碰下一首
+            if (nextBlob) return;                        // 整首已到手
+            if (!nextStream && Date.now() < nextRetryAt) return;  // 刚失败过，等会儿再试
+            const st = nextStream && !nextStream.done ? nextStream : await openNextStream();
+            if (!st || st.done) return;
+            await pumpNextStream(Infinity);              // 一路读到整首完
         }
 
         function listIdsFor(listId) {
@@ -1141,9 +1207,8 @@
                     updateHighlights(fid, false);
                 }
                 updateMediaSession();
-                // 预载不在这里做：要等这首真的听满 2 秒再动下一首。
-                // 这里只重置标记，让新的一首能重新触发预载。
-                preloadStartedFid = null;
+                // 换曲了：把上一首遗留的下载流丢掉，从头按新曲目重新走三阶段。
+                dropNextStream();
             });
 
             ap.on('pause', () => { 
@@ -1153,7 +1218,8 @@
                 updateMediaSession();
             });
 
-            ap.on('timeupdate', () => { 
+            ap.on('timeupdate', () => {
+                noteProgress();   // 先记读秒：isReallyPlaying() 靠它判断是否真的在播
                 if (isScrubbing) return;
                 const cur = ap.audio.currentTime, dur = ap.audio.duration || 0, p = (cur / (dur || 1) * 100) + '%';
                 syncDiscSpin(cur);
@@ -1170,16 +1236,9 @@
 
                 syncLyrics(cur);
 
-                // 听满 2 秒就开始缓冲下一首：两首并行下载，下一首下完就常驻内存，
-                // 切歌瞬间直接出声，不用再等那一次昂贵的连接握手。
-                // 每首只触发一次，之后由 preloadNextTrack 自己的去重逻辑兜住。
-                if (preloadStartedFid !== globalPlayingId && preloadGateOpen()) {
-                    const nxt = nextTrackInfo();
-                    if (nxt && !(nextBlob && nextBlob.fid === nxt.fid)) {
-                        preloadStartedFid = globalPlayingId;
-                        preloadNextTrack();
-                    }
-                }
+                // 按当前带宽状况推进下一首预载：当前没播就不动；在播了就先读一点点；
+                // 当前缓冲够安全了才继续读完。内部自带去重与并发保护。
+                advanceNextPreload();
 
                 // 锁屏进度条每秒同步一次即可，调太频繁会被浏览器限流
                 const now = Date.now();
@@ -1190,7 +1249,7 @@
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden && ap) {
                     // ap.paused 是 APlayer 自己维护的标记，息屏后可能和真实媒体状态不同步
-                    if (!ap.audio.paused && ap.list.audios.length > 1) preloadNextTrack();
+                    if (ap.list.audios.length > 1) advanceNextPreload();
                 }
             });
             // 安全网：APlayer 的 ended 自动切歌在部分移动浏览器息屏后会失效。

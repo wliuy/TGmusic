@@ -97,20 +97,32 @@ pages.dev 域名如果还活着，属于历史残留。删 Pages 项目前若部
 
 ## 预载策略
 
-瓶颈是**连接**（DNS/TLS → Worker → Telegram `getFile` → 首包），不是下载速度。
-歌都小，有 2 秒缓冲就不卡，所以提前把连接成本付掉。
+**当前歌的缓冲不用管**：能出声就说明浏览器已经囤了 1~2 分钟，播放中不会卡。
+唯一会卡的是**切歌那一下**——那一下要重新建连接
+（DNS/TLS → Worker → Telegram `getFile` → 首包），这才是真正的瓶颈。
 
-- 当前曲目**听满 2 秒**才触发下一首预载（`NEXT_PRELOAD_AFTER`）。
-  别在 `play` 事件里立刻下：那时这首刚起播，两首会互抢。
-- 预载方式：整曲下载成 Blob（`preloadNextTrack`），不是 Range 预热。
-  ⚠️ 千万别用「取一小段然后 `body.cancel()`」那种写法——半路掐断的响应
-  浏览器不会缓存，等于白连一次，切歌时照样重新建连接。这是旧 `warmHead` 失效的原因。
-- 切歌时必须复用 Blob：`ap.setAudio` 包装 + `handleTrackSwitch` 两处都要检查
-  `nextBlob.fid`。手动点「下一首」和自动连播走的是不同路径，漏一处就会出现
+所以规则只有两条：
+
+1. **当前歌没在真播 → 一个字节都不碰下一首。**
+2. **当前歌在真播 → 把下一首整首下完存内存**，切歌时直接喂 Blob，零网络、零等待。
+
+### 「真的在播」怎么判断
+
+不能只看 `paused`。网卡、等数据时 `paused` 仍是 `false`，但读秒不涨，
+这时候抢带宽只会让两边都更慢。所以用 `isReallyPlaying()`：
+在 `timeupdate` 里 `noteProgress()` 记下读秒，只有读秒在
+`PROGRESS_WINDOW_MS`（1.5 秒）内真的往前走过，才算在播。
+
+### 别踩的坑
+
+- ⚠️ 不要用「取一小段然后 `body.cancel()`」做预热。半路掐断的响应浏览器
+  不会缓存，等于白连一次，切歌时照样重新建连接。这是旧 `warmHead` 失效的原因。
+- 下载失败要退避（`NEXT_RETRY_MS`），否则每次 `timeupdate` 都重连，断网时疯狂请求。
+- 切歌必须复用 Blob：`ap.setAudio` 包装 + `handleTrackSwitch` 两处都要查
+  `nextBlob.fid`。手动点「下一首」和自动连播是不同路径，漏一处就会出现
   「明明下好了却重新联网」。
 - `handleNext()` 用 `ap.nextIndex()`，不要自己算：随机模式的顺序由
-  APlayer 的 `randomOrder` 决定，自己算会和预载的下一首对不上。
-- `preloadStartedFid` 在 `play` 事件里重置，保证每首新歌都能重新触发预载。
+  APlayer 的 `randomOrder` 决定。
 - 单曲循环（`loop === 'one'`）不预载。
 
 ## 图标规范
