@@ -23,7 +23,7 @@ npx wrangler login
 ```
 
 ### 2. 创建 D1 数据库
-进入 Cloudflare 控制台 -> **Workers & Pages** -> **D1 SQL Database**，新建一个数据库（名称随意，例如 `sarah-db`），代码运行后会自动建表，无需手动操作。
+进入 Cloudflare 控制台 -> **Workers & Pages** -> **D1 SQL Database**，新建一个数据库（名称随意，例如 `tgmusic`），代码运行后会自动建表，无需手动操作。
 
 建好后执行 `npx wrangler d1 list` 拿到数据库 ID。
 

@@ -22,5 +22,5 @@ run_worker_first = ["/api/*"]
 # 保持占位符直接部署会报错，这是预期行为。
 [[d1_databases]]
 binding = "DB"
-database_name = "sarah-db"
+database_name = "tgmusic"
 database_id = "48ca5684-559f-45e3-ba7f-2f95e60cc7c5"
