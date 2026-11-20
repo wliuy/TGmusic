@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#4d7c5f">
+    <meta name="theme-color" content="#10151c">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TGmusic" id="app-title-meta">
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" sizes="192x192" href="/assets/icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon-180.png">
     <title>TGmusic</title>
     <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">
@@ -25,7 +25,7 @@
             --dynamic-accent: #d97706; --solara-text: #1e293b; --glass-blur: blur(40px);
             --main-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
             --inner-glass: rgba(255, 255, 255, 0.15); --glass-border: rgba(255, 255, 255, 0.25);
-            --m-green: #4d7c5f; --btn-icon-color: #ffffff;
+            --btn-icon-color: #ffffff;
             /* 移动端主题：由 updateBackground() 按当前配色写入 */
             --m-deep: #0f2e22; --m-deep-2: #06120d; --m-accent: #34d399;
             --m-glow: rgba(52, 211, 153, 0.35);
@@ -125,12 +125,14 @@
         .mobile-player-container {
             display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column;
             padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 10px;
-            /* 主题底色：深色渐变 + 强调色柔光，比单一灰绿有层次 */
+            /* 主题底色。顶部 18% 保持纯 --m-deep，与 theme-color（状态栏）完全同色，
+               否则状态栏和内容之间会有一条色带。光晕下移到唱片区域才开始渐亮。 */
             background:
-                radial-gradient(120% 70% at 50% 0%, var(--m-glow) 0%, transparent 58%),
-                radial-gradient(90% 55% at 50% 100%, var(--m-glow) 0%, transparent 62%),
+                linear-gradient(180deg, var(--m-deep) 0%, var(--m-deep) 18%, transparent 42%),
+                radial-gradient(115% 62% at 50% 46%, var(--m-glow) 0%, transparent 60%),
+                radial-gradient(85% 45% at 50% 100%, var(--m-glow) 0%, transparent 65%),
                 linear-gradient(165deg, var(--m-deep) 0%, var(--m-deep-2) 100%);
-            background-color: var(--m-deep-2);
+            background-color: var(--m-deep);
             transition: background 0.9s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .m-header { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: transparent; border: 0; }
@@ -170,6 +172,14 @@
         .m-btn-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding-top: 15px; }
         .m-btn-row .btn-round { width: 50px; height: 50px; background: white !important; color: var(--m-accent) !important; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.28); border: 0 !important; display: grid; place-items: center; flex-shrink: 0; transition: transform 0.15s ease, box-shadow 0.25s ease; }
         .m-btn-row .btn-round:active { transform: scale(0.92); }
+        /* 手写主题色类：tailwind.css 是预编译的，`!text-[var(--m-accent)]` 这类
+           任意值类名不会被编译进去，必须在这里自己定义。 */
+        .m-icon-accent { color: var(--m-accent) !important; }
+        .m-prog-dot { background: #fff !important; }
+        .bg-[var(--m-accent)] hover:brightness-110 { background: var(--m-accent); }
+        .bg-[var(--m-accent)] hover:brightness-110:hover { filter: brightness(1.1); }
+        /* tailwind 无法对 CSS 变量做 /50 透明度运算，这条手写 */
+        .dialog-focus-accent:focus { border-color: var(--m-glow); }
         .m-btn-row .btn-main { box-shadow: 0 10px 34px var(--m-glow), 0 6px 18px rgba(0,0,0,0.3); }
         .m-btn-row .btn-main { width: 68px !important; height: 68px !important; }
 
@@ -409,7 +419,7 @@
             <h4 id="dialog-title" class="text-white font-black text-xl mb-2 text-center tracking-tight">提示</h4>
             <p id="dialog-msg" class="text-white/60 text-xs mb-8 text-center leading-relaxed px-4"></p>
             <div id="dialog-input-wrap" class="hidden mb-8">
-                <input id="dialog-input" class="w-full bg-white/5 p-4 rounded-2xl text-white text-sm outline-none border border-white/10 focus:border-[var(--m-accent)]/50 focus:bg-white/10 transition-all shadow-inner" placeholder="请输入...">
+                <input id="dialog-input" class="w-full bg-white/5 p-4 rounded-2xl text-white text-sm outline-none border border-white/10 dialog-focus-accent focus:bg-white/10 transition-all shadow-inner" placeholder="请输入...">
             </div>
             <div class="flex gap-3">
                 <button id="dialog-cancel" onclick="closeSarahDialog()" class="flex-1 py-4 bg-white/5 text-white/50 hover:text-white hover:bg-white/10 rounded-2xl text-[11px] font-black transition-all active:scale-95">取消</button>
@@ -429,7 +439,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.14</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.15</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -540,7 +550,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.14</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.15</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="speed-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">倍速</span><div class="flex gap-1.5" id="speed-buttons"></div><span id="speed-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -1271,7 +1281,7 @@
             
             const stage = document.getElementById('bg-stage'), overlay = document.getElementById('bg-overlay');
             const newGrad = isMob
-                ? `radial-gradient(120% 70% at 50% 0%, ${hexToRgba(theme.accent, 0.3)} 0%, transparent 58%), radial-gradient(90% 55% at 50% 100%, ${hexToRgba(theme.accent, 0.22)} 0%, transparent 62%), linear-gradient(165deg, ${theme.deep} 0%, #000000 100%)`
+                ? `linear-gradient(180deg, ${theme.deep} 0%, ${theme.deep} 18%, transparent 42%), radial-gradient(115% 62% at 50% 46%, ${hexToRgba(theme.accent, 0.3)} 0%, transparent 60%), radial-gradient(85% 45% at 50% 100%, ${hexToRgba(theme.accent, 0.22)} 0%, transparent 65%), linear-gradient(165deg, ${theme.deep} 0%, #000000 100%)`
                 : `linear-gradient(135deg, ${theme.bg} 0%, ${theme.deep} 100%)`;
             
             if (isForceRandom) {

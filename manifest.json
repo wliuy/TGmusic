@@ -4,8 +4,8 @@
   "description": "Cloud Music Hub",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#4d7c5f",
-  "theme_color": "#4d7c5f",
+  "background_color": "#10151c",
+  "theme_color": "#10151c",
   "orientation": "portrait",
   "icons": [
     {
@@ -21,7 +21,7 @@
       "purpose": "any"
     },
     {
-      "src": "/assets/icon-512.png",
+      "src": "/assets/icon-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

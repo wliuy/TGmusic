@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tgmusic-v5';
+const CACHE_NAME = 'tgmusic-v6';
 const PRECACHE = [
   '/',
   '/manifest.json',
@@ -7,7 +7,10 @@ const PRECACHE = [
   '/assets/js/APlayer.min.js',
   '/assets/js/jsmediatags.min.js',
   '/assets/icon.svg',
-  '/assets/icon-192.png'
+  '/assets/icon-180.png',
+  '/assets/icon-192.png',
+  '/assets/icon-512.png',
+  '/assets/icon-512-maskable.png'
 ];
 
 self.addEventListener('install', (e) => {
