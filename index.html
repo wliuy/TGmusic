@@ -438,12 +438,23 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.17</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.18</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
-                    <svg class="w-6 h-6 flex-shrink-0" style="shape-rendering: crispEdges;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>
+                    <svg class="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                        <!-- 双色调滑块：轨道半透明铺底，把手实心。
+                             整体缩到 .86：原尺寸 21.6 单位，比其他图标大一圈还贴边 -->
+                        <g transform="translate(12 12) scale(.86) translate(-12 -12)">
+                            <g opacity=".45">
+                            <rect x="3.05" y="2.8" width="2.1" height="18.4" rx="1.05"/>
+                            <rect x="10.95" y="2.8" width="2.1" height="18.4" rx="1.05"/>
+                            <rect x="18.85" y="2.8" width="2.1" height="18.4" rx="1.05"/>
+                            </g>
+                            <rect x="1.2" y="13.1" width="5.8" height="3.5" rx="1.75"/>
+                            <rect x="9.1" y="7.4" width="5.8" height="3.5" rx="1.75"/>
+                            <rect x="17" y="15.4" width="5.8" height="3.5" rx="1.75"/>
+                        </g>
                     </svg>
                 </div>
             </div>
@@ -477,9 +488,9 @@
         <footer class="footer-bar">
             <div class="flex items-center gap-2">
                 <div id="mode-btn" onclick="toggleMode()" class="btn-round"><svg id="mode-icon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
-                <div id="prev-btn" onclick="handlePrev()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 5v14M15.5 6.2L6.8 12l8.7 5.8V6.2z"/></svg></div>
-                <div id="play-btn" onclick="handlePlayToggle()" class="btn-round btn-main"><svg id="p-icon" class="w-8 h-8" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M7.5 4.8v14.4l12-7.2z"></path></svg></div>
-                <div id="next-btn" onclick="handleNext()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5v14M8.5 6.2L17.2 12l-8.7 5.8V6.2z"/></svg></div>
+                <div id="prev-btn" onclick="handlePrev()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(-.45 0)"><rect x="17.4" y="4.6" width="2.9" height="14.8" rx="1.45"/><path d="M15.1 5.9a1.3 1.3 0 0 0-2.02-1.1L5.2 10.9a1.3 1.3 0 0 0 0 2.2l7.88 6.1A1.3 1.3 0 0 0 15.1 18.1z"/></g></svg></div>
+                <div id="play-btn" onclick="handlePlayToggle()" class="btn-round btn-main"><svg id="p-icon" class="w-8 h-8" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><g transform="translate(-1.8 .95)"><path d="M8.4 4.9a1.35 1.35 0 0 1 2.06-1.15l10.1 6.15a1.35 1.35 0 0 1 0 2.3L10.46 18.35A1.35 1.35 0 0 1 8.4 17.2z"/></g></svg></div>
+                <div id="next-btn" onclick="handleNext()" class="btn-round"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(.45 0)"><rect x="3.7" y="4.6" width="2.9" height="14.8" rx="1.45"/><path d="M8.9 5.9a1.3 1.3 0 0 1 2.02-1.1l7.88 6.1a1.3 1.3 0 0 1 0 2.2l-7.88 6.1A1.3 1.3 0 0 1 8.9 18.1z"/></g></svg></div>
             </div>
             <div class="scrubber-area">
                 <span id="cur-time" class="font-bold opacity-30 text-xs">00:00</span>
@@ -502,8 +513,19 @@
             <h1 class="text-xl font-black text-white" id="m-brand-title">TGmusic</h1>
             <div onclick="toggleAdmin(true)" class="btn-round !bg-transparent flex items-center justify-center p-0">
                 <!-- 移动端图标同步重构：Sliders 图标 -->
-                <svg class="w-6 h-6 flex-shrink-0" style="shape-rendering: crispEdges;" fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>
+                <svg class="w-6 h-6 flex-shrink-0" fill="white" viewBox="0 0 24 24">
+                    <!-- 双色调滑块：轨道半透明铺底，把手实心。
+                         整体缩到 .86：原尺寸 21.6 单位，比其他图标大一圈还贴边 -->
+                    <g transform="translate(12 12) scale(.86) translate(-12 -12)">
+                        <g opacity=".45">
+                        <rect x="3.05" y="2.8" width="2.1" height="18.4" rx="1.05"/>
+                        <rect x="10.95" y="2.8" width="2.1" height="18.4" rx="1.05"/>
+                        <rect x="18.85" y="2.8" width="2.1" height="18.4" rx="1.05"/>
+                        </g>
+                        <rect x="1.2" y="13.1" width="5.8" height="3.5" rx="1.75"/>
+                        <rect x="9.1" y="7.4" width="5.8" height="3.5" rx="1.75"/>
+                        <rect x="17" y="15.4" width="5.8" height="3.5" rx="1.75"/>
+                    </g>
                 </svg>
             </div>
         </header>
@@ -525,9 +547,9 @@
                 </div>
                 <div class="m-btn-row">
                     <div id="m-mode-btn" onclick="toggleMode()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg id="m-mode-icon" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"></svg></div>
-                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 5v14M15.5 6.2L6.8 12l8.7 5.8V6.2z"/></svg></div>
-                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[var(--m-accent)]"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M7.5 4.8v14.4l12-7.2z"></path></svg></div>
-                    <div onclick="handleNext()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5v14M8.5 6.2L17.2 12l-8.7 5.8V6.2z"/></svg></div>
+                    <div onclick="handlePrev()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(-.45 0)"><rect x="17.4" y="4.6" width="2.9" height="14.8" rx="1.45"/><path d="M15.1 5.9a1.3 1.3 0 0 0-2.02-1.1L5.2 10.9a1.3 1.3 0 0 0 0 2.2l7.88 6.1A1.3 1.3 0 0 0 15.1 18.1z"/></g></svg></div>
+                    <div onclick="handlePlayToggle()" class="btn-round btn-main !bg-white !text-[var(--m-accent)]"><svg id="m-p-icon" class="w-10 h-10" fill="currentColor" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><g transform="translate(-1.8 .95)"><path d="M8.4 4.9a1.35 1.35 0 0 1 2.06-1.15l10.1 6.15a1.35 1.35 0 0 1 0 2.3L10.46 18.35A1.35 1.35 0 0 1 8.4 17.2z"/></g></svg></div>
+                    <div onclick="handleNext()" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><g transform="translate(.45 0)"><rect x="3.7" y="4.6" width="2.9" height="14.8" rx="1.45"/><path d="M8.9 5.9a1.3 1.3 0 0 1 2.02-1.1l7.88 6.1a1.3 1.3 0 0 1 0 2.2l-7.88 6.1A1.3 1.3 0 0 1 8.9 18.1z"/></g></svg></div>
                     <div onclick="toggleMobileDrawer(true)" class="btn-round !bg-white !text-[var(--m-accent)]"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4.2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></div>
                 </div>
             </div>
@@ -549,7 +571,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.17</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.18</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="speed-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">倍速</span><div class="flex gap-1.5" id="speed-buttons"></div><span id="speed-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -1152,7 +1174,7 @@
             });
 
             ap.on('play', () => { 
-                const s = '<path d="M7.4 4.6h3.2v14.8H7.4zM13.4 4.6h3.2v14.8h-3.2z"></path>'; 
+                const s = '<rect x="7.1" y="4.4" width="3.6" height="15.2" rx="1.7"/><rect x="13.3" y="4.4" width="3.6" height="15.2" rx="1.7"/>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 // 唱片转圈不在这里启动：play 事件只代表「请求播放」，
                 // 此时音频可能还在加载、读秒没动。改由 syncDiscSpin 依真实读秒驱动。
@@ -1179,7 +1201,7 @@
             });
 
             ap.on('pause', () => { 
-                const s = '<path d="M7.5 4.8v14.4l12-7.2z"></path>'; 
+                const s = '<g transform="translate(-1.8 .95)"><path d="M8.4 4.9a1.35 1.35 0 0 1 2.06-1.15l10.1 6.15a1.35 1.35 0 0 1 0 2.3L10.46 18.35A1.35 1.35 0 0 1 8.4 17.2z"/></g>'; 
                 document.getElementById('p-icon').innerHTML = s; document.getElementById('m-p-icon').innerHTML = s; 
                 document.getElementById('m-disc-wrapper').classList.remove('playing');
                 updateMediaSession();
@@ -1567,15 +1589,26 @@
         function toggleMode() { modeIdx = (modeIdx + 1) % modes.length; updateUIModes(); }
         function updateUIModes() {
             const m = modes[modeIdx]; if (ap) { ap.options.loop = m === 'single' ? 'one' : 'all'; ap.options.order = m === 'random' ? 'random' : 'list'; }
-            // 三个图标统一：24 网格、坐标全部落在 3.5~20.5，给 2.5 描边留出余量。
-            // 旧版 list/single 用 y=1~23 的坐标，描边被视口裁掉，且「列表」画成了循环箭头。
+            // 双色调（duotone）：底层用 0.42 透明度的粗实心块铺「体积」，
+            // 上层用满不透明度的细实心条画「结构」。比纯线性图标更有分量，
+            // 也和按钮「圆润 + 阴影」的语言对得上。
+            // 坐标全部落在 3~21，描边/圆角不会被 24 视口裁掉。
             const icons = {
-                // 列表：三行 + 向右箭头，读作「按顺序往下放」
-                list: '<path d="M3.5 6.5h9.5M3.5 12h9.5M3.5 17.5h9.5M16.5 8.5l3.5 3.5-3.5 3.5"/>',
-                // 单曲循环：环形双箭头 + 中间一个 1
-                single: '<path d="m16.2 3.6 3.4 3.4-3.4 3.4"/><path d="M4.4 11.2v-.8a3.4 3.4 0 0 1 3.4-3.4h11.8"/><path d="m7.8 20.4-3.4-3.4 3.4-3.4"/><path d="M19.6 12.8v.8a3.4 3.4 0 0 1-3.4 3.4H4.4"/><path d="M12.6 9.6v5.2M11.3 10.9l1.3-1.3"/>',
-                // 随机：交叉的双箭头
-                random: '<path d="M3.6 6.8h1.5c1.3 0 2.5.8 3.1 1.9"/><path d="M3.6 17.2h1.5c1.1 0 2.1-.5 2.8-1.4l5.2-7.3c.7-.9 1.7-1.4 2.8-1.4h3.1"/><path d="m16.9 3.7 3.4 3.4-3.4 3.4"/><path d="M20.5 17.2h-3.5c-1.1 0-2.1-.5-2.8-1.4l-.6-.8"/><path d="m16.9 13.8 3.4 3.4-3.4 3.4"/>'
+                // 列表：三条圆角短条 + 实心三角箭头
+                list: '<g transform="translate(-.51 0)"><g opacity=".42"><rect x="3.2" y="5.1" width="10.6" height="2.6" rx="1.3"/><rect x="3.2" y="10.7" width="10.6" height="2.6" rx="1.3"/><rect x="3.2" y="16.3" width="10.6" height="2.6" rx="1.3"/></g>'
+                    + '<path d="M16.1 8.5a1.1 1.1 0 0 1 1.83-.84l3.5 3.5a1.1 1.1 0 0 1 0 1.68l-3.5 3.5A1.1 1.1 0 0 1 16.1 15.5z"/></g>',
+                // 单曲循环：环形双箭头 + 居中的实心「1」
+                single: '<g opacity=".42"><path d="M3.4 12a8.6 8.6 0 0 1 8.6-8.6h5.2a1.3 1.3 0 0 1 0 2.6H12A6 6 0 0 0 6 12a1.3 1.3 0 0 1-2.6 0z"/>'
+                    + '<path d="M20.6 12a8.6 8.6 0 0 1-8.6 8.6H6.8a1.3 1.3 0 0 1 0-2.6H12a6 6 0 0 0 6-6 1.3 1.3 0 0 1 2.6 0z"/></g>'
+                    + '<path d="M16.6 3.1a1.1 1.1 0 0 1 1.87-.3l2.9 3.9a1.1 1.1 0 0 1-.87 1.77h-4.3a1.1 1.1 0 0 1-.87-1.77z"/>'
+                    + '<path d="M7.4 20.9a1.1 1.1 0 0 1-1.87.3l-2.9-3.9a1.1 1.1 0 0 1 .87-1.77h4.3a1.1 1.1 0 0 1 .87 1.77z"/>'
+                    + '<rect x="11.1" y="9.3" width="1.9" height="5.4" rx=".95"/>'
+                    + '<rect x="9.4" y="9.3" width="3.1" height="1.6" rx=".8" opacity=".55"/>',
+                // 随机：交叉双路径 + 实心箭头
+                random: '<g transform="translate(.06 -.21)"><g opacity=".42"><path d="M2.6 7.2a1.3 1.3 0 0 1 1.3-1.3h1.9c1.7 0 3.3 1 4.1 2.5l4.2 7.2c.4.7 1.2 1.2 2 1.2h1.3a1.3 1.3 0 0 1 0 2.6h-1.3c-1.7 0-3.3-1-4.1-2.5L8.1 9.7a1.2 1.2 0 0 0-1.1-.7H3.9a1.3 1.3 0 0 1-1.3-1.8z"/>'
+                    + '<path d="M2.6 16.8a1.3 1.3 0 0 1 1.3-1.3h2.2c.8 0 1.6.4 2 1.1l.5.9a1.3 1.3 0 0 1-2.25 1.3l-.5-.9h-1.95a1.3 1.3 0 0 1-1.3-1.1z"/></g>'
+                    + '<path d="M15.9 2.9a1.15 1.15 0 0 1 1.72-.14l3.4 3.3a1.15 1.15 0 0 1 0 1.66l-3.4 3.3a1.15 1.15 0 0 1-1.72-1.66l2.35-2.28-2.35-2.28a1.15 1.15 0 0 1 0-1.9z"/>'
+                    + '<path d="M15.9 13.5a1.15 1.15 0 0 1 1.72-.14l3.4 3.3a1.15 1.15 0 0 1 0 1.66l-3.4 3.3a1.15 1.15 0 0 1-1.72-1.66l2.35-2.28-2.35-2.28a1.15 1.15 0 0 1 0-1.9z"/></g>'
             };
             document.getElementById('mode-icon').innerHTML = icons[m]; document.getElementById('m-mode-icon').innerHTML = icons[m];
         }
@@ -1630,11 +1663,15 @@
                 ap.volume(0, true); updateVolUI(0); isMuted = true;
             }
         }
-        function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; if(vIcon) vIcon.innerHTML = p === 0
-            ? '<path d="M11 5.5L6.5 9.5H3.5v5h3l4.5 4V5.5z"/><path d="m15.5 9.5 5 5m0-5-5 5"/>'
-            : (p < 0.5
-                ? '<path d="M11 5.5L6.5 9.5H3.5v5h3l4.5 4V5.5z"/><path d="M15 9a4 4 0 0 1 0 6"/>'
-                : '<path d="M11 5.5L6.5 9.5H3.5v5h3l4.5 4V5.5z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M17.8 6.5a7.5 7.5 0 0 1 0 11"/>'); }
+        function updateVolUI(p) { const vBar = document.getElementById('vol-bar'), vIcon = document.getElementById('v-icon'); if(vBar) vBar.style.width = (p * 100) + '%'; // 实心圆角喇叭 + 声波。喇叭主体带圆角，和按钮的圆润语言统一；
+            // 声波用 stroke 但加粗并圆头，弱的那道降透明度做层次。
+            const spk = '<g transform="translate(1 0)"><path d="M11.6 4.9a1.1 1.1 0 0 0-1.78-.87L5.5 7.5H3.4A1.4 1.4 0 0 0 2 8.9v6.2a1.4 1.4 0 0 0 1.4 1.4h2.1l4.32 3.47A1.1 1.1 0 0 0 11.6 19.1z"/></g>';
+            if(vIcon) vIcon.innerHTML = p === 0
+                ? spk + '<path d="m15.4 9.6 5.2 4.8m0-4.8-5.2 4.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/>'
+                : (p < 0.5
+                    ? spk + '<path d="M14.9 9.2a4.2 4.2 0 0 1 0 5.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/>'
+                    : spk + '<path d="M14.9 9.2a4.2 4.2 0 0 1 0 5.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/>'
+                        + '<path d="M17.9 6.6a8 8 0 0 1 0 10.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none" opacity=".45"/>'); }
 
         function adjustVolume(delta) {
             if (!ap) return;
