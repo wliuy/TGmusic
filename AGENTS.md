@@ -97,13 +97,21 @@ pages.dev 域名如果还活着，属于历史残留。删 Pages 项目前若部
 
 ## 预载策略
 
-- **不要在 `ap.on('play')` 里整曲预载下一首**。那会和正在缓冲的这首抢带宽，
-  网速一般时当前曲目反而变慢。play 时只做 `warmHead()`（1.2MB Range 预热）。
-- 整曲预载必须过 `preloadGateOpen()`：当前曲目缓冲 >=12 秒
-  （或 >=15% 且 >=5 秒）才放行。每首只触发一次，切歌时重置 `preloadStartedFid`。
-- 手动切歌必须检查 `nextBlob` 并复用，否则预载白下载（`handleTrackSwitch`）。
-- `handleNext()` 必须用 `ap.nextIndex()`，不要自己 `Math.random()`：
-  随机模式的顺序由 APlayer 的 `randomOrder` 决定，自己算会和预载对不上。
+瓶颈是**连接**（DNS/TLS → Worker → Telegram `getFile` → 首包），不是下载速度。
+歌都小，有 2 秒缓冲就不卡，所以提前把连接成本付掉。
+
+- 当前曲目**听满 2 秒**才触发下一首预载（`NEXT_PRELOAD_AFTER`）。
+  别在 `play` 事件里立刻下：那时这首刚起播，两首会互抢。
+- 预载方式：整曲下载成 Blob（`preloadNextTrack`），不是 Range 预热。
+  ⚠️ 千万别用「取一小段然后 `body.cancel()`」那种写法——半路掐断的响应
+  浏览器不会缓存，等于白连一次，切歌时照样重新建连接。这是旧 `warmHead` 失效的原因。
+- 切歌时必须复用 Blob：`ap.setAudio` 包装 + `handleTrackSwitch` 两处都要检查
+  `nextBlob.fid`。手动点「下一首」和自动连播走的是不同路径，漏一处就会出现
+  「明明下好了却重新联网」。
+- `handleNext()` 用 `ap.nextIndex()`，不要自己算：随机模式的顺序由
+  APlayer 的 `randomOrder` 决定，自己算会和预载的下一首对不上。
+- `preloadStartedFid` 在 `play` 事件里重置，保证每首新歌都能重新触发预载。
+- 单曲循环（`loop === 'one'`）不预载。
 
 ## 图标规范
 

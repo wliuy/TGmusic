@@ -438,7 +438,7 @@
     <div class="desktop-container" id="main-ui">
         <header class="header-stack">
             <h1 class="brand-title" id="brand-title">TGmusic</h1>
-            <p class="brand-sub">Premium Music Hub | v10.2.21</p>
+            <p class="brand-sub">Premium Music Hub | v10.2.22</p>
             <div class="settings-corner">
                 <!-- 设置按钮：更换为高精度垂直滑块图标 (Sliders) -->
                 <div onclick="toggleAdmin(true)" class="btn-round !bg-white/10 border border-white/25 !shadow-xl hover:scale-110 cursor-pointer flex items-center justify-center p-0 overflow-hidden" id="pc-settings-trigger">
@@ -545,7 +545,7 @@
             <div class="admin-header">
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <h3 class="text-xl font-black text-white">设置</h3>
-                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.21</span>
+                    <span class="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded tracking-wider">v10.2.22</span>
                 </div>
                 <div id="admin-header-center">
                     <div id="speed-area" class="hidden"><div class="admin-console-box flex items-center gap-4"><span class="text-[9px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">倍速</span><div class="flex gap-1.5" id="speed-buttons"></div><span id="speed-status" class="text-[10px] text-emerald-400 font-black tabular-nums"></span></div></div>
@@ -895,42 +895,17 @@
             try { return new URLSearchParams((u || '').split('?')[1] || '').get('file_id'); } catch (e) { return null; }
         }
 
-        // 当前曲目已经缓冲多少秒「还没听」的内容。跨 buffer 区间取命中当前播放位置的那段。
-        function bufferedAhead() {
-            const a = ap.audio;
-            if (!a.buffered || !a.buffered.length) return 0;
-            for (let i = 0; i < a.buffered.length; i++) {
-                if (a.buffered.start(i) <= a.currentTime && a.currentTime <= a.buffered.end(i)) {
-                    return a.buffered.end(i) - a.currentTime;
-                }
-            }
-            return 0;
-        }
+        // 听满 2 秒就开始缓冲下一首。真正的瓶颈是连接（DNS/TLS → Worker →
+        // Telegram getFile → 首包），不是下载速度；歌又都小，所以提前两秒动手，
+        // 切歌时整首已经在内存里，直接出声、零等待。
+        const NEXT_PRELOAD_AFTER = 2;
 
-        // 只有当「当前这首」缓冲已经够安全时才允许预载下一首。
-        // 否则两首歌抢同一条带宽，当前这首反而被拖慢 —— 这正是之前"加载慢"的由来：
-        // 旧逻辑在 play 事件里立刻整曲下载下一首，和正在听的这首硬抢。
+        let preloadStartedFid = null;
+
         function preloadGateOpen() {
             const a = ap.audio;
             if (a.paused) return false;
-            const ahead = bufferedAhead();
-            const dur = a.duration || 0;
-            if (ahead >= 12) return true;
-            if (dur > 0 && ahead >= 5 && ahead / dur >= 0.15) return true;
-            return false;
-        }
-
-        // 头部预热：只取开头一小段塞进浏览器 HTTP 缓存（服务端支持 Range）。
-        // 这样真正切歌时首字节立刻可用，不用等首包往返。
-        const HEAD_WARM_BYTES = 1.2 * 1024 * 1024;
-        let headWarmedFid = null, preloadStartedFid = null;
-        function warmHead(url, fid) {
-            if (!url || !fid || headWarmedFid === fid) return;
-            headWarmedFid = fid;
-            fetch(url, {
-                credentials: 'same-origin',
-                headers: { Range: 'bytes=0-' + (HEAD_WARM_BYTES - 1) }
-            }).then(r => { if (r && r.body) r.body.cancel(); }).catch(() => {});
+            return a.currentTime >= NEXT_PRELOAD_AFTER;
         }
 
         function nextTrackInfo() {
@@ -1126,7 +1101,6 @@
                     _origSetAudio(audioObj);
                     audioObj.url = httpUrl;
                     setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-                    preloadNextTrack();
                     return;
                 }
                 _origSetAudio(audioObj);
@@ -1167,10 +1141,8 @@
                     updateHighlights(fid, false);
                 }
                 updateMediaSession();
-                // 立刻只预热下一首的头部（1.2MB，抢不了多少带宽），
-                // 整曲预载要等当前这首缓冲到安全水位才放行（见 preloadGateOpen）。
-                const nxt = nextTrackInfo();
-                if (nxt) { headWarmedFid = null; warmHead(nxt.url, nxt.fid); }
+                // 预载不在这里做：要等这首真的听满 2 秒再动下一首。
+                // 这里只重置标记，让新的一首能重新触发预载。
                 preloadStartedFid = null;
             });
 
@@ -1198,7 +1170,8 @@
 
                 syncLyrics(cur);
 
-                // 当前这首缓冲到安全水位后再预载下一首，避免两首歌抢带宽。
+                // 听满 2 秒就开始缓冲下一首：两首并行下载，下一首下完就常驻内存，
+                // 切歌瞬间直接出声，不用再等那一次昂贵的连接握手。
                 // 每首只触发一次，之后由 preloadNextTrack 自己的去重逻辑兜住。
                 if (preloadStartedFid !== globalPlayingId && preloadGateOpen()) {
                     const nxt = nextTrackInfo();
